@@ -22,6 +22,7 @@
     <a href="{{ url_for('predict') }}"><button class="w3-button w3-black w3-padding-large w3-large w3-margin-top">Predict</button></a>
     <a href="{{ url_for('predict') }}"><button class="w3-button w3-black w3-padding-large w3-large w3-margin-top">Command-line application</button></a>
     <a href="{{ url_for('predict') }}"><button class="w3-button w3-black w3-padding-large w3-large w3-margin-top">FAQs</button></a>
+    <a href="{{ url_for('predict') }}"><button class="w3-button w3-black w3-padding-large w3-large w3-margin-top">Web-server</button></a>
     <a href="https://github.com/IBM/AutoPeptideML"><button class="w3-button w3-black w3-padding-large w3-large w3-margin-top "><i class="fa fa-github"></i> GitHub Repository</button></a>
     <a href="{{ url_for('cite') }}"><button class="w3-button w3-black w3-padding-large w3-large w3-margin-top">How to cite</button></a>
   </header>
@@ -30,16 +31,19 @@
     <div class="w3-content">
       <div class="w3-twothird">
         <h1>Introduction to User Guide</h1>
-        <p class="w3-text-grey"> The aim of this user guide is to provide assistance
-        in the basic use of the web server. Its contents are divided into 5 sections: 
+        <p class="w3-text-grey"> AutoPeptideML is a computational tool that allows for the automatic development of machine learning models for predicting peptide bioactivity. 
+          It has been released both as a web-server application (meant for users without a computational background to easily develop their own models) and as a command-line tool
+          (for users with a more technical background to have more control on the model development process). This guide provides instructions for using both tools, though, 
+          its contents are divided into 5 sections to improve its clarity: 
             <li class="w3-text-grey"><b><ins>Algorithm:</b></ins> provides a description of the computational method and a describes its default configuration for the web-server application.</li>
             <li class="w3-text-grey"><b><ins>Build Predictor:</b></ins> describes the corresponding utility of the web-server, indicates how it should be used, what the format of the inputs ought to be, and provides some examples to allow for simple experimentation.</li>
             <li class="w3-text-grey"><b><ins>Predict:</b></ins> describes the corresponding utility of the web-server, indicating how the inputs should be formatted, what to expect of the outputs, and provides some examples to allow for simple experimentation.</li>
             <li class="w3-text-grey"><b><ins>Command-line application:</b></ins> Guide for installation and of the command-line application.</li>
             <li class="w3-text-grey"><b><ins>FAQs:</b></ins> a collection of answers to the commonly asked questions.</li>
+            <li class="w3-text-grey"><b><ins>Web-server:</b></ins> link to the web-server application.</li>
             <li class="w3-text-grey"><b><ins>GitHub Repository:</b></ins> link to the project GitHub repository where the source code is hosted. Please report any problems with the software as an issue there.</li>
             <li class="w3-text-grey"><b><ins>How to cite:</b></ins> instructions in how to cite the tool.</li>
-        <p class="w3-text-grey" style="margin-top: 10%;">The tool has been developed by <a href = "mailto: raul.fernandezdiaz@ucdconnect.ie">Raul Fernandez-Diaz</a> as a PhD 
+        <p class="w3-text-grey" style="margin-top: 5%;">The tool has been developed by <a href = "mailto: raul.fernandezdiaz@ucdconnect.ie">Raul Fernandez-Diaz</a> as a PhD 
           Student within <a href = "http://shieldslab.ucd.ie/">ShieldsLab</a> at University College Dublin and <a href="https://research.ibm.com/labs/ireland">IBM Research Dublin</a>.
           The web-server is being hosted by IBM Cloud.
       </div>
