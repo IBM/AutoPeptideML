@@ -1,1 +1,26 @@
-AutoPeptideML User Guide
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>AutoPeptideML Home</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <style>
+    body {font-family: "Lato", sans-serif}
+    .mySlides {display: none}
+    </style>
+  </head>
+
+  <!-- Header -->
+  <header class="w3-container w3-cyan w3-center" style="padding:128px 16px">
+    <img src="static/logos/APML_light.png" alt="AutoPeptideML logo" width=600 height=300 style="float:center">
+    <p class="w3-xlarge">Automating Peptide Bioactivity Prediction</p>
+    <a href="{{ url_for('build') }}"><button class="w3-button w3-black w3-padding-large w3-large w3-margin-top">Build Predictor</button></a>
+    <a href="{{ url_for('predict') }}"><button class="w3-button w3-black w3-padding-large w3-large w3-margin-top">Predict</button></form></a>
+    <a href="https://github.com/IBM/AutoPeptideML"><button class="w3-button w3-black w3-padding-large w3-large w3-margin-top">User Guide</button></a>
+    <a href="https://github.com/IBM/AutoPeptideML"><button class="w3-button w3-black w3-padding-large w3-large w3-margin-top "><i class="fa fa-github"></i> GitHub Repository</button></a>
+    <a href="{{ url_for('cite') }}"><button class="w3-button w3-black w3-padding-large w3-large w3-margin-top">How to cite</button></a>
+  </header>
+</html>
