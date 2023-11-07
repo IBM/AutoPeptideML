@@ -5,9 +5,9 @@ AutoPeptideML is an open-source AutoML system for helping scientists without a c
 
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://github.ibm.com/raulfd/AutoPeptideML/blob/main/doc/imgs/APML_dark.png" width="850" class="center">
-  <source media="(prefers-color-scheme: light)" srcset="https://github.ibm.com/raulfd/AutoPeptideML/blob/main/doc/imgs/APML_light.png" width="850" class="center">
-  <img alt="Shows the logo for the AutoPeptideML package." src="https://github.ibm.com/raulfd/AutoPeptideML/blob/main/doc/imgs/APML_light.png">
+  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/IBM/AutoPeptideML/blob/main/doc/imgs/APML_dark.png" width="850" class="center">
+  <source media="(prefers-color-scheme: light)" srcset="https://github.com/IBM/AutoPeptideML/blob/main/doc/imgs/APML_light.png" width="850" class="center">
+  <img alt="Shows the logo for the AutoPeptideML package." src="https://github.com/IBM/AutoPeptideML/blob/main/doc/imgs/APML_light.png">
 </picture>
 
 ## Contents
