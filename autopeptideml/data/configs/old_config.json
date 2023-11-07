@@ -1,0 +1,63 @@
+{
+    "ensemble": [
+        {
+            "model": "K-Nearest Neighbours",
+            "trials": 5,
+            "optimization_metric": "test_matthews_corrcoef",
+            "hyperparameter-space": [
+                {
+                    "name": "n_neighbors",
+                    "type": "int",
+                    "min": 1,
+                    "max": 30,
+                    "log": "False"
+                },
+                {
+                    "name": "weights",
+                    "type": "categorical",
+                    "values": ["uniform", "distance"]
+                }
+            ]
+        },
+        {
+            "model": "RFC",
+            "trials": 10,
+            "optimization_metric": "test_matthews_corrcoef",
+            "hyperparameter-space": [
+                {
+                    "name": "max_depth",
+                    "type": "int",
+                    "min": 2,
+                    "max": 20,
+                    "log": "False"
+                },
+                {
+                    "name": "n_estimators",
+                    "type": "int",
+                    "min": 10,
+                    "max": 100,
+                    "log": "False"
+                }
+            ]
+        },
+        {
+            "model": "SVM",
+            "trials": 5,
+            "optimization_metric": "test_matthews_corrcoef",
+            "hyperparameter-space": [
+                {
+                    "name": "C",
+                    "type": "float",
+                    "min": 1e-7,
+                    "max": 1e1,
+                    "log": "True"
+                },
+                {
+                    "name": "kernel",
+                    "type": "categorical",
+                    "values": ["linear", "rbf", "sigmoid"]
+                }
+            ]
+        }
+    ]
+}

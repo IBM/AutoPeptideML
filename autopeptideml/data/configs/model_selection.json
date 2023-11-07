@@ -1,0 +1,75 @@
+{   
+    "trials": 30,
+    "model_selection": [
+        {
+            "model": "K-Nearest Neighbours",
+            "optimization_metric": "test_matthews_corrcoef",
+            "hyperparameter-space": [
+                {
+                    "name": "n_neighbors",
+                    "type": "int",
+                    "min": 1,
+                    "max": 30,
+                    "log": "False"
+                },
+                {
+                    "name": "weights",
+                    "type": "categorical",
+                    "values": ["uniform", "distance"]
+                }
+            ]
+        },
+        {
+            "model": "RFC",
+            "optimization_metric": "test_matthews_corrcoef",
+            "hyperparameter-space": [
+                {
+                    "name": "max_depth",
+                    "type": "int",
+                    "min": 2,
+                    "max": 20,
+                    "log": "False"
+                },
+                {
+                    "name": "n_estimators",
+                    "type": "int",
+                    "min": 10,
+                    "max": 100,
+                    "log": "False"
+                }
+            ]
+        },
+        {
+            "model": "LightGBM",
+            "optimization_metric": "test_matthews_corrcoef",
+            "hyperparameter-space": [
+                {
+                    "name": "max_depth",
+                    "type": "int",
+                    "min": 1,
+                    "max": 30,
+                    "log": "True"
+                },
+                {
+                    "name": "num_leaves",
+                    "type": "int",
+                    "min": 5,
+                    "max": 50,
+                    "log": "True"
+                },
+                 {
+                    "name": "learning_rate",
+                    "type": "float",
+                    "min": 0.001,
+                    "max": 0.3,
+                     "log": "True"
+                },
+                {
+                    "name": "verbose",
+                    "type": "fixed",
+                    "value": -1
+                }
+            ]
+        }
+    ]
+}

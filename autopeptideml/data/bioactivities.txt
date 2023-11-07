@@ -1,0 +1,124 @@
+Allergen
+Amphibian defense
+Angiogenic
+Anti gram(+)
+Anti gram(-)
+Anti hiv
+Anti hsv
+Anti mrsa
+Anti tb
+Antibacterial/antibiotic
+Antibiofilm
+Anticancer
+Antidote
+Antifungal
+Antihypertensive
+Antiinflammatory
+Antilisterial
+Antimalarial/antiplasmodial
+Antimicrobial
+Antinociceptive
+Antioxidant
+Antiparasitic
+Antiproliferative
+Antiprotozoal
+Antitumour
+Antiviral
+Antiyeast
+Anuro defense
+Apoptosis
+Atheroma related
+Bacteria growth stimulator
+Bacteriocins
+Bile acid-binding
+Bioactive
+Biosynthesis
+Blood pressure
+Blood processes
+Blood-brain barrier crossing
+Bone processes
+Brain peptide
+Cancer cell
+Cell aggregation
+Cell degranulating
+Cell proliferation
+Cell sensing
+Cell-cell communication
+Cell-penetrating
+Channel/receptor modulator
+Chaperone
+Chelator
+Chemotactic
+Chromatine assembly
+Coagulation or anticoagulation
+Cryoprotective
+Cytokine activity
+Cytolytic
+Cytoprotective
+Cytotoxic
+Defense
+Diabetic
+Diuresis
+Dna binding
+Dna replication
+Drug delivery vehicle
+Eating behavior
+Enzymatic
+Enzyme inhibitor
+Gene expression and translation
+Growth factor
+Hemolytic
+Homeostasis
+Hormone
+Hormone binding
+Immunological activity
+Immunomodulatory
+Inflamatory modulator
+Inflammatory modulator
+Insecticidal
+Ligand binding
+Lipid binding
+Mammallian cell
+Metabolic
+Metal binding
+Mhc binding and non-binding
+Microbial growth
+Molecule binding
+Mollicute
+Muscle processes
+Natriuretic
+Nematocide
+Nematode
+Neurological activity
+Neuropeptide
+Neurotoxin
+Opioid
+Other activity
+Pain related
+Peptide binding
+Pheromone
+Plant processes
+Precipitation processes
+Propeptide
+Protein binding
+Protein modulator
+Proteolytic
+Quorum sensing
+Regulatory
+Sensorial
+Sexual/reproduction
+Sexual/reproduction regulation
+Signal peptide
+Signal transduction
+Sporulation
+Surface-immobilized
+Taste & saliva
+Therapeutic
+Toxic
+Toxins
+Transcription processes
+Uricemic
+Vascular
+Vasoconstrictor
+Vasodilator
+Wound healing

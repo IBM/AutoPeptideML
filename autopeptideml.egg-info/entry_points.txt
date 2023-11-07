@@ -1,0 +1,4 @@
+[console_scripts]
+autopeptdeml-predict = autopeptideml.main:predict
+autopeptideml = autopeptideml.main:main
+autopeptideml-setup = autopeptideml.data.preprocess_db:main

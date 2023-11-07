@@ -1,0 +1,33 @@
+Metadata-Version: 2.1
+Name: autopeptideml
+Version: 0.1.0
+Summary: Computational Pipeline for the Automatised Development of Peptide Bioactivity Prediction Models
+Home-page: https://github.ibm.com/raulfd/autopeptideml
+Author: Raul Fernandez-Diaz
+Author-email: raulfd@ibm.com
+License: MIT
+Keywords: autopeptideml
+Classifier: Development Status :: 2 - Pre-Alpha
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: BSD License
+Classifier: Natural Language :: English
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Requires-Python: >=3.9
+
+=============
+AutoPeptideML
+=============
+
+
+
+=======
+History
+=======
+
+0.1.0 (2023-04-27)
+------------------
+
+* First release on PyPI.
