@@ -19,8 +19,8 @@ lib64/
 parts/
 sdist/
 var/
-*/.DS_Store/
-*/peptipedia/*
+.DS_Store
+peptipedia/
 bioactivities.txt
 wheels/
 share/python-wheels/
