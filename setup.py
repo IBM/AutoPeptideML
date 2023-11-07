@@ -65,7 +65,8 @@ requirements = [
     'typing_extensions>=4.7.1',
     'tzdata>=2023.3',
     'urllib3>=2.0.3',
-    'lightgbm>=4.0.0'
+    'lightgbm>=4.0.0',
+    'mdpdf'
 ]
 
 test_requirements = requirements
