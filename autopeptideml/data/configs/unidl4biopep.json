@@ -1,0 +1,20 @@
+{
+    "ensemble":
+    [
+        {
+            "model": "unidl4biopep",
+            "trials": 1,
+            "optimization_metric": "test_matthews_corrcoef",
+            "hyperparameter-space": {
+                "epochs": 100,
+                "optimizer": [
+                    {
+                        "name": "lr",
+                        "type": "fixed",
+                        "value": 0.0001
+                    }
+                ]
+            }
+        }
+    ]
+}
