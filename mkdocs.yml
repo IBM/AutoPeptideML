@@ -1,0 +1,87 @@
+site_name: AutoPeptideML
+site_description: Computational Pipeline for the Automatised Development of Peptide Bioactivity Prediction Models
+watch: [autopeptideml]
+
+nav:
+- Home:
+  - Overview: index.md
+  - Code reference: autopeptideml/
+- Code reference:
+  - AutoPeptideML:
+      - autopeptideml.md
+
+markdown_extensions:
+  - attr_list
+theme:
+    name: material
+    features:
+      - content.code.annotate
+      - navigation.tabs
+      - navigation.top
+    palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: black
+      accent: purple
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: lime
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+      features:
+        - search.suggest
+        - search.highlight
+        - content.tabs.link
+      icon:
+        repo: fontawesome/brands/github-alt
+      language: en
+repo_name: IBM/AutoPeptideML
+repo_url: https://github.com/IBM/AutoPeptideML
+edit_uri: ''
+plugins:
+- search
+- include-markdown
+- mkdocstrings:
+    handlers:
+      python:
+        import:
+        - https://docs.python.org/3/objects.inv
+        - https://installer.readthedocs.io/en/stable/objects.inv  # demonstration purpose in the docs
+        - https://mkdocstrings.github.io/autorefs/objects.inv
+        options:
+          show_source: false
+          docstring_style: sphinx
+          docstring_options:
+            ignore_init_summary: yes
+          merge_init_into_class: yes
+          show_submodules: yes
+- markdownextradata:
+    data: data
+markdown_extensions:
+- toc:
+    permalink: true
+- markdown.extensions.codehilite:
+    guess_lang: false
+- mdx_include:
+    base_path: docs
+- admonition
+- codehilite
+- extra
+- pymdownx.superfences:
+    custom_fences:
+    - name: mermaid
+      class: mermaid
+      format: !!python/name:pymdownx.superfences.fence_code_format ''
+- pymdownx.tabbed:
+    alternate_style: true
+- attr_list
+- md_in_html
+extra:
+  social:
+  - icon: fontawesome/brands/github-alt
+    link: https://github.com/IBM/AutoPeptideML

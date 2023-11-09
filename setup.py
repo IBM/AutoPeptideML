@@ -100,7 +100,7 @@ setup(
     include_package_data=True,
     keywords='autopeptideml',
     name='autopeptideml',
-    packages=find_packages(exclude=['examples', 'doc']),
+    packages=find_packages(exclude=['examples']),
     url='https://github.ibm.com/raulfd/autopeptideml',
     version='0.1.0',
     zip_safe=False,

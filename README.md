@@ -1,14 +1,28 @@
 
-# AutoPeptideML
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/IBM/AutoPeptideML/blob/main/docs/imgs/APML_dark.png" width="850" class="center">
+  <source media="(prefers-color-scheme: light)" srcset="https://github.com/IBM/AutoPeptideML/blob/main/docs/imgs/APML_light.png" width="850" class="center">
+  <img alt="Shows the logo for the AutoPeptideML package." src="https://github.com/IBM/AutoPeptideML/blob/main/docs/imgs/APML_light.png">
+</picture>
+
+<div align="center">
+  <h1>AutoPeptideML</h1>
+
+  <p>
+    <strong>Computational Pipeline for the Automatised Development of Peptide Bioactivity Prediction Models</strong>
+  </p>
+
+  <p>    
+    
+<a href="https://ibm.github.io/autopeptideml/"><img alt="Tutorials" src="https://img.shields.io/badge/docs-tutorials-green" /></a>
+<a href="https://pypi.org/project/autopeptideml/"><img src="https://img.shields.io/pypi/v/autopeptideml" /></a>
+<a href="https://pypi.org/project/autopeptideml/"><img src="https://img.shields.io/pypi/dm/autopeptideml" /></a>
+
+  </p>
+</div>
 
 AutoPeptideML is an open-source AutoML system for helping scientists without a computational backgorund to build their own custom peptide bioactivity predictiors and provide a robust and interpretable evaluation following [DOME](https://www.nature.com/articles/s41592-021-01205-4) community guidelines. For small datasets, please consider using the [AutoPeptideML webserver](http://peptide.ucd.ie/AutoPeptideML).
 
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/IBM/AutoPeptideML/blob/main/doc/imgs/APML_dark.png" width="850" class="center">
-  <source media="(prefers-color-scheme: light)" srcset="https://github.com/IBM/AutoPeptideML/blob/main/doc/imgs/APML_light.png" width="850" class="center">
-  <img alt="Shows the logo for the AutoPeptideML package." src="https://github.com/IBM/AutoPeptideML/blob/main/doc/imgs/APML_light.png">
-</picture>
 
 ## Contents
 
