@@ -3,9 +3,12 @@
 """The setup script."""
 
 from setuptools import setup, find_packages
+from pathlib import Path
+this_directory = Path(__file__).parent
+long_description = (this_directory / "README.md").read_text()
 
-with open('README.md') as readme_file:
-    readme = readme_file.read()
+# with open('README.md', 'r') as readme_file:
+#     readme = readme_file.read()
 
 requirements = [ 
     'alembic>=1.11.1',
@@ -93,6 +96,7 @@ setup(
     install_requires=requirements,
     license="MIT",
     long_description=readme,
+    long_description_content_type='text/markdown',
     include_package_data=True,
     keywords='autopeptideml',
     name='autopeptideml',
