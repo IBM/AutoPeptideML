@@ -14,7 +14,7 @@
 
   <p>    
     
-<a href="https://ibm.github.io/autopeptideml/"><img alt="Tutorials" src="https://img.shields.io/badge/docs-tutorials-green" /></a>
+<a href="https://ibm.github.io/AutoPeptideML/"><img alt="Tutorials" src="https://img.shields.io/badge/docs-tutorials-green" /></a>
 <a href="https://pypi.org/project/autopeptideml/"><img src="https://img.shields.io/pypi/v/autopeptideml" /></a>
 <a href="https://pypi.org/project/autopeptideml/"><img src="https://img.shields.io/pypi/dm/autopeptideml" /></a>
 
