@@ -7,9 +7,6 @@ from setuptools import setup, find_packages
 with open('README.rst') as readme_file:
     readme = readme_file.read()
 
-with open('HISTORY.rst') as history_file:
-    history = history_file.read()
-
 requirements = [ 
     'alembic>=1.11.1',
     'beautifulsoup4>=4.12.2',
@@ -95,13 +92,11 @@ setup(
     },
     install_requires=requirements,
     license="MIT",
-    long_description=readme + '\n\n' + history,
+    long_description=readme,
     include_package_data=True,
     keywords='autopeptideml',
     name='autopeptideml',
-    packages=find_packages(),
-    test_suite='tests',
-    tests_require=test_requirements,
+    packages=find_packages(exclude=['examples', 'doc']),
     url='https://github.ibm.com/raulfd/autopeptideml',
     version='0.1.0',
     zip_safe=False,
