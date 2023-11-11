@@ -36,14 +36,14 @@ class AutoPeptideML:
     ):
         """Initialize instance of the AutoPeptideML class
 
-        Args:
-            - verbose (bool, optional): Whether to output information.
-                                      Defaults to True.
-            - threads (int, optional): Number of threads to compute parallelise
-                                     processes. Defaults to cpu_count().
-            - seed (int, optional): Pseudo-random number generator seed.
-                                  Important for reproducibility.
-                                  Defaults to 42.
+        :param verbose: Whether to output information, defaults to True
+        :type verbose: bool, optional
+        :param threads: Number of threads to compute parallelise
+                        processes, defaults to cpu_count()
+        :type threads: int, optional
+        :param seed: Pseudo-random number generator seed.
+                        Important for reproducibility, defaults to 42
+        :type seed: int, optional
         """
         self.verbose = verbose
         self.threads = threads
