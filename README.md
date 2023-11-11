@@ -1,7 +1,6 @@
-!["AutoPeptideML logo"](https://github.com/IBM/AutoPeptideML/blob/main/docs/imgs/APML_dark.png#gh-dark-mode-only)
-!["AutoPeptideML logo"](https://github.com/IBM/AutoPeptideML/blob/main/docs/imgs/APML_light.png#gh-light-mode-only)
-
 <div align="center">
+  <img height="170x" src="https://ibm.github.io/zshot/img/graph.png" />
+
   <h1>AutoPeptideML</h1>
 
   <p>
