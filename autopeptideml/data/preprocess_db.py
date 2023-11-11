@@ -6,6 +6,7 @@ from multiprocessing import cpu_count
 
 import gdown
 import pandas as pd
+from pandarallel import pandarallel
 
 from autopeptideml.data.residues import is_canonical
 
@@ -72,12 +73,12 @@ def download_db(url: str, **kwargs):
     return file_path
 
 def partition_db(df: pd.DataFrame, threads: int, **kwargs):
-    max_length = df.sequence.map(len).max()
+    max_length = df.sequence.parallel_map(len).max()
     path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'peptipedia')
     os.mkdir(path)
 
     for length in range(5, max_length+5, 5):
-        df_length = df[(df.sequence.map(len) >= length-5) & (df.sequence.map(len) < length)]
+        df_length = df[(df.sequence.parallel_map(len) >= length-5) & (df.sequence.parallel_map(len) < length)]
         if len(df_length) == 0:
             continue
         lengt_path = os.path.join(path, f'peptipedia_{length-5}-{length}.csv')
@@ -99,9 +100,9 @@ def preprocess_db(path: str, threads: int, **kwargs):
     start = time.time()
     df = pd.read_csv(path)
     df.drop_duplicates(subset=['sequence'], inplace=True, ignore_index=True)
-    df = df.apply(lambda x: x.iloc[3:].astype(int), axis=1)
-    df = df[df.apply(lambda x: x.iloc[3:].sum() > 0, axis=1)]
-    df = df[df.sequence.map(is_canonical)]
+    # df = df.parallel_apply(lambda x: x.iloc[3:].astype(int), axis=1)
+    df = df[df.parallel_apply(lambda x: x.iloc[3:].sum() > 0, axis=1)]
+    df = df[df.sequence.parallel_map(is_canonical)]
     df = df.reset_index(drop=True)
 
     with open(os.path.join('/'.join(path.split('/')[:-1]), 'bioactivities.txt'), 'w') as file:
@@ -122,6 +123,7 @@ def main():
     args = parser.parse_args()
     args = vars(args)
     welcome()
+    pandarallel.initialize(nb_workers=args['threads'], verbose=1)
     path = download_db(**args)
     preprocess_db(path, **args)
     os.remove(path)
