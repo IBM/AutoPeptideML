@@ -1,10 +1,6 @@
 <div align="center">
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://ibm.github.io/AutoPeptideML/imgs/APML_dark.png" height="250" class="center">
-  <source media="(prefers-color-scheme: light)" srcset="https://ibm.github.io/AutoPeptideML/imgs/APML_light.png" height="250" class="center">
-  <img alt="Shows the logo for the AutoPeptideML package." src="https://ibm.github.io/AutoPeptideML/imgs/APML_light.png">
-</picture>
-
+  !["AutoPeptideML logo"](https://ibm.github.io/AutoPeptideML/imgs/APML_dark.png#gh-dark-mode-only) { height="250"}
+  !["AutoPeptideML logo"](https://ibm.github.io/AutoPeptideML/imgs/APML_light.png#gh-light-mode-only) { height="250"}
 
   <h1>AutoPeptideML</h1>
 
