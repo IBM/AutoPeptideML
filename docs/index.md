@@ -1,5 +1,7 @@
 <div align="center">
-  <title>AutoPeptideML</title>
+
+AutoPeptideML
+---
 
   <p>
     <strong>Computational Pipeline for the Automatised Development of Peptide Bioactivity Prediction Models</strong>
