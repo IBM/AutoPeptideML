@@ -63,20 +63,20 @@ class AutoPeptideML:
         proportion: float=1.0
     ) -> pd.DataFrame:
         """Method for searching bioactive databases for peptides
-        to use as negatives.
 
-        Args:
-            df_pos (pd.DataFrame): DataFrame with positive peptides.
-            positive_tags (List[str]): List of names of bioactivities
-                                       that may overlap with the target
-                                       bioactivities.
-            proportion (float, optional): Negative:Positive ration in
-                                          the new dataset. Defaults
-                                          to 1.0.
-
-        Returns:
-            pd.DataFrame: New dataset with both positive and negative
-                          peptides.
+        :param df_pos: DataFrame with positive peptides.
+        :type df_pos: pd.DataFrame
+        :param positive_tags: List of names of bioactivities
+                              that may overlap with the target
+                              bioactivities.
+        :type positive_tags: List[str]
+        :param proportion: Negative:Positive ration in
+                           the new dataset. Defaults to 1.0.,
+                           defaults to 1.0.
+        :type proportion: float, optional
+        :return: New dataset with both positive and negative
+                 peptides.
+        :rtype: pd.DataFrame
         """
         if self.verbose is True:
             print('\nStep 2: Autosearch for negative peptides')
@@ -142,17 +142,14 @@ class AutoPeptideML:
         return df.reset_index(drop=True)
 
     def balance_samples(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Oversample the underrepresented class in the
-        DataFrame.
+        """Oversample the underrepresented class in the DataFrame.
 
-        Args:
-            df (pd.DataFrame): DataFrame with positive and
-                               negative peptides to be
-                               balanced.
-
-        Returns:
-            pd.DataFrame: DataFrame with balanced number of 
-                          positive and negative peptides.
+        :param df:  DataFrame with positive and
+                    negative peptides to be balanced.
+        :type df: pd.DataFrame
+        :return: DataFrame with balanced number of 
+                 positive and negative peptides.
+        :rtype: pd.DataFrame
         """
         df.Y = df.Y.map(int)
         df_pos, df_neg = deepcopy(df[df.Y == 1]), deepcopy(df[df.Y == 0])
@@ -184,17 +181,14 @@ class AutoPeptideML:
         RepresentationEngine class to compute representations
         for the peptides in the `dataasets`.
 
-        Args:
-            datasets (Dict[str, pd.DataFrame]): dictionary with the dataset
-                                                partitions as DataFrames.
-                                                Output from the method 
-                                                `train_test_partition`
-            re (RepresentationEngine): class with a Protein Representation
-                                       Model.
-
-        Returns:
-            dict: Dictionary with pd.DataFrame `id` column as keys and
-                  `sequence` as values.
+        :param datasets: dictionary with the dataset partitions as DataFrames.
+                        Output from the method `train_test_partition`.
+        :type datasets: Dict[str, pd.DataFrame]
+        :param re: class with a Protein Representation Model.
+        :type re: RepresentationEngine
+        :return: Dictionary with pd.DataFrame `id` column as keys and
+                 the representation of the `sequence` column as values.
+        :rtype: dict
         """
         if self.verbose is True:
             print('\nStep 4: PLM Peptide Featurization')
@@ -212,14 +206,12 @@ class AutoPeptideML:
         """Load a DataFrame or use one already loaded and then remove
         all entries with non-canonical residues or repeated sequences.
 
-
-        Args:
-            dataset (Union[str, pd.DataFrame]): Dataset or path to dataset.
-            outputdir (str, optional): Path were to save the curated dataset.
-            Defaults to None.
-
-        Returns:
-            pd.DataFrame: Curated dataset
+        :param dataset: Dataset or path to dataset.
+        :type dataset: Union[str, pd.DataFrame]
+        :param outputdir: Path were to save the curated dataset, defaults to None
+        :type outputdir: str, optional
+        :return: Curated dataset.
+        :rtype: pd.DataFrame
         """
         if self.verbose is True:
             print('\nStep 1: Dataset curation')
@@ -252,16 +244,18 @@ class AutoPeptideML:
     ) -> pd.DataFrame:
         """Evaluate an ensemble model.
 
-        Args:
-            best_model (list): List of models with a `predict_proba` method.
-            test_df (pd.DataFrame): Evaluation dataset with `id`, `sequence`
-                                    and `Y` columns.
-            id2rep (dict): Dictionary with keys being the `id` and the values
-                           the peptide representations.
-            outputdir (str): Path were to save the evaluation data.
-
-        Returns:
-            pd.DataFrame: Dataset with the evaluation metrics.
+        :param best_model:  List of models with a `predict_proba` method.
+        :type best_model: list
+        :param test_df: Evaluation dataset with `id`, `sequence`
+                        and `Y` columns.
+        :type test_df: pd.DataFrame
+        :param id2rep: Dictionary with keys being the `id` and the values
+                       the peptide representations.
+        :type id2rep: dict
+        :param outputdir: Path were to save the evaluation data.
+        :type outputdir: str
+        :return: Dataset with the evaluation metrics.
+        :rtype: pd.DataFrame
         """
         if self.verbose is True:
             print('\nStep 6: Model evaluation')
@@ -309,7 +303,28 @@ class AutoPeptideML:
         folds: list,
         outputdir: str,
         n_jobs: int=1
-    ):
+    ) -> list:
+        """Hyperparameter Optimisation and training.
+
+        :param config: dictionary with hyperparameter search space.
+        :type config: dict
+        :param train_df: Training dataset with `id` column and `Y` column
+                         with the bioactivity target.
+        :type train_df: pd.DataFrame
+        :param id2rep: Dictionary with pd.DataFrame `id` column as keys and
+                       the representation of the `sequence` column as values.
+        :type id2rep: dict
+        :param folds: List with the training/validation folds
+        :type folds: list
+        :param outputdir: Path to the directory where information should be
+                          saved.
+        :type outputdir: str
+        :param n_jobs: Number of threads to parallelise the training,
+                       defaults to 1.
+        :type n_jobs: int, optional
+        :return: List with the models that comprise the final ensemble.
+        :rtype: list
+        """
         if self.verbose is True:
             print('\nStep 5: Hyperparameter Optimisation and Model Training')
         np.random.seed(self.seed)
@@ -420,7 +435,30 @@ class AutoPeptideML:
         test_size: float=0.2,
         alignment: str='mmseqs+prefiler',
         outputdir: str='./splits'
-    ) -> dict:
+    ) -> Dict[str, pd.DataFrame]:
+        """Novel homology partitioning algorithm for generating
+        independent hold-out evaluation sets.
+
+        :param df: Dataset to partition with the following columns
+                   `id`, `sequence`, and `labels`.
+        :type df: pd.DataFrame
+        :param threshold: Maximum sequence identity allowed between sequences
+                          in training and evaluation sets, defaults to 0.3
+        :type threshold: float, optional
+        :param test_size: Proportion of samples in evaluation set, defaults to 0.2
+        :type test_size: float, optional
+        :param alignment: Alignment algorithm to use. Options available: 
+                          `mmseqs` (local Smith-Waterman alignment), `mmseqs+prefilter`
+                          (local fast alignment Smith-Waterman + k-mer prefiltering),
+                          and `needle` (global Needleman-Wunch alignment),
+                          defaults to 'mmseqs+prefiler'
+        :type alignment: str, optional
+        :param outputdir: Path were information should be stored, defaults to './splits'
+        :type outputdir: str, optional
+        :return: Dictionary with keys `train` and `test` and values the corresponding
+                 DataFrames.
+        :rtype: Dict[str, pd.DataFrame]
+        """
         if self.verbose == True:
             print('\nStep 3a: Dataset Partitioning (Train/Test)')
         np.random.seed(self.seed)
@@ -456,12 +494,35 @@ class AutoPeptideML:
     def train_val_partition(
         self,
         df: pd.DataFrame,
-        method: str,
+        method: str='random',
         threshold: float=0.5,
         alignment: str='mmseqs+prefilter',
         n_folds : int=10,
         outputdir: str='./folds'
     ) -> list:
+        """Method for generating `n` training/validation folds for
+        cross-validation.
+
+        :param df: Training dataset with `id`, `sequence`, and `Y` columns.
+        :type df: pd.DataFrame
+        :param method: Method for generating the folds. Options available:
+                       `random` through `sklearn.model_selection.StratifiedKFold` or
+                       `graph-part` through `graphpart.stratified_k_fold`, defaults to
+                       `random`.
+        :type method: str
+        :param threshold: If mode is `graph-part` maximum sequence identity allowed
+                          between sequences
+                          in training and evaluation sets, defaults to 0.5
+        :type threshold: float, optional
+        :param alignment: _description_, defaults to 'mmseqs+prefilter'
+        :type alignment: str, optional
+        :param n_folds: _description_, defaults to 10
+        :type n_folds: int, optional
+        :param outputdir: _description_, defaults to './folds'
+        :type outputdir: str, optional
+        :return: _description_
+        :rtype: list
+        """
         if self.verbose == True:
             print('\nStep 3b: Dataset Partitioning (Train/Val)')
         np.random.seed(self.seed)
