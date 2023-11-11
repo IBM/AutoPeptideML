@@ -1,5 +1,5 @@
 <div align="center">
-  <img height="170x" src="https://ibm.github.io/zshot/img/graph.png" />
+  <img height="170x" src="https://github.com/IBM/AutoPeptideML/blob/main/docs/imgs/APML_light.png" />
 
   <h1>AutoPeptideML</h1>
 
