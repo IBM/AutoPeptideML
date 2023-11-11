@@ -1,5 +1,5 @@
-!["AutoPeptideML logo"](https://github.com/IBM/AutoPeptideML/blob/main/docs/imgs/APML_dark.png#only-dark)
-!["AutoPeptideML logo"](https://github.com/IBM/AutoPeptideML/blob/main/docs/imgs/APML_light.png#only-light)
+!["AutoPeptideML logo"](https://github.com/IBM/AutoPeptideML/blob/main/docs/imgs/APML_dark.png#gh-dark-mode-only)
+!["AutoPeptideML logo"](https://github.com/IBM/AutoPeptideML/blob/main/docs/imgs/APML_light.png#gh-light-mode-only)
 
 <div align="center">
   <h1>AutoPeptideML</h1>
@@ -125,28 +125,28 @@ Data used to benchmark our approach has been selected from the benchmarks collec
 **Dataset construction**
 
 - `dataset`: File with positive peptides in `FASTA` or `CSV` file. It can also contain negative peptides in which case the files should contain the labels (0: negative or 1: positive) either in the header (`FASTA`) or in column `Y` (`CSV`).
-
 - `--balance`: If `True`, it balances the datasets by oversampling the underrepresented label.
-
 -  `--autosearch`: If `True`, it searches for negative peptides.
 -  `--autosearch_tags`: Comma separated list of tags that may overlap with positive activity that are going to be excluded from the negative peptides.
 -  `--autosearch_proportion`: Negative:positive ration when automatically drawing negative controls from the bioactive peptides database (Default: 1.0).
 
 
 **Output**
+
 - `--outputdirdir`: Output directory (Default: `./apml_result/apml_result`).
 
 **Protein Language Model**
+
 - `--plm`: Protein Language Model for computing peptide representations. Available options: `esm2-8m`, `esm2-35m`, `esm2-150m`, `esm2-650m`, `esm2-3b`, `esm2-15b`, `esm1b`, `prot-t5-xxl`, `prot-t5-xl`, `protbert`, `prost-t5`. (Default: `esm2-8m`). Please note: Larger Models might not fit into GPU RAM, if it is necessary for your purposes, please create a new issue.
 - `--plm_batch_size`: Number of peptides for which to batch the PLM computation.(Default: 12).
 
 **Dataset Partitioning**
+
 - `--test_partition`: Whether to divide the dataset in train/test splits. (Default: `True`).
 - `--test_threshold`: Maximum sequence identity allowed between train and test. (Default: 0.3).
 - `--test_size`: Proportion of data to be assigned to evaluation set. (Default: 0.2).
 - `--test_alignment`: Alignment algorithm used for computing sequence identities. Available options: `mmseqs`, `mmseqs+prefilter`, `needle`. (Default: `mmseqs+prefilter`).
 - `--splits`: Path to directory with train and test splits. Expected contents: `train.csv` and `test.csv`.
-
 - `--val_partition`: Whether to divide dataset in train/validation folds.
 - `--val_method`: Method to use for creating train/validation folds. Options available: `random`, `graph-part`. (Default: `random`)
 - `--val_threshold`: Maximum sequence identity allowed between train and validation. (Default: 0.5).
@@ -159,9 +159,11 @@ Data used to benchmark our approach has been selected from the benchmarks collec
 - `--config`: Name of one of the pre-defined configuration files (see `autopeptideml/data/configs`) or path to a custom configuration file (see next section).
 
 **Other**
+
 - `--verbose`: Whether to display information about runtime (Default: True).
 - `--threads`: Number of threads to use for parallelization. (Default: Number of cores in the machine).
 - `--seed`: Seed for pseudorandom number generators. Controls stochastic processes. (Default: 42)
+
 </details>
 
 <details markdown="1"><summary><b>2. Predict</summary></b><a name="predict"></a>
