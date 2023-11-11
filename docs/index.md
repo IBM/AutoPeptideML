@@ -1,5 +1,4 @@
-!["AutoPeptideML logo"](https://github.com/IBM/AutoPeptideML/blob/main/docs/imgs/APML_dark.png#only-dark)
-!["AutoPeptideML logo"](https://github.com/IBM/AutoPeptideML/blob/main/docs/imgs/APML_light.png#only-light)
+!["AutoPeptideML logo"](https://github.com/IBM/AutoPeptideML/blob/main/docs/imgs/APML_light.png)
 
 <div align="center">
   <h1>AutoPeptideML</h1>
