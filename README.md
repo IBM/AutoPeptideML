@@ -4,7 +4,7 @@
   <h1>AutoPeptideML</h1>
 
   <p>
-    <strong>Computational Pipeline for the Automatised Development of Peptide Bioactivity Prediction Models</strong>
+    <strong>AutoML system for building trustworthy peptide bioactivity predictors</strong>
   </p>
 
   <p>    
@@ -20,9 +20,7 @@
 - **Source Code:** <a href="https://github.com/IBM/AutoPeptideML" target="_blank">https://github.com/IBM/AutoPeptideML</a>
 - **Webserver:** <a href="http://peptide.ucd.ie/AutoPeptideML" target="_blank">http://peptide.ucd.ie/AutoPeptideML</a>
 
-AutoPeptideML is an AutoML system for building trustworthy peptide bioactivity predictors. 
-
-It allows researchers without prior knowledge of machine learning to build models that are:
+AutoPeptideML allows researchers without prior knowledge of machine learning to build models that are:
 
 - **Trustworthy:** Robust evaluation following community guidelines for ML evaluation reporting in life sciences [DOME](https://www.nature.com/articles/s41592-021-01205-4).
 - **Interpretable:** Output contains a PDF summary of the model evaluation explaining how to interpret the results to understand how reliable the model is.
