@@ -1,5 +1,10 @@
 <div align="center">
-  <img height="250x" src="https://ibm.github.io/AutoPeptideML/imgs/APML_light.png" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://ibm.github.io/AutoPeptideML/imgs/APML_dark.png" height="250" class="center">
+  <source media="(prefers-color-scheme: light)" srcset="https://ibm.github.io/AutoPeptideML/imgs/APML_light.png" height="250" class="center">
+  <img alt="Shows the logo for the AutoPeptideML package." src="https://ibm.github.io/AutoPeptideML/imgs/APML_light.png">
+</picture>
+
 
   <h1>AutoPeptideML</h1>
 
