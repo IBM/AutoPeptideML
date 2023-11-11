@@ -24,12 +24,27 @@ from .utils.dataset_split import make_graphs_from_sequences, train_test
 
 
 class AutoPeptideML:
+    """
+    Main class for handling the automatic development
+    of bioactive peptide ML predictors.
+    """
     def __init__(
         self,
         verbose: bool=True,
         threads: int=cpu_count(),
         seed: int=42
     ):
+        """Initialize instance of the AutoPeptideML class
+
+        Args:
+            verbose (bool, optional): Whether to output information.
+                                      Defaults to True.
+            threads (int, optional): Number of threads to compute parallelise
+                                     processes. Defaults to cpu_count().
+            seed (int, optional): Pseudo-random number generator seed.
+                                  Important for reproducibility.
+                                  Defaults to 42.
+        """
         self.verbose = verbose
         self.threads = threads
         self.seed = seed
@@ -47,6 +62,22 @@ class AutoPeptideML:
         positive_tags: List[str],
         proportion: float=1.0
     ) -> pd.DataFrame:
+        """Method for searching bioactive databases for peptides
+        to use as negatives.
+
+        Args:
+            df_pos (pd.DataFrame): DataFrame with positive peptides.
+            positive_tags (List[str]): List of names of bioactivities
+                                       that may overlap with the target
+                                       bioactivities.
+            proportion (float, optional): Negative:Positive ration in
+                                          the new dataset. Defaults
+                                          to 1.0.
+
+        Returns:
+            pd.DataFrame: New dataset with both positive and negative
+                          peptides.
+        """
         if self.verbose is True:
             print('\nStep 2: Autosearch for negative peptides')
 
@@ -111,6 +142,18 @@ class AutoPeptideML:
         return df.reset_index(drop=True)
 
     def balance_samples(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Oversample the underrepresented class in the
+        DataFrame.
+
+        Args:
+            df (pd.DataFrame): DataFrame with positive and
+                               negative peptides to be
+                               balanced.
+
+        Returns:
+            pd.DataFrame: DataFrame with balanced number of 
+                          positive and negative peptides.
+        """
         df.Y = df.Y.map(int)
         df_pos, df_neg = deepcopy(df[df.Y == 1]), deepcopy(df[df.Y == 0])
 
@@ -134,9 +177,25 @@ class AutoPeptideML:
     
     def compute_representations(
         self,
-        datasets: Dict[str, str],
+        datasets: Dict[str, pd.DataFrame],
         re: RepresentationEngine
     ) -> dict:
+        """Use a Protein Representation Model, loaded with the
+        RepresentationEngine class to compute representations
+        for the peptides in the `dataasets`.
+
+        Args:
+            datasets (Dict[str, pd.DataFrame]): dictionary with the dataset
+                                                partitions as DataFrames.
+                                                Output from the method 
+                                                `train_test_partition`
+            re (RepresentationEngine): class with a Protein Representation
+                                       Model.
+
+        Returns:
+            dict: Dictionary with pd.DataFrame `id` column as keys and
+                  `sequence` as values.
+        """
         if self.verbose is True:
             print('\nStep 4: PLM Peptide Featurization')
         id2rep = {}
@@ -149,7 +208,19 @@ class AutoPeptideML:
         self,
         dataset: Union[str, pd.DataFrame],
         outputdir: str=None
-    ) -> pd.DataFrame:       
+    ) -> pd.DataFrame:
+        """Load a DataFrame or use one already loaded and then remove
+        all entries with non-canonical residues or repeated sequences.
+
+
+        Args:
+            dataset (Union[str, pd.DataFrame]): Dataset or path to dataset.
+            outputdir (str, optional): Path were to save the curated dataset.
+            Defaults to None.
+
+        Returns:
+            pd.DataFrame: Curated dataset
+        """
         if self.verbose is True:
             print('\nStep 1: Dataset curation')
         
@@ -172,7 +243,26 @@ class AutoPeptideML:
         df = df[~pd.isna(df.sequence)]
         return df
 
-    def evaluate_model(self, best_model, test_df: pd.DataFrame, id2rep: dict, outputdir: str) -> pd.DataFrame:
+    def evaluate_model(
+        self,
+        best_model: list,
+        test_df: pd.DataFrame,
+        id2rep: dict,
+        outputdir: str
+    ) -> pd.DataFrame:
+        """Evaluate an ensemble model.
+
+        Args:
+            best_model (list): List of models with a `predict_proba` method.
+            test_df (pd.DataFrame): Evaluation dataset with `id`, `sequence`
+                                    and `Y` columns.
+            id2rep (dict): Dictionary with keys being the `id` and the values
+                           the peptide representations.
+            outputdir (str): Path were to save the evaluation data.
+
+        Returns:
+            pd.DataFrame: Dataset with the evaluation metrics.
+        """
         if self.verbose is True:
             print('\nStep 6: Model evaluation')
         raw_data_path = os.path.join(outputdir, 'evaluation_data')
