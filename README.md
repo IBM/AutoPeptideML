@@ -26,7 +26,7 @@ AutoPeptideML is an open-source AutoML system for helping scientists without a c
 
 ## Contents
 
-<details open><summary><b>Table of Contents</b></summary>
+<details open markdown="1"><summary><b>Table of Contents</b></summary>
 
 - [Intallation Guide](#installation)
 - [Benchmark Data](#benchmark)
@@ -124,7 +124,7 @@ Data used to benchmark our approach has been selected from the benchmarks collec
 
 ## Documentation <a name="documentation"></a>
 
-<details><summary><b>1. Model builder options</summary></b><a name="builder"></a>
+<details markdown="1"><summary><b>1. Model builder options</summary></b><a name="builder"></a>
 
 **Dataset construction**
 
@@ -168,7 +168,7 @@ Data used to benchmark our approach has been selected from the benchmarks collec
 - `--seed`: Seed for pseudorandom number generators. Controls stochastic processes. (Default: 42)
 </details>
 
-<details><summary><b>2. Predict</summary></b><a name="predict"></a>
+<details markdown="1"><summary><b>2. Predict</summary></b><a name="predict"></a>
 
 - `dataset`: File with problem peptides in `FASTA` or `CSV` file.
 - `--ensemble`: Path to the a file containing a previous AutoPeptideML result.
@@ -180,7 +180,7 @@ Data used to benchmark our approach has been selected from the benchmarks collec
 
 </details>
 
-<details><summary><b>3. Hyperparameter Optimisation and model selection</summary></b><a name="hpo"></a>
+<details markdown="1"><summary><b>3. Hyperparameter Optimisation and model selection</summary></b><a name="hpo"></a>
 
 The experiment configuration is a file in `JSON` format describing the hyperparameter optimisation search space and the composition of the final ensemble. The first level of the file is a dictionary with a single key (`ensemble` or `model_selection` or `model_selection`) and a list of search spaces for the hyperparameter optimisation. For each model within the `ensemble` list, `n` different models will be trained one per cross-validation fold; in the case of `model_selection`, only one of the algorithms will comprise the final ensemble; in the case of `model_selection`, only one of the algorithms will comprise the final ensemble.
 
@@ -200,7 +200,7 @@ There is an example available in the [default configuration file](https://github
 
 </details>
 
-<details><summary><b>4. API</summary></b><a name="api"></a>
+<details markdown="1"><summary><b>4. API</summary></b><a name="api"></a>
 
 Example notebooks and documentation in how to use the API can be found in the `examples` directory.
 
