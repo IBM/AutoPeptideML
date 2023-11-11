@@ -31,7 +31,7 @@ test_requirements = requirements
 setup(
     author="Raul Fernandez-Diaz",
     author_email='raulfd@ibm.com',
-    python_requires='>=3.9',
+    python_requires='>=3.10',
     classifiers=[
     ],
     description="AutoML system for building trustworthy peptide bioactivity predictors",
