@@ -76,14 +76,6 @@ setup(
     author_email='raulfd@ibm.com',
     python_requires='>=3.9',
     classifiers=[
-        'Development Status :: 2 - Pre-Alpha',
-        'Intended Audience :: Developers',
-        'License :: OSI Approved :: BSD License',
-        'Natural Language :: English',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.9',
-        'Programming Language :: Python :: 3.10',
-        'Programming Language :: Python :: 3.11',
     ],
     description="Computational Pipeline for the Automatised Development of Peptide Bioactivity Prediction Models",
     entry_points={
