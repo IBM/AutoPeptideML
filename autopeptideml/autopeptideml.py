@@ -510,17 +510,22 @@ class AutoPeptideML:
                        `graph-part` through `graphpart.stratified_k_fold`, defaults to
                        `random`.
         :type method: str
-        :param threshold: If mode is `graph-part` maximum sequence identity allowed
+        :param threshold: If mode is `graph-part`, maximum sequence identity allowed
                           between sequences
                           in training and evaluation sets, defaults to 0.5
         :type threshold: float, optional
-        :param alignment: _description_, defaults to 'mmseqs+prefilter'
+        :param alignment: If mode is `graph-part`,
+                          alignment algorithm to use. Options available: 
+                          `mmseqs` (local Smith-Waterman alignment), `mmseqs+prefilter`
+                          (local fast alignment Smith-Waterman + k-mer prefiltering),
+                          and `needle` (global Needleman-Wunch alignment),
+                          defaults to 'mmseqs+prefiler', defaults to 'mmseqs+prefilter'
         :type alignment: str, optional
-        :param n_folds: _description_, defaults to 10
+        :param n_folds: Number of training/validation folds to generate, defaults to 10
         :type n_folds: int, optional
-        :param outputdir: _description_, defaults to './folds'
+        :param outputdir: Path where data should be saved, defaults to './folds'
         :type outputdir: str, optional
-        :return: _description_
+        :return: List of training/validation folds
         :rtype: list
         """
         if self.verbose == True:
