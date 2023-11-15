@@ -23,16 +23,16 @@ theme:
       scheme: default
       primary: black
       accent: purple
-      toggle:
-        icon: material/weather-sunny
-        name: Switch to light mode
+      # toggle:
+      #   icon: material/weather-sunny
+      #   name: Switch to light mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
       primary: black
       accent: lime
-      toggle:
-        icon: material/weather-night
-        name: Switch to dark mode
+      # toggle:
+      #   icon: material/weather-night
+      #   name: Switch to dark mode
       features:
         - search.suggest
         - search.highlight
