@@ -2,7 +2,8 @@
 
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://ibm.github.io/AutoPeptideML/imgs/APML_dark.png" height="250x">
-    <img alt="logo" src="https://ibm.github.io/AutoPeptideML/imgs/APML_light.png">
+    <source media="(prefers-color-scheme: light)" srcset="https://ibm.github.io/AutoPeptideML/imgs/APML_dark.png" height="250x">
+<!--     <img alt="logo" src="https://ibm.github.io/AutoPeptideML/imgs/APML_light.png"> -->
   </picture>
 
   <h1>AutoPeptideML</h1>
