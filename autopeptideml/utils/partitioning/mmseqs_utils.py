@@ -87,9 +87,12 @@ def generate_edges_mmseqs(
             f'{outputdir}/seq_db', f'{outputdir}/pref', '-v', f'{mmseqs_v}'
         ])
     else:
+        fake_prefilter = os.path.join(
+            os.path.realpath(os.path.dirname(__file__)), 'mmseqs_fake_prefilter.sh'
+        )
         subprocess.run(
             [
-                '/Users/raulfd/Projects/SSGA_parent/ssga/alignment_utils/mmseqs_fake_prefilter.sh', 
+                fake_prefilter, 
                 f'{outputdir}/seq_db', f'{outputdir}/seq_db', f'{outputdir}/pref', 'seq_db']
         )
 
