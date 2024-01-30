@@ -50,6 +50,6 @@ setup(
     name='autopeptideml',
     packages=find_packages(exclude=['examples']),
     url='https://github.ibm.com/raulfd/autopeptideml',
-    version='0.2.3',
+    version='0.2.4',
     zip_safe=False,
 )
