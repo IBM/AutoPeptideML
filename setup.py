@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """The setup script."""
-
+import os
 from setuptools import setup, find_packages
 from pathlib import Path
 
@@ -16,6 +16,7 @@ requirements = [
     'networkx',
     'optuna',
     'pandarallel',
+    'scipy<=1.11.4',
     'scikit-learn',
     'scikit-plot',
     'tokenizers',
@@ -27,7 +28,9 @@ requirements = [
 ]
 
 test_requirements = requirements
-
+files = [f'autopeptideml/data/peptipedia/{file}' for file in
+         os.listdir('autopeptideml/data/peptipedia')]
+files.append('autopeptideml/data/bioactivities.txt')
 setup(
     author="Raul Fernandez-Diaz",
     author_email='raulfd@ibm.com',
@@ -46,10 +49,11 @@ setup(
     license="MIT",
     long_description=readme,
     long_description_content_type='text/markdown',
+    data_files=[('', files)],
     keywords='autopeptideml',
     name='autopeptideml',
     packages=find_packages(exclude=['examples']),
     url='https://github.ibm.com/raulfd/autopeptideml',
-    version='0.2.4',
+    version='0.2.5',
     zip_safe=False,
 )
