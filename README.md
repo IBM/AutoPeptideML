@@ -216,7 +216,7 @@ There is an example available in the [default configuration file](https://github
 
 <details markdown="1"><summary><b>4. API</summary></b><a name="api"></a>
 
-Example notebooks and documentation in how to use the API can be found in the `examples` directory.
+Please check the [Code reference documentation](https://ibm.github.io/AutoPeptideML/autopeptideml/)
 
 </details>
 
