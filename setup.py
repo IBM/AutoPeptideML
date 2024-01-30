@@ -46,7 +46,6 @@ setup(
     license="MIT",
     long_description=readme,
     long_description_content_type='text/markdown',
-    include_package_data=True,
     keywords='autopeptideml',
     name='autopeptideml',
     packages=find_packages(exclude=['examples']),
