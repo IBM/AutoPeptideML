@@ -32,17 +32,17 @@ class FlexibleObjective:
 
     def __call__(self, trial):
         hyperparameter_space = {}
-        
+
         for variable in self.config:
             if variable['type'] == 'int':
                 hyperparameter_space[variable['name']] = trial.suggest_int(f"{self.name}_{variable['name']}", variable['min'], variable['max'], log=variable['log'])
-            
+
             elif variable['type'] == 'float':
                 hyperparameter_space[variable['name']] = trial.suggest_float(f"{self.name}_{variable['name']}", variable['min'], variable['max'], log=variable['log'])
-            
+
             elif variable['type'] == 'categorical':
                 hyperparameter_space[variable['name']] = trial.suggest_categorical(f"{self.name}_{variable['name']}", variable['values'])
-            
+
             elif variable['type'] == 'fixed':
                 hyperparameter_space[variable['name']] = variable['value']
 
