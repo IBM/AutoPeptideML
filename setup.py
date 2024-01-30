@@ -31,6 +31,7 @@ test_requirements = requirements
 files = [f'autopeptideml/data/peptipedia/{file}' for file in
          os.listdir('autopeptideml/data/peptipedia')]
 files.append('autopeptideml/data/bioactivities.txt')
+files.append('autopeptideml/data/readme_ex.md')
 setup(
     author="Raul Fernandez-Diaz",
     author_email='raulfd@ibm.com',
@@ -55,6 +56,6 @@ setup(
     name='autopeptideml',
     packages=find_packages(exclude=['examples']),
     url='https://github.ibm.com/raulfd/autopeptideml',
-    version='0.2.6',
+    version='0.2.7',
     zip_safe=False,
 )
