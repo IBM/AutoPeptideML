@@ -128,3 +128,14 @@ def main():
     preprocess_db(path, **args)
     os.remove(path)
     goodbye()
+
+
+def prepare_db():
+    threads = cpu_count()
+    url = 'https://drive.google.com/uc?id=1x3yHNl8k5teHlBI2FMgl966o51s0T8i_'
+    welcome()
+    pandarallel.initialize(nb_workers=threads, verbose=1)
+    path = download_db(threads=threads, url=url)
+    preprocess_db(path, threads=threads)
+    os.remove(path)
+    goodbye()
