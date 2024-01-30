@@ -50,10 +50,11 @@ setup(
     long_description=readme,
     long_description_content_type='text/markdown',
     data_files=[('', files)],
+    include_package_data=True,
     keywords='autopeptideml',
     name='autopeptideml',
     packages=find_packages(exclude=['examples']),
     url='https://github.ibm.com/raulfd/autopeptideml',
-    version='0.2.5',
+    version='0.2.6',
     zip_safe=False,
 )
