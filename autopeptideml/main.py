@@ -66,6 +66,7 @@ def parse_cli_predict():
     parser.add_argument('--plm_batch_size', type=int, default=12)
     return parser.parse_args()
 
+
 def main():
     args = parse_cli()
 
@@ -84,7 +85,7 @@ def main():
             df['id'] = df.index
 
     if (args.autosearch == 'auto' and len(df[df.Y == 0]) < 1 or
-        args.autosearch == 'True'):
+       args.autosearch == 'True'):
         df = apml.autosearch_negatives(
             df,
             args.autosearch_tags.split(','),
@@ -94,7 +95,7 @@ def main():
         df = apml.balance_samples(df)
 
     if args.test_partition == 'True' and args.splits is None:
-        datasets = apml.train_test_partition(
+        datasets = apml.train_test_partaition(
             df,
             args.test_threshold,
             args.test_size,
@@ -129,7 +130,7 @@ def main():
             os.path.dirname(os.path.realpath(__file__)),
             'data', 'configs', args.config + '.json'
         )
-        
+
     model = apml.hpo_train(
         json.load(open(args.config)),
         datasets['train'],

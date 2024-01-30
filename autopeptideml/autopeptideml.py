@@ -171,7 +171,7 @@ class AutoPeptideML:
         df = pd.concat([df_pos, df_neg])
         df = df.sample(len(df), random_state=self.seed)
         return df.reset_index(drop=True)
-    
+
     def compute_representations(
         self,
         datasets: Dict[str, pd.DataFrame],
@@ -201,7 +201,7 @@ class AutoPeptideML:
     def curate_dataset(
         self,
         dataset: Union[str, pd.DataFrame],
-        outputdir: str=None
+        outputdir: str = None
     ) -> pd.DataFrame:
         """Load a DataFrame or use one already loaded and then remove
         all entries with non-canonical residues or repeated sequences.
@@ -215,9 +215,10 @@ class AutoPeptideML:
         """
         if self.verbose is True:
             print('\nStep 1: Dataset curation')
-        
+
         if isinstance(dataset, pd.DataFrame):
-           df = dataset 
+           df = dataset
+
         elif dataset.endswith('.fasta'):
             if outputdir is None:
                 pass
@@ -226,7 +227,7 @@ class AutoPeptideML:
             df = self._fasta2csv(dataset, outputdir)
         else:
             df = pd.read_csv(dataset)
-        
+
         if not ('y' in df.columns or 'Y' in df.columns):
             df['Y'] = 1
 
@@ -302,7 +303,7 @@ class AutoPeptideML:
         id2rep: dict,
         folds: list,
         outputdir: str,
-        n_jobs: int=1
+        n_jobs: int = 1
     ) -> list:
         """Hyperparameter Optimisation and training.
 
@@ -427,7 +428,7 @@ class AutoPeptideML:
             else:
                 output['estimators'].extend(objectives[name].best_model['estimators'])
         return output
-    
+
     def train_test_partition(
         self,
         df: pd.DataFrame,
@@ -490,15 +491,15 @@ class AutoPeptideML:
         test.to_csv(os.path.join(outputdir, 'test.csv'), index=False)
 
         return {'train': train, 'test': test}
-    
+
     def train_val_partition(
         self,
         df: pd.DataFrame,
-        method: str='random',
-        threshold: float=0.5,
-        alignment: str='mmseqs+prefilter',
-        n_folds : int=10,
-        outputdir: str='./folds'
+        method: str = 'random',
+        threshold: float = 0.5,
+        alignment: str = 'mmseqs+prefilter',
+        n_folds: int = 10,
+        outputdir: str = './folds'
     ) -> list:
         """Method for generating `n` training/validation folds for
         cross-validation.
@@ -528,7 +529,7 @@ class AutoPeptideML:
         :return: List of training/validation folds
         :rtype: list
         """
-        if self.verbose == True:
+        if self.verbose:
             print('\nStep 3b: Dataset Partitioning (Train/Val)')
         np.random.seed(self.seed)
         os.makedirs(outputdir, exist_ok=True)
@@ -600,6 +601,7 @@ class AutoPeptideML:
         
         df.to_csv(output_path, index=False)
         return df
+
     @classmethod
     def _bioactivity_tags(self) -> list:
         tags = []
