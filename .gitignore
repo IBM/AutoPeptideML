@@ -20,8 +20,6 @@ parts/
 sdist/
 var/
 .DS_Store
-peptipedia/
-bioactivities.txt
 wheels/
 share/python-wheels/
 *.egg-info/
