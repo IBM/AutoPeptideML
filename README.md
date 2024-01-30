@@ -27,7 +27,7 @@
 - **Documentation:**  <a href="https://ibm.github.io/AutoPeptideML/" target="_blank">https://ibm.github.io/AutoPeptideML</a>
 - **Source Code:** <a href="https://github.com/IBM/AutoPeptideML" target="_blank">https://github.com/IBM/AutoPeptideML</a>
 - **Webserver:** <a href="http://peptide.ucd.ie/AutoPeptideML" target="_blank">http://peptide.ucd.ie/AutoPeptideML</a>
-- **Paper Pre-print:** <a href="https://www.biorxiv.org/content/10.1101/2023.11.13.566825v1" target="_blank">https://www.biorxiv.org/content/10.1101/2023.11.13.566825v1</a>
+- **Paper Pre-print:** <a href="https://www.biorxiv.org/content/10.1101/2023.11.13.566825v2" target="_blank">https://www.biorxiv.org/content/10.1101/2023.11.13.566825v2</a>
 
 AutoPeptideML allows researchers without prior knowledge of machine learning to build models that are:
 
