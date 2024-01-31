@@ -46,7 +46,7 @@ class FlexibleObjective:
             elif variable['type'] == 'fixed':
                 hyperparameter_space[variable['name']] = variable['value']
 
-        if self.name.lower() in SYNONYMS['svm']:
+        if self.name.lower() in SYNONYMS['svm'] or self.name.lower() in SYNONYMS['mlp']:
             hyperparameter_space['probability'] = True
         else:
             hyperparameter_space['n_jobs'] = self.threads
