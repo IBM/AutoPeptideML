@@ -646,12 +646,16 @@ class AutoPeptideML:
         skplt.metrics.plot_confusion_matrix(truths, preds, normalize=False, 
                                             title='Confusion Matrix')
         plt.savefig(os.path.join(figures_path, 'confusion_matrix.png'))
+        plt.close()
         skplt.metrics.plot_roc(truths, preds_proba, title='ROC Curve', plot_micro=False, plot_macro=False, classes_to_plot=[1])
         plt.savefig(os.path.join(figures_path, 'roc_curve.png'))
+        plt.close()
         skplt.metrics.plot_precision_recall(truths, preds_proba, title='Precision-Recall Curve', plot_micro=False, classes_to_plot=[1])
         plt.savefig(os.path.join(figures_path, 'precision_recall_curve.png'))
+        plt.close()
         skplt.metrics.plot_calibration_curve(truths, [preds_proba], title='Calibration Curve')
         plt.savefig(os.path.join(figures_path, 'calibration_curve.png'))
+        plt.close()
 
     def _welcome(self) -> None:
         if self.verbose is True:
