@@ -10,6 +10,12 @@ from ..data.metrics import METRIC2FUNCTION, METRICS
 from ..data.algorithms import SUPPORTED_MODELS, SYNONYMS
 
 
+NO_N_JOBS = []
+NO_N_JOBS.extend(SYNONYMS['svm'])
+NO_N_JOBS.extend(SYNPNYMS['mlp'])
+NO_N_JOBS.extend(SYNPNYMS['xgboost'])
+
+
 class FlexibleObjective:
     def __init__(
         self,
@@ -46,7 +52,7 @@ class FlexibleObjective:
             elif variable['type'] == 'fixed':
                 hyperparameter_space[variable['name']] = variable['value']
 
-        if self.name.lower() in SYNONYMS['svm'] or self.name.lower() in SYNONYMS['mlp']:
+        if self.name.lower() in NO_N_JOBS:
             hyperparameter_space['probability'] = True
         else:
             hyperparameter_space['n_jobs'] = self.threads
@@ -157,7 +163,7 @@ class ModelSelectionObjective(FlexibleObjective):
             elif variable['type'] == 'fixed':
                 hyperparameter_space[variable['name']] = variable['value']
 
-        if model.lower() in SYNONYMS['svm']:
+        if self.name.lower() in NO_N_JOBS:
             hyperparameter_space['probability'] = True
         else:
             hyperparameter_space['n_jobs'] = self.threads
