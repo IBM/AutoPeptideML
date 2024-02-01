@@ -12,8 +12,8 @@ from ..data.algorithms import SUPPORTED_MODELS, SYNONYMS
 
 NO_N_JOBS = []
 NO_N_JOBS.extend(SYNONYMS['svm'])
-NO_N_JOBS.extend(SYNPNYMS['mlp'])
-NO_N_JOBS.extend(SYNPNYMS['xgboost'])
+NO_N_JOBS.extend(SYNONYMS['mlp'])
+NO_N_JOBS.extend(SYNONYMS['xgboost'])
 
 
 class FlexibleObjective:
