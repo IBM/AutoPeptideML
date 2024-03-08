@@ -89,7 +89,8 @@ class RepresentationEngine(torch.nn.Module):
 
     def print_trainable_parameters(self):
         total = sum(p.numel() for p in self.parameters())
-        trainable =  sum(p.numel() for p in self.parameters() if p.requires_grad)
+        trainable = sum(p.numel() for p in self.parameters()
+                        if p.requires_grad)
         percentage = (trainable / total) * 100
         print(f'trainable params: {trainable} || all params: {total} || trainable: {round(percentage, 2)} %')
 
@@ -110,8 +111,11 @@ class RepresentationEngine(torch.nn.Module):
             self.model = AutoModel.from_pretrained(f'{self.lab}/{model}')
         self.dimension = AVAILABLE_MODELS[model]
         self.model_name = model
-    
-    def _divide_in_batches(self, sequences: list, batch_size: int):
+
+    def _divide_in_batches(self, sequences: list,
+                           batch_size: int):
+        if self.lab == 'Rostlab':
+            sequences = [' '.join([char for char in seq]) for seq in sequences]
         if self.model_name == 'ProstT5':
             sequences = ["<AA2fold> " + seq for seq in sequences]
         sequences = [seq[:self.max_len()] for seq in sequences]
