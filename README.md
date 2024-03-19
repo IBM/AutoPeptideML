@@ -240,7 +240,7 @@ autopeptideml dataset.csv --val_method graph-part --val_threshold 0.3 --val_alig
 
 License <a name="license"></a>
 -------
-AutoPeptideML is an open-source software licensed under the MIT Clause License. Check the details in the [LICENSE](https://github.com/raulfd-creator/biobrigit/blob/master/LICENSE) file.
+AutoPeptideML is an open-source software licensed under the MIT Clause License. Check the details in the [LICENSE](https://github.com/IBM/AutoPeptideML/blob/master/LICENSE) file.
 
 Credits <a name="acknowledgements"></a>
 -------
