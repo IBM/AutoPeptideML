@@ -56,6 +56,6 @@ setup(
     name='autopeptideml',
     packages=find_packages(exclude=['examples']),
     url='https://ibm.github.io/AutoPeptideML/',
-    version='0.2.7',
+    version='0.2.10',
     zip_safe=False,
 )
