@@ -15,6 +15,9 @@ NO_N_JOBS.extend(SYNONYMS['svm'])
 NO_N_JOBS.extend(SYNONYMS['mlp'])
 NO_N_JOBS.extend(SYNONYMS['xgboost'])
 
+PROBABILITY = []
+PROBABILITY.extend(SYNONYMS['svm'])
+
 
 class FlexibleObjective:
     def __init__(
@@ -52,9 +55,10 @@ class FlexibleObjective:
             elif variable['type'] == 'fixed':
                 hyperparameter_space[variable['name']] = variable['value']
 
-        if self.name.lower() in NO_N_JOBS:
+        if self.name.lower() in PROBABILITY:
             hyperparameter_space['probability'] = True
-        else:
+
+        if self.name.lower() not in NO_N_JOBS:
             hyperparameter_space['n_jobs'] = self.threads
 
         classifier_obj = self.get_model(self.name)(**hyperparameter_space)
@@ -70,9 +74,9 @@ class FlexibleObjective:
         return optimization_metric
 
     def generate_folds(
-        self, 
+        self,
         train_df: pd.DataFrame,
-        folds: list, 
+        folds: list,
         id2rep: dict
     ):
         cross_val = {}
