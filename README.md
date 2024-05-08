@@ -39,6 +39,8 @@ AutoPeptideML allows researchers without prior knowledge of machine learning to 
 - **Reproducible:** Output contains all necessary information for other researchers to reproduce the training and verify the results.
 - **State-of-the-art:** Models generated with this system are competitive with state-of-the-art handcrafted approaches.
 
+We recommend the use of the Google Collaboratory Notebook for users that want greater control of the model training process and the webserver for users that prefer ease of use.
+
 ## Contents
 
 <details open markdown="1"><summary><b>Table of Contents</b></summary>
