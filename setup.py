@@ -9,22 +9,17 @@ from pathlib import Path
 this_directory = Path(__file__).parent
 readme = (this_directory / "README.md").read_text()
 
-requirements = [ 
-    'charset-normalizer',
-    'gdown',
-    'graph-part',
-    'networkx',
+requirements = [
     'optuna',
-    'pandarallel',
     'scipy<=1.11.4',
     'scikit-learn',
     'scikit-plot',
     'tokenizers',
     'torch',
     'transformers',
-    'pandarallel',
     'lightgbm',
-    'mdpdf'
+    'mdpdf',
+    'hestia-ood'
 ]
 
 test_requirements = requirements
@@ -56,6 +51,6 @@ setup(
     name='autopeptideml',
     packages=find_packages(exclude=['examples']),
     url='https://ibm.github.io/AutoPeptideML/',
-    version='0.2.10',
+    version='0.2.13',
     zip_safe=False,
 )
