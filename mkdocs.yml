@@ -26,10 +26,10 @@ theme:
       # toggle:
       #   icon: material/weather-sunny
       #   name: Switch to light mode
-    - media: "(prefers-color-scheme: dark)"
-      scheme: slate
-      primary: black
-      accent: lime
+    # - media: "(prefers-color-scheme: dark)"
+    #   scheme: slate
+    #   primary: black
+    #   accent: lime
       # toggle:
       #   icon: material/weather-night
       #   name: Switch to dark mode

@@ -95,7 +95,7 @@ def main():
         df = apml.balance_samples(df)
 
     if args.test_partition == 'True' and args.splits is None:
-        datasets = apml.train_test_partaition(
+        datasets = apml.train_test_partition(
             df,
             args.test_threshold,
             args.test_size,
