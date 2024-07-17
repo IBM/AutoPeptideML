@@ -1,12 +1,13 @@
 from copy import deepcopy
 from multiprocessing import cpu_count
 import os
-from typing import Dict, List, Optional, Union 
+from typing import Dict, List, Union
 
-from graph_part import stratified_k_fold
 import joblib
 import matplotlib
 matplotlib.use('Agg')
+
+from hestia.partition import ccpart, graph_part
 import matplotlib.pyplot as plt
 import numpy as np
 import optuna
@@ -20,7 +21,6 @@ from .data.metrics import METRICS, METRIC2FUNCTION, THRESHOLDED_METRICS
 from .data.residues import is_canonical
 from .utils.embeddings import RepresentationEngine
 from .utils.training import FlexibleObjective, UniDL4BioPep_Objective, ModelSelectionObjective
-from .utils.dataset_split import make_graphs_from_sequences, train_test
 
 
 class AutoPeptideML:
@@ -30,9 +30,9 @@ class AutoPeptideML:
     """
     def __init__(
         self,
-        verbose: bool=True,
-        threads: int=cpu_count(),
-        seed: int=42
+        verbose: bool = True,
+        threads: int = cpu_count(),
+        seed: int = 42
     ):
         """Initialize instance of the AutoPeptideML class
 
@@ -432,10 +432,10 @@ class AutoPeptideML:
     def train_test_partition(
         self,
         df: pd.DataFrame,
-        threshold: float=0.3,
-        test_size: float=0.2,
-        alignment: str='mmseqs+prefiler',
-        outputdir: str='./splits'
+        threshold: float = 0.3,
+        test_size: float = 0.2,
+        alignment: str = 'mmseqs',
+        outputdir: str = './splits'
     ) -> Dict[str, pd.DataFrame]:
         """Novel homology partitioning algorithm for generating
         independent hold-out evaluation sets.
@@ -452,7 +452,7 @@ class AutoPeptideML:
                           `mmseqs` (local Smith-Waterman alignment), `mmseqs+prefilter`
                           (local fast alignment Smith-Waterman + k-mer prefiltering),
                           and `needle` (global Needleman-Wunch alignment),
-                          defaults to 'mmseqs+prefiler'
+                          defaults to 'mmseqs'
         :type alignment: str, optional
         :param outputdir: Path were information should be stored, defaults to './splits'
         :type outputdir: str, optional
@@ -460,32 +460,25 @@ class AutoPeptideML:
                  DataFrames.
         :rtype: Dict[str, pd.DataFrame]
         """
-        if self.verbose == True:
+        if self.verbose:
             print('\nStep 3a: Dataset Partitioning (Train/Test)')
         np.random.seed(self.seed)
         os.makedirs(outputdir, exist_ok=True)
 
         df = df.sample(len(df), random_state=self.seed).reset_index(drop=True)
 
-        g, seqs, labels = make_graphs_from_sequences(
-            df,
-            verbose=2 if self.verbose else 0,
-            alignment=alignment,
-            outputdir=os.path.join(outputdir, 'tmp'),
-            denominator='longest',
-            threshold=threshold,
-            threads=self.threads
-        )
-
-        train, test = train_test(
-            g=g,
-            ids=df.id,
-            sequences=seqs,
-            labels=labels,
+        train_idx, test_idx = ccpart(
+            df=df,
+            similarity_metric=alignment,
+            field_name='sequence',
+            label_name='labels',
             test_size=test_size,
             threshold=threshold,
-            verbose=2 if self.verbose else 0
+            threads=self.threads,
+            verbose=3 if self.verbose else 0
         )
+        train = df.iloc[train_idx].copy().reset_index(drop=True)
+        test = df.iloc[test_idx].copy().reset_index(drop=True)
 
         train.to_csv(os.path.join(outputdir, 'train.csv'), index=False)
         test.to_csv(os.path.join(outputdir, 'test.csv'), index=False)
@@ -497,7 +490,7 @@ class AutoPeptideML:
         df: pd.DataFrame,
         method: str = 'random',
         threshold: float = 0.5,
-        alignment: str = 'mmseqs+prefilter',
+        alignment: str = 'mmseqs',
         n_folds: int = 10,
         outputdir: str = './folds'
     ) -> list:
@@ -533,29 +526,22 @@ class AutoPeptideML:
             print('\nStep 3b: Dataset Partitioning (Train/Val)')
         np.random.seed(self.seed)
         os.makedirs(outputdir, exist_ok=True)
-        prefilter = False
+
         df = df.sample(len(df), random_state=self.seed).reset_index(drop=True)
         if method == 'random':
             kf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=self.seed)
             x, y = df.index.to_numpy(), df.Y.to_numpy()
             fold_ids = [fold[1] for fold in kf.split(x, y)]
         elif method == 'graph-part':
-            if 'mmseqs' in alignment:
-                alignment = alignment.replace('mmseqs', 'mmseqs2')
-            if 'prefilter' in alignment:
-                alignment = alignment.strip('+prefilter')
-                prefilter = True
-            fold_ids = stratified_k_fold(
-                df.sequence.to_numpy(),
-                labels=df.Y.to_numpy(),
-                alignment_mode=alignment,
+            fold_ids = graph_part(
+                df=df,
+                similarity_metric=alignment,
+                field_name='sequence',
+                label_name='labels',
                 threads=self.threads,
-                chunks=self.threads,
+                denominator='n_aligned',
                 threshold=threshold,
-                partitions=n_folds,
-                remove_same=False,
-                denominator='longest',
-                prefilter=prefilter
+                n_parts=n_folds
             )
 
         folds = []
