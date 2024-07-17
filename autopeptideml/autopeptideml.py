@@ -434,6 +434,7 @@ class AutoPeptideML:
         df: pd.DataFrame,
         threshold: float = 0.3,
         test_size: float = 0.2,
+        denominator: str = 'n_aligned',
         alignment: str = 'mmseqs',
         outputdir: str = './splits'
     ) -> Dict[str, pd.DataFrame]:
@@ -448,6 +449,12 @@ class AutoPeptideML:
         :type threshold: float, optional
         :param test_size: Proportion of samples in evaluation set, defaults to 0.2
         :type test_size: float, optional
+        :param denominator: Denominator to calculate sequence identity.
+            Options;
+                - `shortest`: Shortest sequence length
+                - `longest`: Longest sequence length
+                - `n_aligned`: Length of the alignment
+        :type denominator: str
         :param alignment: Alignment algorithm to use. Options available: 
                           `mmseqs` (local Smith-Waterman alignment), `mmseqs+prefilter`
                           (local fast alignment Smith-Waterman + k-mer prefiltering),
@@ -472,6 +479,7 @@ class AutoPeptideML:
             similarity_metric=alignment,
             field_name='sequence',
             label_name='labels',
+            denominator=denominator,
             test_size=test_size,
             threshold=threshold,
             threads=self.threads,
@@ -491,6 +499,7 @@ class AutoPeptideML:
         method: str = 'random',
         threshold: float = 0.5,
         alignment: str = 'mmseqs',
+        denominator: str = 'n_aligned',
         n_folds: int = 10,
         outputdir: str = './folds'
     ) -> list:
@@ -508,6 +517,12 @@ class AutoPeptideML:
                           between sequences
                           in training and evaluation sets, defaults to 0.5
         :type threshold: float, optional
+        :param denominator: Denominator to calculate sequence identity.
+            Options;
+                - `shortest`: Shortest sequence length
+                - `longest`: Longest sequence length
+                - `n_aligned`: Length of the alignment
+        :type denominator: str
         :param alignment: If mode is `graph-part`,
                           alignment algorithm to use. Options available: 
                           `mmseqs` (local Smith-Waterman alignment), `mmseqs+prefilter`
