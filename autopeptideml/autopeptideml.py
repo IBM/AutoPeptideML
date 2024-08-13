@@ -1,7 +1,7 @@
 from copy import deepcopy
 from multiprocessing import cpu_count
 import os
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 import joblib
 import matplotlib
@@ -579,14 +579,18 @@ class AutoPeptideML:
         df: pd.DataFrame,
         re: RepresentationEngine,
         ensemble_path: str,
-        outputdir: str
+        outputdir: str,
+        df_repr: list = None
     ) -> pd.DataFrame:
         if self.verbose is True:
             print('Step 7: Prediction')
         if not os.path.isdir(outputdir):
             os.mkdir(outputdir)
         output_path = os.path.join(outputdir, 'predictions.csv')
-        df_repr = re.compute_representations(df.sequence, average_pooling=True)
+        if df_repr is None:
+            df_repr = re.compute_representations(
+                df.sequence, average_pooling=True
+            )
         df_repr = np.stack(df_repr)
 
         predictions = []
@@ -599,7 +603,7 @@ class AutoPeptideML:
         predictions = np.mean(predictions, axis=0)
         df['prediction'] = predictions
         df.sort_values(by='prediction', inplace=True, ascending=False, ignore_index=True)
-        
+
         df.to_csv(output_path, index=False)
         return df
 
