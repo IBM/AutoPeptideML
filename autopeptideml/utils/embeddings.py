@@ -16,7 +16,9 @@ AVAILABLE_MODELS = {
     'prot_t5_xxl_uniref50': 1024,
     'prot_t5_xl_half_uniref50-enc': 1024,
     'prot_bert': 1024,
-    'ProstT5': 1024
+    'ProstT5': 1024,
+    'ankh-base': 768,
+    'ankh-large': 1536
 }
 
 SYNONYMS = {
@@ -30,7 +32,9 @@ SYNONYMS = {
     'esm1b': 'esm1b_t33_650M_UR50S',
     'esm2-150m': 'esm2_t30_150M_UR50D',
     'esm2-35m': 'esm2_t12_35M_UR50D',
-    'esm2-8m': 'esm2_t6_8M_UR50D'
+    'esm2-8m': 'esm2_t6_8M_UR50D',
+    'ankh-base': 'ankh-base',
+    'ankh-large': 'ankh-large'
 }
 
 
@@ -59,7 +63,13 @@ class RepresentationEngine(torch.nn.Module):
         inputs = self.tokenizer(batch, add_special_tokens=True, padding="longest", return_tensors="pt")
         inputs = inputs.to(self.device)
         with torch.no_grad():
-            embd_rpr = self.model(**inputs).last_hidden_state
+            if self.lab == 'ElnaggarLab':
+                embd_rpr = self.model(input_ids=inputs['input_ids'],
+                                      attention_mask=inputs['attention_mask'],
+                                      decoder_input_ids=inputs['input_ids']
+                                      ).last_hidden_state
+            else:
+                embd_rpr = self.model(**input_ids)
 
         output = []
         for idx in range(len(batch)):
@@ -102,7 +112,9 @@ class RepresentationEngine(torch.nn.Module):
         if 'pro' in model.lower():
             self.lab = 'Rostlab'
         elif 'esm' in model.lower():
-            self.lab = 'facebook'  
+            self.lab = 'facebook'
+        elif 'ankh' in model.lower():
+            self.lab = 'ElnaggarLab'
         if 't5' in model.lower():
             self.tokenizer = T5Tokenizer.from_pretrained(f'Rostlab/{model}', do_lower_case=False)
             self.model = T5EncoderModel.from_pretrained(f"Rostlab/{model}")
