@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import optuna
 import pandas as pd
-import scikitplot as skplt
+import scikitplot.metrics as skplt
 import sklearn.metrics
 from sklearn.model_selection import StratifiedKFold
 
@@ -648,17 +648,22 @@ class AutoPeptideML:
         new_preds_proba[:, 0] = 1 - preds_proba
         new_preds_proba[:, 1] = preds_proba
         preds_proba = new_preds_proba
-        skplt.metrics.plot_confusion_matrix(truths, preds, normalize=False, 
-                                            title='Confusion Matrix')
+        skplt.plot_confusion_matrix(truths, preds, normalize=False, 
+                                    title='Confusion Matrix')
         plt.savefig(os.path.join(figures_path, 'confusion_matrix.png'))
         plt.close()
-        skplt.metrics.plot_roc(truths, preds_proba, title='ROC Curve', plot_micro=False, plot_macro=False, classes_to_plot=[1])
+        skplt.plot_roc(truths, preds_proba, title='ROC Curve',
+                       plot_micro=False, plot_macro=False,
+                       classes_to_plot=[1])
         plt.savefig(os.path.join(figures_path, 'roc_curve.png'))
         plt.close()
-        skplt.metrics.plot_precision_recall(truths, preds_proba, title='Precision-Recall Curve', plot_micro=False, classes_to_plot=[1])
+        skplt.plot_precision_recall(truths, preds_proba,
+                                    title='Precision-Recall Curve',
+                                    plot_micro=False, classes_to_plot=[1])
         plt.savefig(os.path.join(figures_path, 'precision_recall_curve.png'))
         plt.close()
-        skplt.metrics.plot_calibration_curve(truths, [preds_proba], title='Calibration Curve')
+        skplt.plot_calibration_curve(truths, [preds_proba],
+                                     title='Calibration Curve')
         plt.savefig(os.path.join(figures_path, 'calibration_curve.png'))
         plt.close()
 

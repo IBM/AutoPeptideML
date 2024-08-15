@@ -69,8 +69,7 @@ class RepresentationEngine(torch.nn.Module):
                                       decoder_input_ids=inputs['input_ids']
                                       ).last_hidden_state
             else:
-                embd_rpr = self.model(**inputs)
-
+                embd_rpr = self.model(**inputs).last_hidden_state
         output = []
         for idx in range(len(batch)):
             seq_len = len(batch[idx])
