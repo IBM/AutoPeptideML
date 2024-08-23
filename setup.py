@@ -19,6 +19,7 @@ requirements = [
     'transformers',
     'lightgbm',
     'mdpdf',
+    'xgboost',
     'hestia-ood'
 ]
 
