@@ -50,6 +50,7 @@ def parse_cli():
 
     return parser.parse_args()
 
+
 def parse_cli_predict():
     parser = argparse.ArgumentParser()
     parser.add_argument('dataset', type=str)

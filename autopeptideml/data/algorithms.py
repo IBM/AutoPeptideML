@@ -1,20 +1,21 @@
 from lightgbm import LGBMClassifier
-import sklearn.ensemble
-import sklearn.neighbors
-import sklearn.neural_network
+from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.neural_network import MLPClassifier
 import sklearn.svm
 import sklearn.metrics
+from xgboost import XGBClassifier
 
 from ..utils.unidl4biopep.model import Cnn
 
 
 SUPPORTED_MODELS = {
-    'knn': sklearn.neighbors.KNeighborsClassifier,
-    'rfc': sklearn.ensemble.RandomForestClassifier,
+    'knn': KNeighborsClassifier,
+    'rfc': RandomForestClassifier,
     'svm': sklearn.svm.SVC,
-    'mlp': sklearn.neural_network.MLPClassifier,
-    'xgboost': sklearn.ensemble.GradientBoostingClassifier,
-    'adaboost': sklearn.ensemble.AdaBoostClassifier,
+    'mlp': MLPClassifier,
+    'xgboost': XGBClassifier,
+    'adaboost': AdaBoostClassifier,
     'unidl4biopep': Cnn,
     'lightgbm': LGBMClassifier
 }
