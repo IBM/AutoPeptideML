@@ -38,7 +38,7 @@ SYNONYMS = {
 }
 
 
-class RepresentationEngine(torch.nn.Module):    
+class RepresentationEngine(torch.nn.Module):
     def __init__(self, model: str, batch_size: int):
         super().__init__()
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'

@@ -1,26 +1,25 @@
+import joblib
+import os
+
 from copy import deepcopy
 from multiprocessing import cpu_count
-import os
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Union
 
-import joblib
-import matplotlib
-matplotlib.use('Agg')
-
-from hestia.partition import ccpart, graph_part
 import matplotlib.pyplot as plt
 import numpy as np
 import optuna
 import pandas as pd
-import scikitplot.metrics as skplt
 import sklearn.metrics
+
 from sklearn.model_selection import StratifiedKFold
+from hestia.partition import ccpart, graph_part
 
 from .data.algorithms import SYNONYMS, SUPPORTED_MODELS
 from .data.metrics import METRICS, METRIC2FUNCTION, THRESHOLDED_METRICS
 from .data.residues import is_canonical
 from .utils.embeddings import RepresentationEngine
-from .utils.training import FlexibleObjective, UniDL4BioPep_Objective, ModelSelectionObjective
+from .utils.training import (FlexibleObjective, UniDL4BioPep_Objective,
+                             ModelSelectionObjective)
 
 
 class AutoPeptideML:
@@ -60,7 +59,7 @@ class AutoPeptideML:
         self,
         df_pos: pd.DataFrame,
         positive_tags: List[str],
-        proportion: float=1.0
+        proportion: float = 1.0
     ) -> pd.DataFrame:
         """Method for searching bioactive databases for peptides
 
@@ -122,7 +121,7 @@ class AutoPeptideML:
                 else:
                     missing += samples_to_draw
                 df_neg = pd.concat([df_neg, subdf])
-        
+
         get_tags = lambda x: ';'.join(sorted(set(
             [column if (x[column] == 1) else df_neg.columns[0]
              for column in self.tags]
@@ -643,6 +642,10 @@ class AutoPeptideML:
         return df
 
     def _make_figures(self, figures_path: str, truths, preds_proba):
+        import matplotlib
+        matplotlib.use('Agg')
+        import scikitplot.metrics as skplt
+
         preds = preds_proba > 0.5
         new_preds_proba = np.zeros((len(preds_proba), 2))
         new_preds_proba[:, 0] = 1 - preds_proba
