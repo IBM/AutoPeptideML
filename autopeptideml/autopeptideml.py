@@ -547,7 +547,7 @@ class AutoPeptideML:
             x, y = df.index.to_numpy(), df.Y.to_numpy()
             fold_ids = [fold[1] for fold in kf.split(x, y)]
         elif method == 'graph-part':
-            fold_ids = graph_part(
+            fold_ids, clusters = graph_part(
                 df=df,
                 similarity_metric=alignment,
                 field_name='sequence',
