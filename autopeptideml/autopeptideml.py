@@ -473,7 +473,7 @@ class AutoPeptideML:
 
         df = df.sample(len(df), random_state=self.seed).reset_index(drop=True)
 
-        train_idx, test_idx = ccpart(
+        train_idx, test_idx, label_ids = ccpart(
             df=df,
             similarity_metric=alignment,
             field_name='sequence',
