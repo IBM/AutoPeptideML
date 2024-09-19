@@ -30,7 +30,7 @@
 - **Webserver:** <a href="http://peptide.ucd.ie/AutoPeptideML" target="_blank">http://peptide.ucd.ie/AutoPeptideML</a>
 - **Google Collaboratory Notebook:** <a href="https://colab.research.google.com/github/IBM/AutoPeptideML/blob/main/examples/AutoPeptideML_Collab.ipynb" target="_blank">AutoPeptideML_Collab.ipynb</a>
 - **Paper Pre-print:** <a href="https://www.biorxiv.org/content/10.1101/2023.11.13.566825v3" target="_blank">https://www.biorxiv.org/content/10.1101/2023.11.13.566825v3</a>
-- **Blog post:** <a href=https://portal.valencelabs.com/blogs/post/autopeptideml-building-peptide-bioactivity-predictors-automatically-IZZKbJ3Un0qjo4i" target="_blank">Portal - AutoPeptideML Tutorial</a>
+- **Blog post:** <a href="https://portal.valencelabs.com/blogs/post/autopeptideml-building-peptide-bioactivity-predictors-automatically-IZZKbJ3Un0qjo4i" target="_blank">Portal - AutoPeptideML Tutorial</a>
 
 AutoPeptideML allows researchers without prior knowledge of machine learning to build models that are:
 
