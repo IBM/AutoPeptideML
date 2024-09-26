@@ -78,59 +78,33 @@ pip install autopeptideml
 pip install git+https://github.com/IBM/AutoPeptideML
 ```
 
+### 2. Third-party dependencies
 
-### 2. Preparing AutoPeptideML-Peptipedia Database
+  - MMSeqs2 [https://github.com/steineggerlab/mmseqs2](https://github.com/steineggerlab/mmseqs2)
 
-Download and prepare the Peptipedia Database by running:
-
-```bash
-autopeptideml-setup
-```
-
-If any error happens during the download, it may be caused by not having the latest version of the [gdown](https://github.com/wkentaro/gdown) library.
-Please run the following code to get the latest version:
-
-```bash
-pip install --upgrade --no-cache-dir gdown
-```
-
-### 3. Third-party dependencies
-
-For using MMSeqs as alignment algorithm is necessary install it in the environment:
-
-```bash 
-conda install -c bioconda mmseqs2
-```
-
-For using Needleman-Wunch:
-
-```bash
-conda install -c bioconda emboss
-```
-
-If installation not in conda environment, please check installation instructions for your particular device:
-
-- Linux:
   ```bash
-  wget https://mmseqs.com/latest/mmseqs-linux-avx2.tar.gz
-  tar xvfz mmseqs-linux-avx2.tar.gz
-  export PATH=$(pwd)/mmseqs/bin/:$PATH
+  # static build with AVX2 (fastest) (check using: cat /proc/cpuinfo | grep avx2)
+  wget https://mmseqs.com/latest/mmseqs-linux-avx2.tar.gz; tar xvfz mmseqs-linux-avx2.tar.gz; export PATH=$(pwd)/mmseqs/bin/:$PATH
+
+  # static build with SSE4.1  (check using: cat /proc/cpuinfo | grep sse4)
+  wget https://mmseqs.com/latest/mmseqs-linux-sse41.tar.gz; tar xvfz mmseqs-linux-sse41.tar.gz; export PATH=$(pwd)/mmseqs/bin/:$PATH
+
+  # static build with SSE2 (slowest, for very old systems)  (check using: cat /proc/cpuinfo | grep sse2)
+  wget https://mmseqs.com/latest/mmseqs-linux-sse2.tar.gz; tar xvfz mmseqs-linux-sse2.tar.gz; export PATH=$(pwd)/mmseqs/bin/:$PATH
+
+  # MacOS
+  brew install mmseqs2  
   ```
+
+  To use Needleman-Wunch, either:
+
+  ```bash
+  conda install -c bioconda emboss
+  ```
+  or
 
   ```bash
   sudo apt install emboss
-  ```
-
-  ```bash
-  sudo apt install emboss
-  ```
-
-- Windows: Download binaries from [EMBOSS](https://emboss.sourceforge.net/download/) and [MMSeqs2-latest](https://mmseqs.com/latest/mmseqs-win64.zip)
-
-- Mac:
-  ```bash
-  sudo port install emboss
-  brew install mmseqs2
   ```
 
 ## Benchmark data <a name="benchmark"></a>
