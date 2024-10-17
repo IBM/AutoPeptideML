@@ -2,6 +2,7 @@ import torch
 import transformers
 from transformers import AutoModel, AutoTokenizer, T5Tokenizer, T5EncoderModel
 from tqdm import tqdm
+from typing import List
 
 transformers.logging.set_verbosity(transformers.logging.ERROR)
 
@@ -46,11 +47,15 @@ class RepresentationEngine(torch.nn.Module):
         self.model = None
         self._load_model(model)
 
-    def add_head(self, head):
+    def move_to_device(self, device: str):
+        self.device = device
+
+    def add_head(self, head: torch.nn.Module):
         self.add_module('head', head)
         self.head = head
 
-    def compute_representations(self, sequences: list, average_pooling: bool):
+    def compute_representations(self, sequences: List[str],
+                                average_pooling: bool) -> List[torch.Tensor]:
         self.model.to(self.device)
         self.model.eval()
         batched_sequences = self._divide_in_batches(sequences, self.batch_size)
@@ -59,8 +64,10 @@ class RepresentationEngine(torch.nn.Module):
             output.extend(self.compute_batch(batch, average_pooling))
         return output
 
-    def compute_batch(self, batch: list, average_pooling: bool):
-        inputs = self.tokenizer(batch, add_special_tokens=True, padding="longest", return_tensors="pt")
+    def compute_batch(self, batch: List[str],
+                      average_pooling: bool) -> List[torch.Tensor]:
+        inputs = self.tokenizer(batch, add_special_tokens=True,
+                                padding="longest", return_tensors="pt")
         inputs = inputs.to(self.device)
         with torch.no_grad():
             if self.lab == 'ElnaggarLab':
@@ -83,7 +90,8 @@ class RepresentationEngine(torch.nn.Module):
         return self.dimension
 
     def forward(self, batch, labels=None):
-        inputs = self.tokenizer(batch, add_special_tokens=True, padding="longest", return_tensors="pt")
+        inputs = self.tokenizer(batch, add_special_tokens=True,
+                                padding="longest", return_tensors="pt")
         output = self.model(**inputs).last_hidden_state
 
         if self.head is not None:
@@ -115,7 +123,8 @@ class RepresentationEngine(torch.nn.Module):
         elif 'ankh' in model.lower():
             self.lab = 'ElnaggarLab'
         if 't5' in model.lower():
-            self.tokenizer = T5Tokenizer.from_pretrained(f'Rostlab/{model}', do_lower_case=False)
+            self.tokenizer = T5Tokenizer.from_pretrained(f'Rostlab/{model}',
+                                                         do_lower_case=False)
             self.model = T5EncoderModel.from_pretrained(f"Rostlab/{model}")
         else:
             self.tokenizer = AutoTokenizer.from_pretrained(f'{self.lab}/{model}')
@@ -123,8 +132,8 @@ class RepresentationEngine(torch.nn.Module):
         self.dimension = AVAILABLE_MODELS[model]
         self.model_name = model
 
-    def _divide_in_batches(self, sequences: list,
-                           batch_size: int):
+    def _divide_in_batches(self, sequences: List[str],
+                           batch_size: int) -> List[List[str]]:
         if self.lab == 'Rostlab':
             sequences = [' '.join([char for char in seq]) for seq in sequences]
         if self.model_name == 'ProstT5':
