@@ -10,7 +10,7 @@ def test_esm_family():
     assert re.dim() == 320
     assert np.array(a).shape == (1, 320)
     assert np.array(b).shape == (2, 320)
-    assert np.array(c).shape == (1, 6, 320)
+    assert np.array(c).shape == (1, 5, 320)
 
 
 def test_elnaggar_family():
