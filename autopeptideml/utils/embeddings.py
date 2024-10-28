@@ -45,60 +45,60 @@ class RepresentationEngine(torch.nn.Module):
 
     Attributes:
     ----------
-    device : str
+    - device : str
         The device ('cuda', 'mps', or 'cpu') on which the model will be run.
-    batch_size : int
+    - batch_size : int
         The size of data batches for processing.
-    model : torch.nn.Module
+    - model : torch.nn.Module
         The loaded pre-trained model for generating representations.
-    tokenizer : AutoTokenizer or T5Tokenizer
+    - tokenizer : AutoTokenizer or T5Tokenizer
         The tokenizer associated with the pre-trained model.
-    lab : str
+    - lab : str
         Identifier for the lab or group associated with the model, e.g., 'Rostlab', 'facebook', or 'ElnaggarLab'.
-    dimension : int
+    - dimension : int
         Dimension of the output representations.
-    model_name : str
+    - model_name : str
         Name of the loaded pre-trained model.
-    head : Optional[torch.nn.Module]
+    - head : Optional[torch.nn.Module]
         Optional head layer added to the model for specific tasks.
 
     Parameters:
     ----------
-    model : str
+    - model : str
         Name of the pre-trained model to load.
-    batch_size : int
+    - batch_size : int
         Batch size for sequence processing.
 
     Methods:
     -------
-    move_to_device(device: str)
+    - move_to_device(device: str)
         Sets the device for computation, either 'cpu', 'mps', or 'cuda'.
 
-    add_head(head: torch.nn.Module)
+    - add_head(head: torch.nn.Module)
         Adds an optional head module to the model, which can be used for task-specific outputs.
 
-    compute_representations(sequences: List[str], average_pooling: bool, cls_token: Optional[bool] = False) -> List[torch.Tensor]
+    - compute_representations(sequences: List[str], average_pooling: bool, cls_token: Optional[bool] = False) -> List[torch.Tensor]
         Generates representations for a list of input sequences. Supports average pooling or CLS token extraction.
 
-    compute_batch(batch: List[str], average_pooling: bool, cls_token: Optional[bool] = False) -> List[torch.Tensor]
+    - compute_batch(batch: List[str], average_pooling: bool, cls_token: Optional[bool] = False) -> List[torch.Tensor]
         Processes a batch of sequences and extracts representations according to specified pooling methods.
 
-    dim() -> int
+    - dim() -> int
         Returns the dimension of the representation layer of the model.
 
-    forward(batch, labels=None)
+    - forward(batch, labels=None)
         Performs a forward pass through the model, with an optional head layer if added.
 
-    max_len() -> int
+    - max_len() -> int
         Returns the maximum sequence length allowed for the model, based on lab specifications.
 
-    print_trainable_parameters()
+    - print_trainable_parameters()
         Prints the total and trainable parameter counts, as well as the percentage of trainable parameters.
 
-    _load_model(model: str)
+    - _load_model(model: str)
         Internal method to load a pre-trained model and tokenizer based on the specified model name.
 
-    _divide_in_batches(sequences: List[str], batch_size: int) -> List[List[str]]
+    - _divide_in_batches(sequences: List[str], batch_size: int) -> List[List[str]]
         Divides a list of sequences into batches and processes each sequence for compatibility with the model.
 
     ### Method Details
@@ -133,7 +133,7 @@ class RepresentationEngine(torch.nn.Module):
     - **_divide_in_batches(sequences: List[str], batch_size: int) -> List[List[str]]**:
         Splits a list of sequences into smaller batches according to the batch size. Adjusts sequences to meet model-specific formatting requirements.
 
-    This class is intended for users who need a flexible way to compute and handle representations from pre-trained models, supporting GPU or CPU computation.
+    This class is intended for users who need a flexible way to compute and handle representations from pre-trained models, supporting GPU (CUDA or MPS) or CPU computation.
     """
     def __init__(self, model: str, batch_size: int):
         super().__init__()
