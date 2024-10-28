@@ -486,6 +486,7 @@ class AutoPeptideML:
         )
         train = df.iloc[train_idx].copy().reset_index(drop=True)
         test = df.iloc[test_idx].copy().reset_index(drop=True)
+        train = train[~train.sequence.isin(test.sequence)].reset_index(drop=True)
 
         train.to_csv(os.path.join(outputdir, 'train.csv'), index=False)
         test.to_csv(os.path.join(outputdir, 'test.csv'), index=False)
@@ -543,7 +544,8 @@ class AutoPeptideML:
 
         df = df.sample(len(df), random_state=self.seed).reset_index(drop=True)
         if method == 'random':
-            kf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=self.seed)
+            kf = StratifiedKFold(n_splits=n_folds, shuffle=True,
+                                 random_state=self.seed)
             x, y = df.index.to_numpy(), df.Y.to_numpy()
             fold_ids = [fold[1] for fold in kf.split(x, y)]
         elif method == 'graph-part':
@@ -553,7 +555,7 @@ class AutoPeptideML:
                 field_name='sequence',
                 label_name='labels',
                 threads=self.threads,
-                denominator='n_aligned',
+                denominator=denominator,
                 threshold=threshold,
                 n_parts=n_folds
             )
