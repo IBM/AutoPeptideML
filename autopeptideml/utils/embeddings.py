@@ -40,7 +40,6 @@ SYNONYMS = {
 
 
 class RepresentationEngine(torch.nn.Module):
-class RepresentationEngine(torch.nn.Module):
     """
     A class for generating sequence representations using pre-trained models, with flexible pooling and device management.
 
