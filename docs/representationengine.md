@@ -1,3 +1,3 @@
 # RepresentationEngine
 
-::: autopeptideml.autopeptideml.utils.embeddings.RepresentationEngine
+::: autopeptideml.RepresentationEngine
