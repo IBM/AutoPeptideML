@@ -46,7 +46,7 @@ class RepresentationEngine(torch.nn.Module):
     Attributes:
     ----------
     device : str
-        The device ('cuda' or 'cpu') on which the model will be run.
+        The device ('cuda', 'mps', or 'cpu') on which the model will be run.
     batch_size : int
         The size of data batches for processing.
     model : torch.nn.Module
@@ -72,8 +72,8 @@ class RepresentationEngine(torch.nn.Module):
     Methods:
     -------
     move_to_device(device: str)
-        Sets the device for computation, either 'cpu' or 'cuda'.
-    
+        Sets the device for computation, either 'cpu', 'mps', or 'cuda'.
+
     add_head(head: torch.nn.Module)
         Adds an optional head module to the model, which can be used for task-specific outputs.
 
