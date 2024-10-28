@@ -9,7 +9,8 @@ nav:
 - Code reference:
   - AutoPeptideML:
       - autopeptideml.md
-
+  - RepresentationEngine:
+      - representationengine.md
 markdown_extensions:
   - attr_list
 theme:
