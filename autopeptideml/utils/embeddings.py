@@ -2,7 +2,7 @@ import torch
 import transformers
 from transformers import AutoModel, AutoTokenizer, T5Tokenizer, T5EncoderModel
 from tqdm import tqdm
-from typing import List
+from typing import List, Optional
 
 transformers.logging.set_verbosity(transformers.logging.ERROR)
 
@@ -55,17 +55,22 @@ class RepresentationEngine(torch.nn.Module):
         self.head = head
 
     def compute_representations(self, sequences: List[str],
-                                average_pooling: bool) -> List[torch.Tensor]:
+                                average_pooling: bool,
+                                cls_token: Optional[bool] = False) -> List[torch.Tensor]:
         self.model.to(self.device)
         self.model.eval()
         batched_sequences = self._divide_in_batches(sequences, self.batch_size)
         output = []
+        if average_pooling and cls_token:
+            average_pooling = False
+            print('Warning: Average pooling and CLS token are incompatible. Defaulting to CLS token.')
         for batch in tqdm(batched_sequences):
-            output.extend(self.compute_batch(batch, average_pooling))
+            output.extend(self.compute_batch(batch, average_pooling, cls_token))
         return output
 
     def compute_batch(self, batch: List[str],
-                      average_pooling: bool) -> List[torch.Tensor]:
+                      average_pooling: bool,
+                      cls_token: Optional[bool] = False) -> List[torch.Tensor]:
         inputs = self.tokenizer(batch, add_special_tokens=True,
                                 padding="longest", return_tensors="pt")
         inputs = inputs.to(self.device)
@@ -80,10 +85,12 @@ class RepresentationEngine(torch.nn.Module):
         output = []
         for idx in range(len(batch)):
             seq_len = len(batch[idx])
-            if average_pooling is True:
-                output.append(embd_rpr[idx, :seq_len].mean(0).detach().cpu())
+            if average_pooling:
+                output.append(embd_rpr[idx, 1:seq_len].mean(0).detach().cpu())
+            elif cls_token:
+                output.append(embd_rpr[idx, 0].detach().cpu())
             else:
-                output.append(embd_rpr[idx, :seq_len].detach().cpu())
+                output.append(embd_rpr[idx, 1:seq_len].detach().cpu())
         return output
 
     def dim(self) -> int:
