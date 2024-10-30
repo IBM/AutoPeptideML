@@ -441,7 +441,7 @@ class AutoPeptideML:
         independent hold-out evaluation sets.
 
         :param df: Dataset to partition with the following columns
-                   `id`, `sequence`, and `labels`.
+                   `id`, `sequence`, and `Y`.
         :type df: pd.DataFrame
         :param threshold: Maximum sequence identity allowed between sequences
                           in training and evaluation sets, defaults to 0.3
@@ -477,7 +477,7 @@ class AutoPeptideML:
             df=df,
             similarity_metric=alignment,
             field_name='sequence',
-            label_name='labels',
+            label_name='Y',
             denominator=denominator,
             test_size=test_size,
             threshold=threshold,
@@ -553,7 +553,7 @@ class AutoPeptideML:
                 df=df,
                 similarity_metric=alignment,
                 field_name='sequence',
-                label_name='labels',
+                label_name='Y',
                 threads=self.threads,
                 denominator=denominator,
                 threshold=threshold,
