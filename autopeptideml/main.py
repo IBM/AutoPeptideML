@@ -122,7 +122,7 @@ def main():
         folds = [
             {'train': pd.read_csv(os.path.join(args.folds, f'train_{i}.csv')),
              'val': pd.read_csv(os.path.join(args.folds, f'val_{i}.csv'))}
-             for i in range(args.val_n_folds)
+            for i in range(args.val_n_folds)
         ]
 
     id2rep = apml.compute_representations(datasets, re)
@@ -147,6 +147,7 @@ def main():
     )
     if args.verbose is True:
         print(results)
+
 
 def predict():
     args = parse_cli_predict()
