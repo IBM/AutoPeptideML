@@ -97,11 +97,12 @@ def main():
 
     if args.test_partition == 'True' and args.splits is None:
         datasets = apml.train_test_partition(
-            df,
-            args.test_threshold,
-            args.test_size,
-            args.test_alignment,
-            os.path.join(args.outputdir, 'splits')
+            df=df,
+            threshold=args.test_threshold,
+            test_size=args.test_size,
+            denominator='n_aligned',
+            alignment=args.test_alignment,
+            outputdir=os.path.join(args.outputdir, 'splits')
         )
     else:
         datasets = {
@@ -111,18 +112,18 @@ def main():
 
     if args.val_partition == 'True' and args.folds is None:
         folds = apml.train_val_partition(
-            datasets['train'],
-            args.val_method,
-            args.val_threshold,
-            args.val_alignment,
-            args.val_n_folds,
-            os.path.join(args.outputdir, 'folds')
+            df=datasets['train'],
+            method=args.val_method,
+            threshold=args.val_threshold,
+            alignment=args.val_alignment,
+            n_folds=args.val_n_folds,
+            outputdir=os.path.join(args.outputdir, 'folds')
         )
     else:
         folds = [
             {'train': pd.read_csv(os.path.join(args.folds, f'train_{i}.csv')),
              'val': pd.read_csv(os.path.join(args.folds, f'val_{i}.csv'))}
-             for i in range(args.val_n_folds)
+            for i in range(args.val_n_folds)
         ]
 
     id2rep = apml.compute_representations(datasets, re)
@@ -148,10 +149,11 @@ def main():
     if args.verbose is True:
         print(results)
 
+
 def predict():
     args = parse_cli_predict()
 
-    re = RepresentationEngine(args.plm, args.plm_batch_size)    
+    re = RepresentationEngine(args.plm, args.plm_batch_size)
     apml = AutoPeptideML(args.verbose, args.threads, 1)
     df = apml.curate_dataset(args.dataset, args.outputdir)
     apml.predict(df, re, args.ensemble, args.outputdir)
