@@ -152,7 +152,7 @@ def main():
 def predict():
     args = parse_cli_predict()
 
-    re = RepresentationEngine(args.plm, args.plm_batch_size)    
+    re = RepresentationEngine(args.plm, args.plm_batch_size)
     apml = AutoPeptideML(args.verbose, args.threads, 1)
     df = apml.curate_dataset(args.dataset, args.outputdir)
     apml.predict(df, re, args.ensemble, args.outputdir)
