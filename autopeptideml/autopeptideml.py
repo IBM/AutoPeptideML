@@ -13,6 +13,7 @@ import sklearn.metrics
 
 from sklearn.model_selection import StratifiedKFold
 from hestia.partition import ccpart, graph_part
+from hestia.similarity import sequence_similarity_peptides, sequence_similarity_needle
 
 from .data.algorithms import SYNONYMS, SUPPORTED_MODELS
 from .data.metrics import METRICS, METRIC2FUNCTION, THRESHOLDED_METRICS
@@ -434,37 +435,56 @@ class AutoPeptideML:
         threshold: float = 0.3,
         test_size: float = 0.2,
         denominator: str = 'n_aligned',
-        alignment: str = 'mmseqs',
+        alignment: str = None,
         outputdir: str = './splits'
     ) -> Dict[str, pd.DataFrame]:
-        """Novel homology partitioning algorithm for generating
-        independent hold-out evaluation sets.
+        """
+        Novel homology partitioning algorithm for generating independent hold-out evaluation sets.
 
-        :param df: Dataset to partition with the following columns
-                   `id`, `sequence`, and `Y`.
+        This method partitions the provided dataset into training and testing sets based on sequence similarity.
+        It ensures that sequences in the training and testing sets do not exceed a specified sequence identity 
+        threshold, resulting in distinct datasets for evaluation.
+
+        :param df: Dataset to partition with the following columns:
+                `id`, `sequence`, and `Y`.
         :type df: pd.DataFrame
-        :param threshold: Maximum sequence identity allowed between sequences
-                          in training and evaluation sets, defaults to 0.3
+        :param threshold: Maximum sequence identity allowed between sequences in training and evaluation sets. 
+                        Sequences exceeding this threshold in similarity will not appear in both sets.
+                        Defaults to 0.3.
         :type threshold: float, optional
-        :param test_size: Proportion of samples in evaluation set, defaults to 0.2
+        :param test_size: Proportion of samples in evaluation (test) set. A float between 0 and 1, where 0.2 means 20% 
+                        of the dataset will be allocated to the test set. Defaults to 0.2.
         :type test_size: float, optional
-        :param denominator: Denominator to calculate sequence identity.
-            Options;
-                - `shortest`: Shortest sequence length
-                - `longest`: Longest sequence length
-                - `n_aligned`: Length of the alignment
-        :type denominator: str
-        :param alignment: Alignment algorithm to use. Options available: 
-                          `mmseqs` (local Smith-Waterman alignment), `mmseqs+prefilter`
-                          (local fast alignment Smith-Waterman + k-mer prefiltering),
-                          and `needle` (global Needleman-Wunch alignment),
-                          defaults to 'mmseqs'
+        :param denominator: Denominator used to calculate sequence identity between pairs of sequences. Options include:
+                            - `'shortest'`: The shortest sequence length.
+                            - `'longest'`: The longest sequence length.
+                            - `'n_aligned'`: The length of the aligned region between sequences.
+        :type denominator: str, optional
+        :param alignment: Sequence alignment method to compute similarity. Options include:
+                        - `'peptides'`: Peptide sequence alignment.
+                        - `'mmseqs'`: Local Smith-Waterman alignment.
+                        - `'mmseqs+prefilter'`: Fast alignment using Smith-Waterman with k-mer prefiltering.
+                        - `'needle'`: Global Needleman-Wunsch alignment.
         :type alignment: str, optional
-        :param outputdir: Path were information should be stored, defaults to './splits'
+        :param outputdir: Directory where the resulting train and test CSV files will be saved. Defaults to `'./splits'`.
         :type outputdir: str, optional
-        :return: Dictionary with keys `train` and `test` and values the corresponding
-                 DataFrames.
+        :return: A dictionary containing the training and testing DataFrames:
+                - `'train'`: The DataFrame for the training set.
+                - `'test'`: The DataFrame for the testing set.
         :rtype: Dict[str, pd.DataFrame]
+        :raises FileNotFoundError: If the output directory cannot be created or accessed.
+        :raises ValueError: If an unsupported alignment method is specified.
+
+        :example:
+        data = pd.DataFrame({'id': [...], 'sequence': [...], 'Y': [...]})
+        partitioned_data = train_test_partition(
+            df=data,
+            threshold=0.4,
+            test_size=0.25,
+            denominator='shortest',
+            alignment='needle',
+            outputdir='./data_splits'
+        )
         """
         if self.verbose:
             print('\nStep 3a: Dataset Partitioning (Train/Test)')
@@ -472,17 +492,23 @@ class AutoPeptideML:
         os.makedirs(outputdir, exist_ok=True)
 
         df = df.sample(len(df), random_state=self.seed).reset_index(drop=True)
-
+        if alignment == 'peptides':
+            sim_df = sequence_similarity_peptides(
+                df_query=df, field_name='sequence', denominator=denominator,
+                threads=self.threads, verbose=3 if self.verbose else 0,
+                threshold=threshold
+            )
+        elif alignment == 'needle':
+            sim_df = sequence_similarity_needle(
+                df_query=df, field_name='sequence', denominator=denominator,
+                threads=self.threads, verbose=3 if self.verbose else 0,
+                threshold=threshold,
+            )
         train_idx, test_idx, label_ids = ccpart(
             df=df,
-            similarity_metric=alignment,
+            sim_df=sim_df,
             field_name='sequence',
             label_name='Y',
-            denominator=denominator,
-            test_size=test_size,
-            threshold=threshold,
-            threads=self.threads,
-            verbose=3 if self.verbose else 0
         )
         train = df.iloc[train_idx].copy().reset_index(drop=True)
         test = df.iloc[test_idx].copy().reset_index(drop=True)
@@ -498,7 +524,7 @@ class AutoPeptideML:
         df: pd.DataFrame,
         method: str = 'random',
         threshold: float = 0.5,
-        alignment: str = 'mmseqs',
+        alignment: str = 'peptides',
         denominator: str = 'n_aligned',
         n_folds: int = 10,
         outputdir: str = './folds'
@@ -549,13 +575,22 @@ class AutoPeptideML:
             x, y = df.index.to_numpy(), df.Y.to_numpy()
             fold_ids = [fold[1] for fold in kf.split(x, y)]
         elif method == 'graph-part':
+            if alignment == 'peptides':
+                sim_df = sequence_similarity_peptides(
+                    df_query=df, field_name='sequence', denominator=denominator,
+                    threads=self.threads, verbose=3 if self.verbose else 0,
+                    threshold=threshold
+                )
+            elif alignment == 'needle':
+                sim_df = sequence_similarity_needle(
+                    df_query=df, field_name='sequence', denominator=denominator,
+                    threads=self.threads, verbose=3 if self.verbose else 0,
+                    threshold=threshold,
+                )
             fold_ids, clusters = graph_part(
                 df=df,
-                similarity_metric=alignment,
-                field_name='sequence',
                 label_name='Y',
-                threads=self.threads,
-                denominator=denominator,
+                sim_df=sim_df,
                 threshold=threshold,
                 n_parts=n_folds
             )
