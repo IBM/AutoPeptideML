@@ -113,7 +113,8 @@ pip install git+https://github.com/IBM/AutoPeptideML
 Data used to benchmark our approach has been selected from the benchmarks collected by [Du et al, 2023](https://academic.oup.com/bib/article-abstract/24/3/bbad135/7107929). A new set of benchmarks was constructed from the original set following the new data acquisition and dataset partitioning methods within AutoPeptideML. To download the datasets:
 
 - **Original UniDL4BioPep Benchmarks:** Please check the project [Github Repository](https://github.com/dzjxzyd/UniDL4BioPep/tree/main).
-- **New AutoPeptideML Benchmarks:** Can be downloaded from this [link](https://drive.google.com/u/0/uc?id=1UmDu773CdkBFqkitK550uO6zoxhU1bUB&export=download).
+- **⚠️ New AutoPeptideML Benchmarks (Amended version):** Can be downloaded from this [link](https://drive.google.com/u/0/uc?id=1UmDu773CdkBFqkitK550uO6zoxhU1bUB&export=download). Please note that these are not exactly the same benchmarks as used in the paper, those are kept in the next line for reproducibility (see [Issue #24](https://github.com/IBM/AutoPeptideML/issues/24) for more details).
+- **⚠️ New AutoPeptideML Benchmarks (Paper version):** Can be downloaded from this [link](https://drive.google.com/u/0/uc?id=1UmDu773CdkBFqkitK550uO6zoxhU1bUB&export=download). This benchmarks have a small number of overlapping sequences between training and testing due to a bug described in [Issue #24](https://github.com/IBM/AutoPeptideML/issues/24). They are kept here for reproducibility.
 
 ## Documentation <a name="documentation"></a>
 
@@ -142,12 +143,12 @@ Data used to benchmark our approach has been selected from the benchmarks collec
 - `--test_partition`: Whether to divide the dataset in train/test splits. (Default: `True`).
 - `--test_threshold`: Maximum sequence identity allowed between train and test. (Default: 0.3).
 - `--test_size`: Proportion of data to be assigned to evaluation set. (Default: 0.2).
-- `--test_alignment`: Alignment algorithm used for computing sequence identities. Available options: `mmseqs`, `mmseqs+prefilter`, `needle`. (Default: `mmseqs+prefilter`).
+- `--test_alignment`: Alignment algorithm used for computing sequence identities. Available options: `peptides`, `needle`. (Default: `peptides`).
 - `--splits`: Path to directory with train and test splits. Expected contents: `train.csv` and `test.csv`.
 - `--val_partition`: Whether to divide dataset in train/validation folds.
 - `--val_method`: Method to use for creating train/validation folds. Options available: `random`, `graph-part`. (Default: `random`)
 - `--val_threshold`: Maximum sequence identity allowed between train and validation. (Default: 0.5).
-- `--val_alignment`:  Alignment algorithm used for computing sequence identities. Available options: `mmseqs`, `mmseqs+prefilter`, `needle`. (Default: `mmseqs+prefilter`).
+- `--val_alignment`:  Alignment algorithm used for computing sequence identities. Available options: `peptides` `needle`. (Default: `peptides`).
 - `--val_n_folds`: Number of folds (Default: 10).
 - `--folds`: Path to directory with train/validation folds. Expected contents: `train_{fold}.csv` and `valid_{fold}.csv`.
 
