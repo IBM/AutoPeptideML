@@ -37,13 +37,13 @@ def parse_cli():
                         help='Whether to divide dataset in train/test splits.')
     parser.add_argument('--test_threshold', type=float, default=0.3)
     parser.add_argument('--test_size', type=float, default=0.2)
-    parser.add_argument('--test_alignment', type=str, default='mmseqs+prefilter')
+    parser.add_argument('--test_alignment', type=str, default='peptides')
     parser.add_argument('--splits', type=str, default=None)
 
     parser.add_argument('--val_partition', type=str, default='True',
                         help='Whether to divide dataset in train/val folds.')
     parser.add_argument('--val_method', type=str, default='random')
-    parser.add_argument('--val_alignment', type=str, default='mmseqs+prefilter')
+    parser.add_argument('--val_alignment', type=str, default='peptides')
     parser.add_argument('--val_threshold', type=float, default=0.5)
     parser.add_argument('--val_n_folds', type=int, default=10)
     parser.add_argument('--folds', type=str, default=None)
