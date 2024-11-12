@@ -11,7 +11,6 @@ readme = (this_directory / "README.md").read_text()
 
 requirements = [
     'optuna',
-    'scipy<=1.11.4',
     'scikit-learn',
     'scikit-plot',
     'tokenizers',
@@ -20,7 +19,7 @@ requirements = [
     'lightgbm',
     'mdpdf',
     'xgboost',
-    'hestia-ood'
+    'hestia-ood>=0.0.34'
 ]
 
 test_requirements = requirements
