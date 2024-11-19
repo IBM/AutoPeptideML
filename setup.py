@@ -11,7 +11,6 @@ readme = (this_directory / "README.md").read_text()
 
 requirements = [
     'optuna',
-    'scipy<=1.11.4',
     'scikit-learn',
     'scikit-plot',
     'tokenizers',
@@ -20,7 +19,7 @@ requirements = [
     'lightgbm',
     'mdpdf',
     'xgboost',
-    'hestia-ood'
+    'hestia-ood>=0.0.34'
 ]
 
 test_requirements = requirements
@@ -31,7 +30,7 @@ files.append('autopeptideml/data/readme_ex.md')
 setup(
     author="Raul Fernandez-Diaz",
     author_email='raulfd@ibm.com',
-    python_requires='>=3.10',
+    python_requires='>=3.9',
     classifiers=[
     ],
     description="AutoML system for building trustworthy peptide bioactivity predictors",
@@ -52,6 +51,6 @@ setup(
     name='autopeptideml',
     packages=find_packages(exclude=['examples']),
     url='https://ibm.github.io/AutoPeptideML/',
-    version='1.0.3',
+    version='1.0.4',
     zip_safe=False,
 )
