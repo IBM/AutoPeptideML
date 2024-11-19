@@ -30,7 +30,7 @@ files.append('autopeptideml/data/readme_ex.md')
 setup(
     author="Raul Fernandez-Diaz",
     author_email='raulfd@ibm.com',
-    python_requires='>=3.10',
+    python_requires='>=3.9',
     classifiers=[
     ],
     description="AutoML system for building trustworthy peptide bioactivity predictors",
