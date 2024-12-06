@@ -65,6 +65,8 @@ def parse_cli_predict():
     parser.add_argument('--plm', type=str, default='esm2-8m',
                         help='PLM for computing peptide representations. Check GitHub Repository for available options.')
     parser.add_argument('--plm_batch_size', type=int, default=12)
+    parser.add_argument('--device', type=str, default=None,
+                        help='Device where the representations should be computed.')
     return parser.parse_args()
 
 
@@ -154,6 +156,8 @@ def predict():
     args = parse_cli_predict()
 
     re = RepresentationEngine(args.plm, args.plm_batch_size)
+    if args.device is not None:
+        re.move_to_device(args.device)
     apml = AutoPeptideML(args.verbose, args.threads, 1)
     df = apml.curate_dataset(args.dataset, args.outputdir)
     apml.predict(df, re, args.ensemble, args.outputdir)
