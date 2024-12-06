@@ -218,6 +218,13 @@ autopeptideml dataset.csv
 autopeptideml dataset.csv --val_method graph-part --val_threshold 0.3 --val_alignment needle
 ```
 
+For running predictions
+
+```bash
+
+autopeptideml-predict peptides.csv --ensemble AB_1/ensemble
+```
+
 
 
 License <a name="license"></a>
