@@ -37,7 +37,7 @@ setup(
     entry_points={
         'console_scripts': [
             'autopeptideml=autopeptideml.main:main',
-            'autopeptdeml-predict=autopeptideml.main:predict',
+            'autopeptideml-predict=autopeptideml.main:predict',
             'autopeptideml-setup=autopeptideml.data.preprocess_db:main'
         ],
     },
