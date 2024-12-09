@@ -206,6 +206,9 @@ class RepresentationEngine(torch.nn.Module):
         elif self.lab == 'facebook':
             return 1022
 
+    def model_params(self) -> int:
+        return sum(p.numel() for p in self.parameters())
+
     def print_trainable_parameters(self):
         total = sum(p.numel() for p in self.parameters())
         trainable = sum(p.numel() for p in self.parameters()
