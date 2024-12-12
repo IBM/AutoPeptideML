@@ -102,7 +102,7 @@ def main():
             df=df,
             threshold=args.test_threshold,
             test_size=args.test_size,
-            denominator='n_aligned',
+            denominator='longest',
             alignment=args.test_alignment,
             outputdir=os.path.join(args.outputdir, 'splits')
         )
@@ -143,7 +143,7 @@ def main():
         args.outputdir,
     )
     results = apml.evaluate_model(
-        model, 
+        model,
         datasets['test'],
         id2rep,
         args.outputdir
