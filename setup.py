@@ -17,8 +17,8 @@ requirements = [
     'torch',
     'transformers',
     'lightgbm',
-    'mdpdf',
     'xgboost',
+    'mdpdf',
     'hestia-ood>=0.0.34'
 ]
 
@@ -36,6 +36,8 @@ setup(
     description="AutoML system for building trustworthy peptide bioactivity predictors",
     entry_points={
         'console_scripts': [
+            'apml=autopeptideml.main:main',
+            'apml-predict=autopeptideml.main:predict',
             'autopeptideml=autopeptideml.main:main',
             'autopeptideml-predict=autopeptideml.main:predict',
             'autopeptideml-setup=autopeptideml.data.preprocess_db:main'

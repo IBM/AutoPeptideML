@@ -21,6 +21,7 @@ def parse_cli():
     parser.add_argument('--plm', type=str, default='esm2-8m',
                         help='PLM for computing peptide representations. Check GitHub Repository for available options.')
     parser.add_argument('--plm_batch_size', type=int, default=12)
+    parser.add_argument('--plm_device', type=str, default=None)
     parser.add_argument('--config', type=str, default='default_config')
 
     parser.add_argument('--autosearch', type=str, default='auto',
@@ -80,6 +81,8 @@ def main():
     json.dump(vars(args), open(apml_config_path, 'w'), indent=4)
 
     re = RepresentationEngine(args.plm, args.plm_batch_size)
+    if args.plm_device is not None:
+        re.move_to_device(args.plm_device)
     apml = AutoPeptideML(args.verbose, args.threads, args.seed)
 
     if args.dataset != 'None':
@@ -87,7 +90,7 @@ def main():
         if 'id' not in df.columns:
             df['id'] = df.index
 
-    if (args.autosearch == 'auto' and len(df[df.Y == 0]) < 1 or
+    if ((args.autosearch == 'auto' and len(df[df.Y == 0]) < 1) or
        args.autosearch == 'True'):
         df = apml.autosearch_negatives(
             df,
@@ -102,7 +105,7 @@ def main():
             df=df,
             threshold=args.test_threshold,
             test_size=args.test_size,
-            denominator='n_aligned',
+            denominator='longest',
             alignment=args.test_alignment,
             outputdir=os.path.join(args.outputdir, 'splits')
         )
@@ -143,7 +146,7 @@ def main():
         args.outputdir,
     )
     results = apml.evaluate_model(
-        model, 
+        model,
         datasets['test'],
         id2rep,
         args.outputdir

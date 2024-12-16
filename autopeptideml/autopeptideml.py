@@ -266,7 +266,6 @@ class AutoPeptideML:
         for path in paths:
             if not os.path.isdir(path):
                 os.mkdir(path)
-        
         embds = np.stack([id2rep[id] for id in test_df.id])
         truths = np.array(test_df.Y.tolist())
 
@@ -274,7 +273,7 @@ class AutoPeptideML:
         preds_proba = np.zeros(len(test_df))
         for idx, clf in enumerate(best_model['estimators']):
             preds_proba = preds_proba + clf.predict_proba(embds)[:, 1] * (1/len(best_model['estimators']))
-        
+
         preds = preds_proba > 0.5
 
         for metric in METRICS:
@@ -289,7 +288,7 @@ class AutoPeptideML:
         scores.append({'metric': 'TN', 'score': confusion_matrix[1, 1]})
         scores.append({'metric': 'FP', 'score': confusion_matrix[0, 1]})
         scores.append({'metric': 'FN', 'score': confusion_matrix[1, 0]})
-      
+
         self._make_figures(figures_path, truths, preds_proba)
         df = pd.DataFrame(scores)
         df.to_csv(os.path.join(raw_data_path, 'test_scores.csv'), index=False, float_format="{:.4f}".format)
@@ -510,6 +509,9 @@ class AutoPeptideML:
             field_name='sequence',
             label_name='Y',
         )
+        if len(test_idx) < 0.1 * len(df):
+            raise ValueError("Similarity threshold is too restrictive. No test set available.",
+                             "Please try a higher threshold.")
         train = df.iloc[train_idx].copy().reset_index(drop=True)
         test = df.iloc[test_idx].copy().reset_index(drop=True)
         train = train[~train.sequence.isin(test.sequence)].reset_index(drop=True)
