@@ -14,6 +14,8 @@ AVAILABLE_MODELS = {
     'esm2_t30_150M_UR50D': 640,
     'esm2_t12_35M_UR50D': 480,
     'esm2_t6_8M_UR50D': 320,
+    'ESMplusplus_small': 960,
+    'ESMplusplus_large': 1152,
     'prot_t5_xxl_uniref50': 1024,
     'prot_t5_xl_half_uniref50-enc': 1024,
     'prot_bert': 1024,
@@ -34,6 +36,8 @@ SYNONYMS = {
     'esm2-150m': 'esm2_t30_150M_UR50D',
     'esm2-35m': 'esm2_t12_35M_UR50D',
     'esm2-8m': 'esm2_t6_8M_UR50D',
+    'esmc-300m': 'ESMplusplus_small',
+    'esmc-600m': 'ESMplusplus_large',
     'ankh-base': 'ankh-base',
     'ankh-large': 'ankh-large'
 }
@@ -223,8 +227,12 @@ class RepresentationEngine(torch.nn.Module):
             model = SYNONYMS[model.lower()]
         if 'pro' in model.lower():
             self.lab = 'Rostlab'
+        elif 'plusplus' in model.lower():
+            self.lab = 'Synthyra'
         elif 'esm' in model.lower():
             self.lab = 'facebook'
+        elif 'lobster' in model.lower():
+            self.lab = 'asalam91'
         elif 'ankh' in model.lower():
             self.lab = 'ElnaggarLab'
         if 't5' in model.lower():
@@ -232,8 +240,15 @@ class RepresentationEngine(torch.nn.Module):
                                                          do_lower_case=False)
             self.model = T5EncoderModel.from_pretrained(f"Rostlab/{model}")
         else:
-            self.tokenizer = AutoTokenizer.from_pretrained(f'{self.lab}/{model}')
-            self.model = AutoModel.from_pretrained(f'{self.lab}/{model}')
+            self.model = AutoModel.from_pretrained(f'{self.lab}/{model}',
+                                                   trust_remote_code=True)
+            if 'plusplus' in model.lower():
+                self.tokenizer = self.model.tokenizer
+            else:
+                self.tokenizer = AutoTokenizer.from_pretrained(
+                    f'{self.lab}/{model}', trust_remote_code=True
+                )
+
         self.dimension = AVAILABLE_MODELS[model]
         self.model_name = model
 
