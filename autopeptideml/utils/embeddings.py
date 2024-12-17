@@ -185,11 +185,11 @@ class RepresentationEngine(torch.nn.Module):
         for idx in range(len(batch)):
             seq_len = len(batch[idx])
             if average_pooling:
-                output.append(embd_rpr[idx, 1:seq_len].mean(0).detach().cpu())
+                output.append(embd_rpr[idx, :seq_len].mean(0).detach().cpu())
             elif cls_token:
                 output.append(embd_rpr[idx, 0].detach().cpu())
             else:
-                output.append(embd_rpr[idx, 1:seq_len].detach().cpu())
+                output.append(embd_rpr[idx, :seq_len].detach().cpu())
         return output
 
     def dim(self) -> int:
@@ -214,7 +214,7 @@ class RepresentationEngine(torch.nn.Module):
         return sum(p.numel() for p in self.parameters())
 
     def print_trainable_parameters(self):
-        total = sum(p.numel() for p in self.parameters())
+        total = self.get_num_params()
         trainable = sum(p.numel() for p in self.parameters()
                         if p.requires_grad)
         percentage = (trainable / total) * 100
