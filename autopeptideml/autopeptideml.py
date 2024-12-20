@@ -1,9 +1,10 @@
 import joblib
 import os
+import os.path as osp
 
 from copy import deepcopy
 from multiprocessing import cpu_count
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,6 +22,9 @@ from .data.residues import is_canonical
 from .utils.embeddings import RepresentationEngine
 from .utils.training import (FlexibleObjective, UniDL4BioPep_Objective,
                              ModelSelectionObjective)
+
+
+__version__ = '1.0.5'
 
 
 class AutoPeptideML:
@@ -48,10 +52,10 @@ class AutoPeptideML:
         self.verbose = verbose
         self.threads = threads
         self.seed = seed
-
-        self._welcome()
-        self.db = os.path.join(
-            os.path.dirname(os.path.realpath(__file__)),
+        if self.verbose:
+            self._welcome()
+        self.db = osp.join(
+            osp.dirname(osp.realpath(__file__)),
             'data', 'peptipedia'
         )
         self.tags = self._bioactivity_tags()
@@ -60,7 +64,8 @@ class AutoPeptideML:
         self,
         df_pos: pd.DataFrame,
         positive_tags: List[str],
-        proportion: float = 1.0
+        proportion: float = 1.0,
+        target_db: Optional[str] = None
     ) -> pd.DataFrame:
         """Method for searching bioactive databases for peptides
 
@@ -74,6 +79,9 @@ class AutoPeptideML:
                            the new dataset. Defaults to 1.0.,
                            defaults to 1.0.
         :type proportion: float, optional
+        :param target_db: Path to CSV containing a database with
+                          columns `sequence` and bioactivities.
+        :type target_db: str, optional
         :return: New dataset with both positive and negative
                  peptides.
         :rtype: pd.DataFrame
@@ -86,12 +94,21 @@ class AutoPeptideML:
         min_length, max_length = lengths.min(), lengths.max()
         min_length = min_length - (min_length % 5)
         missing = 0
+        if target_db is not None:
+            target_df = pd.DataFrame(target_db)
+            target_df['lenghts'] = target_df.sequence.map(len)
 
         for length in range(min_length, max_length, 5):
-            subdb_path = os.path.join(self.db, f'peptipedia_{length}-{length+5}.csv')
-            if os.path.isfile(subdb_path):
-                subdf = pd.read_csv(subdb_path)
-                subdf.drop_duplicates(subset=['sequence'], inplace=True, ignore_index=True)
+            if target_db is not None: 
+                subdf = target_df[(target_df['length'] >= length) &
+                                  (target_df['length'] < length + 5)]
+            else:
+                subdb_path = osp.join(self.db, f'peptipedia_{length}-{length+5}.csv')
+                if osp.isfile(subdb_path):
+                    subdf = pd.read_csv(subdb_path)
+                    subdf.drop_duplicates(subset=['sequence'],
+                                          inplace=True,
+                                          ignore_index=True)
 
                 for name in positive_tags:
                     name = ' '.join(name.split('_'))
@@ -163,7 +180,7 @@ class AutoPeptideML:
             )
         elif len(df_pos) < len(df_neg):
             df_pos = df_pos.sample(
-                len(df_neg), 
+                len(df_neg),
                 replace=True,
                 random_state=self.seed,
                 ignore_index=True
@@ -222,7 +239,7 @@ class AutoPeptideML:
         elif dataset.endswith('.fasta'):
             if outputdir is None:
                 pass
-            elif not os.path.isdir(outputdir):
+            elif not osp.isdir(outputdir):
                 os.mkdir(outputdir)
             df = self._fasta2csv(dataset, outputdir)
         else:
@@ -260,11 +277,11 @@ class AutoPeptideML:
         """
         if self.verbose is True:
             print('\nStep 6: Model evaluation')
-        raw_data_path = os.path.join(outputdir, 'evaluation_data')
-        figures_path = os.path.join(outputdir, 'figures')
+        raw_data_path = osp.join(outputdir, 'evaluation_data')
+        figures_path = osp.join(outputdir, 'figures')
         paths = [outputdir, raw_data_path, figures_path]
         for path in paths:
-            if not os.path.isdir(path):
+            if not osp.isdir(path):
                 os.mkdir(path)
         embds = np.stack([id2rep[id] for id in test_df.id])
         truths = np.array(test_df.Y.tolist())
@@ -291,7 +308,7 @@ class AutoPeptideML:
 
         self._make_figures(figures_path, truths, preds_proba)
         df = pd.DataFrame(scores)
-        df.to_csv(os.path.join(raw_data_path, 'test_scores.csv'), index=False, float_format="{:.4f}".format)
+        df.to_csv(osp.join(raw_data_path, 'test_scores.csv'), index=False, float_format="{:.4f}".format)
         self._summary(outputdir)
         return df
 
@@ -328,12 +345,12 @@ class AutoPeptideML:
         if self.verbose is True:
             print('\nStep 5: Hyperparameter Optimisation and Model Training')
         np.random.seed(self.seed)
-        best_configs_path = os.path.join(outputdir, 'best_configs')
-        best_ensemble_path = os.path.join(outputdir, 'ensemble')
-        evaluation_path = os.path.join(outputdir, 'evaluation_data')
+        best_configs_path = osp.join(outputdir, 'best_configs')
+        best_ensemble_path = osp.join(outputdir, 'ensemble')
+        evaluation_path = osp.join(outputdir, 'evaluation_data')
         paths = [outputdir, best_configs_path, best_ensemble_path, evaluation_path]
         for path in paths:
-            if not os.path.exists(path):
+            if not osp.exists(path):
                 os.mkdir(path)
 
         objectives = {}
@@ -416,7 +433,7 @@ class AutoPeptideML:
                 df_output.append(entry)
         
         df_output = pd.DataFrame(df_output)
-        df_output.to_csv(os.path.join(evaluation_path, 'cross-validation.csv'), index=False, float_format='{:.4f}'.format)
+        df_output.to_csv(osp.join(evaluation_path, 'cross-validation.csv'), index=False, float_format='{:.4f}'.format)
 
         output = {}
         output['estimators'] = []
@@ -516,8 +533,8 @@ class AutoPeptideML:
         test = df.iloc[test_idx].copy().reset_index(drop=True)
         train = train[~train.sequence.isin(test.sequence)].reset_index(drop=True)
 
-        train.to_csv(os.path.join(outputdir, 'train.csv'), index=False)
-        test.to_csv(os.path.join(outputdir, 'test.csv'), index=False)
+        train.to_csv(osp.join(outputdir, 'train.csv'), index=False)
+        test.to_csv(osp.join(outputdir, 'test.csv'), index=False)
 
         return {'train': train, 'test': test}
 
@@ -602,11 +619,11 @@ class AutoPeptideML:
             train_df = df.iloc[~df.index.isin(fold)]
             val_df = df.iloc[fold]
             train_df.to_csv(
-                os.path.join(outputdir, f'train_{i}.csv'),
+                osp.join(outputdir, f'train_{i}.csv'),
                 index=False
             )
             val_df.to_csv(
-                os.path.join(outputdir, f'val_{i}.csv'),
+                osp.join(outputdir, f'val_{i}.csv'),
                 index=False
             )
             folds.append({'train': train_df, 'val': val_df})
@@ -622,9 +639,9 @@ class AutoPeptideML:
     ) -> pd.DataFrame:
         if self.verbose is True:
             print('Step 7: Prediction')
-        if not os.path.isdir(outputdir):
+        if not osp.isdir(outputdir):
             os.mkdir(outputdir)
-        output_path = os.path.join(outputdir, 'predictions.csv')
+        output_path = osp.join(outputdir, 'predictions.csv')
         if df_repr is None:
             df_repr = re.compute_representations(
                 df.sequence, average_pooling=True
@@ -633,7 +650,7 @@ class AutoPeptideML:
 
         predictions = []
         for model in os.listdir(ensemble_path):
-            model_path = os.path.join(ensemble_path, model)
+            model_path = osp.join(ensemble_path, model)
             clf = joblib.load(model_path)
             predictions.append(clf.predict(df_repr))
 
@@ -648,8 +665,8 @@ class AutoPeptideML:
     @classmethod
     def _bioactivity_tags(self) -> list:
         tags = []
-        path = os.path.join(
-            os.path.dirname(os.path.realpath(__file__)),
+        path = osp.join(
+            osp.dirname(osp.realpath(__file__)),
             'data', 'bioactivities.txt'
         )
         with open(path) as file:
@@ -672,7 +689,7 @@ class AutoPeptideML:
                         data.pop()
                     data[-1]['sequence'] = line
         
-        output_path = os.path.join(
+        output_path = osp.join(
             outputdir,
             f"{dataset.split('/')[-1].split('.')[0]}.csv"
         )
@@ -692,29 +709,29 @@ class AutoPeptideML:
         preds_proba = new_preds_proba
         skplt.plot_confusion_matrix(truths, preds, normalize=False, 
                                     title='Confusion Matrix')
-        plt.savefig(os.path.join(figures_path, 'confusion_matrix.png'))
+        plt.savefig(osp.join(figures_path, 'confusion_matrix.png'))
         plt.close()
         skplt.plot_roc(truths, preds_proba, title='ROC Curve',
                        plot_micro=False, plot_macro=False,
                        classes_to_plot=[1])
-        plt.savefig(os.path.join(figures_path, 'roc_curve.png'))
+        plt.savefig(osp.join(figures_path, 'roc_curve.png'))
         plt.close()
         skplt.plot_precision_recall(truths, preds_proba,
                                     title='Precision-Recall Curve',
                                     plot_micro=False, classes_to_plot=[1])
-        plt.savefig(os.path.join(figures_path, 'precision_recall_curve.png'))
+        plt.savefig(osp.join(figures_path, 'precision_recall_curve.png'))
         plt.close()
         skplt.plot_calibration_curve(truths, [preds_proba],
                                      title='Calibration Curve')
-        plt.savefig(os.path.join(figures_path, 'calibration_curve.png'))
+        plt.savefig(osp.join(figures_path, 'calibration_curve.png'))
         plt.close()
 
+    @classmethod
     def _welcome(self) -> None:
-        if self.verbose is True:
-            message = '| Welcome to AutoPeptideML |'
-            print('-' * len(message))
-            print(message)
-            print('-' * len(message))
+        message = f'| Welcome to AutoPeptideML v.{__version__} |'
+        print('-' * len(message))
+        print(message)
+        print('-' * len(message))
 
     def _summary(self, outputdir: str) -> None:
         metrics = {
@@ -724,9 +741,9 @@ class AutoPeptideML:
             "- **F1:**": "f1",
             "- **Matthew's correlation coefficient:**": "matthews_corrcoef"
         }
-        df = pd.read_csv(os.path.join(outputdir, 'evaluation_data', 'test_scores.csv'))
-        path = os.path.join(
-            os.path.dirname(os.path.realpath(__file__)),
+        df = pd.read_csv(osp.join(outputdir, 'evaluation_data', 'test_scores.csv'))
+        path = osp.join(
+            osp.dirname(osp.realpath(__file__)),
             'data', 'readme_ex.md'
         )
         new_lines = []
@@ -740,7 +757,7 @@ class AutoPeptideML:
                     new_lines.append(line)
         
         new_readme = ''.join(new_lines)
-        summary_path = os.path.join(outputdir, 'summary')
+        summary_path = osp.join(outputdir, 'summary')
         with open(f"{summary_path}.md", 'w') as file:
             file.write(new_readme)
         
