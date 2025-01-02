@@ -21,10 +21,10 @@ except ImportError:
 
 
 class RepEngineBase:
-    name: str
+    engine: str
 
     def __init__(self, rep: str, **args):
-        self.rep = self.name + '=' + rep
+        self.rep = rep
         self.__dict__.update(args)
         self.properties = self.__dict__
 
@@ -59,3 +59,6 @@ class RepEngineBase:
 
     def save(self, filename: str):
         json.dump(open(filename, 'w'), self.properties)
+
+    def __str__(self) -> str:
+        return str(self.properties)

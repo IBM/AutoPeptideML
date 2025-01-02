@@ -15,7 +15,7 @@ RESIDUES = {
 
 
 class RepEngineOnehot(RepEngineBase):
-    name = 'seq'
+    engine = 'one-hot'
 
     def __init__(self, max_length: int):
         super().__init__('one-hot', max_length=max_length)

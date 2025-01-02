@@ -12,7 +12,7 @@ except ImportError:
 
 
 class RepEngineFP(RepEngineBase):
-    name = 'fp'
+    engine = 'fp'
 
     def __init__(self, rep: str, nbits: int, radius: int):
         super().__init__(rep, nbits=nbits, radius=radius)
