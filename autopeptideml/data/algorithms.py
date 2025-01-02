@@ -6,7 +6,7 @@ import sklearn.svm
 import sklearn.metrics
 from xgboost import XGBClassifier
 
-from ..utils.unidl4biopep.model import Cnn
+from ..utils.deep_learning.model import Cnn
 
 
 SUPPORTED_MODELS = {

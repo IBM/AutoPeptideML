@@ -6,6 +6,7 @@ from typing import List, Optional
 
 transformers.logging.set_verbosity(transformers.logging.ERROR)
 
+
 AVAILABLE_MODELS = {
     'esm2_t48_15B_UR50D': 5120,
     'esm2_t36_3B_UR50D': 2560,
@@ -25,6 +26,10 @@ AVAILABLE_MODELS = {
     'MoLFormer-XL-both-10pct': 768,
     'ChemBERTa-77M-MLM': 384
 }
+
+OTHER_REPRESENTATIONS = [
+    'ecfp', 'maccs'
+]
 
 SYNONYMS = {
     'prot-t5-xl': 'prot_t5_xl_half_uniref50-enc',
@@ -173,27 +178,10 @@ class RepresentationEngine(torch.nn.Module):
     def compute_batch(self, batch: List[str],
                       average_pooling: bool,
                       cls_token: Optional[bool] = False) -> List[torch.Tensor]:
-        inputs = self.tokenizer(batch, add_special_tokens=True,
-                                padding="longest", return_tensors="pt")
-        inputs = inputs.to(self.device)
-        with torch.no_grad():
-            if self.lab == 'ElnaggarLab':
-                embd_rpr = self.model(input_ids=inputs['input_ids'],
-                                      attention_mask=inputs['attention_mask'],
-                                      decoder_input_ids=inputs['input_ids']
-                                      ).last_hidden_state
-            else:
-                embd_rpr = self.model(**inputs).last_hidden_state
-        output = []
-        for idx in range(len(batch)):
-            seq_len = len(batch[idx])
-            if average_pooling:
-                output.append(embd_rpr[idx, :seq_len].mean(0).detach().cpu())
-            elif cls_token:
-                output.append(embd_rpr[idx, 0].detach().cpu())
-            else:
-                output.append(embd_rpr[idx, :seq_len].detach().cpu())
-        return output
+        if self.model in AVAILABLE_MODELS:
+            return self._lm_represent_batch(batch, average_pooling, cls_token)
+        else:
+            return self._trad_represent_batch(batch)
 
     def dim(self) -> int:
         return self.dimension
@@ -224,7 +212,9 @@ class RepresentationEngine(torch.nn.Module):
         print(f'trainable params: {trainable} || all params: {total} || trainable: {round(percentage, 2)} %')
 
     def _load_model(self, model: str):
-        if model not in AVAILABLE_MODELS and SYNONYMS[model.lower()] not in AVAILABLE_MODELS:
+        if (model not in AVAILABLE_MODELS and
+            SYNONYMS[model.lower()] not in AVAILABLE_MODELS and
+           model.lower() not in OTHER_REPRESENTATIONS):
             raise NotImplementedError(f"Model: {model} not implemented. Available models: {', '.join(AVAILABLE_MODELS)}")
         if model not in AVAILABLE_MODELS:
             model = SYNONYMS[model.lower()]
@@ -242,6 +232,9 @@ class RepresentationEngine(torch.nn.Module):
             self.lab = 'ibm'
         elif 'chemberta' in model.lower():
             self.lab = 'DeepChem'
+        elif model.lower() in OTHER_REPRESENTATIONS:
+            self.model = FEATURES(model, self.properties)
+            self.tokenizer = STANDARISER()
         if 't5' in model.lower():
             self.tokenizer = T5Tokenizer.from_pretrained(f'Rostlab/{model}',
                                                          do_lower_case=False)
@@ -267,3 +260,33 @@ class RepresentationEngine(torch.nn.Module):
             sequences = ["<AA2fold> " + seq for seq in sequences]
         sequences = [seq[:self.max_len()] for seq in sequences]
         return [sequences[i: i+batch_size] for i in range(0, len(sequences), batch_size)]
+
+    def _lm_represent_batch(
+        self, batch: List[str],
+        average_pooling: bool,
+        cls_token: Optional[bool] = False
+    ) -> List[torch.Tensor]:
+        inputs = self.tokenizer(batch, add_special_tokens=True,
+                            padding="longest", return_tensors="pt")
+        inputs = inputs.to(self.device)
+        with torch.no_grad():
+            if self.lab == 'ElnaggarLab':
+                embd_rpr = self.model(input_ids=inputs['input_ids'],
+                                    attention_mask=inputs['attention_mask'],
+                                    decoder_input_ids=inputs['input_ids']
+                                    ).last_hidden_state
+            else:
+                embd_rpr = self.model(**inputs).last_hidden_state
+        output = []
+        for idx in range(len(batch)):
+            seq_len = len(batch[idx])
+            if average_pooling:
+                output.append(embd_rpr[idx, :seq_len].mean(0).detach().cpu())
+            elif cls_token:
+                output.append(embd_rpr[idx, 0].detach().cpu())
+            else:
+                output.append(embd_rpr[idx, :seq_len].detach().cpu())
+        return output
+
+    def _trad_represent_batch(self, batch: List[str]):
+        return self.model(batch)
