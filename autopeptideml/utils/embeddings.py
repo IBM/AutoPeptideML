@@ -21,7 +21,9 @@ AVAILABLE_MODELS = {
     'prot_bert': 1024,
     'ProstT5': 1024,
     'ankh-base': 768,
-    'ankh-large': 1536
+    'ankh-large': 1536,
+    'MoLFormer-XL-both-10pct': 768,
+    'ChemBERTa-77M-MLM': 384
 }
 
 SYNONYMS = {
@@ -39,7 +41,10 @@ SYNONYMS = {
     'esmc-300m': 'ESMplusplus_small',
     'esmc-600m': 'ESMplusplus_large',
     'ankh-base': 'ankh-base',
-    'ankh-large': 'ankh-large'
+    'ankh-large': 'ankh-large',
+    'molformer-xl': 'MoLFormer-XL-both-10pct',
+    'chemberta-2': 'ChemBERTa-77M-MLM',
+
 }
 
 
@@ -70,8 +75,6 @@ class RepresentationEngine(torch.nn.Module):
     ----------
     - model : str
         Name of the pre-trained model to load.
-    - batch_size : int
-        Batch size for sequence processing.
 
     Methods:
     -------
@@ -81,7 +84,7 @@ class RepresentationEngine(torch.nn.Module):
     - add_head(head: torch.nn.Module)
         Adds an optional head module to the model, which can be used for task-specific outputs.
 
-    - compute_representations(sequences: List[str], average_pooling: bool, cls_token: Optional[bool] = False) -> List[torch.Tensor]
+    - compute_representations(sequences: List[str], batch_size: int, average_pooling: bool, cls_token: Optional[bool] = False) -> List[torch.Tensor]
         Generates representations for a list of input sequences. Supports average pooling or CLS token extraction.
 
     - compute_batch(batch: List[str], average_pooling: bool, cls_token: Optional[bool] = False) -> List[torch.Tensor]
@@ -139,10 +142,9 @@ class RepresentationEngine(torch.nn.Module):
 
     This class is intended for users who need a flexible way to compute and handle representations from pre-trained models, supporting GPU (CUDA or MPS) or CPU computation.
     """
-    def __init__(self, model: str, batch_size: int):
+    def __init__(self, model: str):
         super().__init__()
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.batch_size = batch_size
         self.model = None
         self._load_model(model)
 
@@ -155,10 +157,11 @@ class RepresentationEngine(torch.nn.Module):
 
     def compute_representations(self, sequences: List[str],
                                 average_pooling: bool,
+                                batch_size: int,
                                 cls_token: Optional[bool] = False) -> List[torch.Tensor]:
         self.model.to(self.device)
         self.model.eval()
-        batched_sequences = self._divide_in_batches(sequences, self.batch_size)
+        batched_sequences = self._divide_in_batches(sequences, batch_size)
         output = []
         if average_pooling and cls_token:
             average_pooling = False
@@ -235,6 +238,10 @@ class RepresentationEngine(torch.nn.Module):
             self.lab = 'asalam91'
         elif 'ankh' in model.lower():
             self.lab = 'ElnaggarLab'
+        elif 'molformer' in model.lower():
+            self.lab = 'ibm'
+        elif 'chemberta' in model.lower():
+            self.lab = 'DeepChem'
         if 't5' in model.lower():
             self.tokenizer = T5Tokenizer.from_pretrained(f'Rostlab/{model}',
                                                          do_lower_case=False)
