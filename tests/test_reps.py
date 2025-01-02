@@ -26,18 +26,19 @@ def test_elnaggar_family():
 def test_one_hot():
     re = RepEngineOnehot(19)
     a = re.compute_reps(['AACFFF', 'AACCF'], batch_size=4)
-    print(str(re))
+    assert str(re) == "{'rep': 'one-hot', 'max_length': 19}"
     assert re.dim() == 19 * 21
     assert a.shape == (2, 19 * 21)
 
 
 def test_fps():
-    re = RepEngineFP('ecfp', 256, 8)
-    a = re.compute_reps(['C[C@H](N)C(=O)N[C@@H](CCCNC(=N)N)C(=O)N[C@H]'], batch_size=1)
-    re = RepEngineFP('fcfp', 256, 8)
-    b = re.compute_reps(['C[C@H](N)C(=O)N[C@@H](CCCNC(=N)N)C(=O)N[C@H]'], batch_size=1)
-
-    assert re.dim() == 256
+    re1 = RepEngineFP('ecfp', 256, 8)
+    a = re1.compute_reps(['C[C@H](N)C(=O)N[C@@H](CCCNC(=N)N)C(=O)N[C@H]'], batch_size=1)
+    re2 = RepEngineFP('fcfp', 256, 8)
+    b = re2.compute_reps(['C[C@H](N)C(=O)N[C@@H](CCCNC(=N)N)C(=O)N[C@H]'], batch_size=1)
+    assert str(re1) == "{'rep': 'ecfp', 'nbits': 256, 'radius': 8}"
+    assert str(re2) == "{'rep': 'fcfp', 'nbits': 256, 'radius': 8}"
+    assert re1.dim() == 256
     assert a.shape == (1, 256)
     assert b.shape == (1, 256)
 
@@ -50,10 +51,10 @@ def test_rostlab_family():
 
 
 if __name__ == '__main__':
-    # test_esm_family()
-    # print('ESM OK')
-    # test_elnaggar_family()
-    # print('Elnaggar OK')
+    test_esm_family()
+    print('ESM OK')
+    test_elnaggar_family()
+    print('Elnaggar OK')
     test_one_hot()
     print('Onehot OK')
     test_fps()

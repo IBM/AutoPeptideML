@@ -1,3 +1,4 @@
+import copy
 import json
 from typing import *
 
@@ -26,7 +27,7 @@ class RepEngineBase:
     def __init__(self, rep: str, **args):
         self.rep = rep
         self.__dict__.update(args)
-        self.properties = self.__dict__
+        self.properties = copy.deepcopy(self.__dict__)
 
     def compute_reps(self, mols: List[str],
                      verbose: Optional[bool] = False,
