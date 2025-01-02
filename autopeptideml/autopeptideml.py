@@ -19,7 +19,7 @@ from hestia.similarity import sequence_similarity_peptides, sequence_similarity_
 from .data.algorithms import SYNONYMS, SUPPORTED_MODELS
 from .data.metrics import METRICS, METRIC2FUNCTION, THRESHOLDED_METRICS
 from .preprocess.sequence import is_canonical
-from .utils.embeddings import RepresentationEngine
+from .reps import RepEngineBase, RepEngineLM
 from .utils.training import (FlexibleObjective, UniDL4BioPep_Objective,
                              ModelSelectionObjective)
 
@@ -192,7 +192,7 @@ class AutoPeptideML:
     def compute_representations(
         self,
         datasets: Dict[str, pd.DataFrame],
-        re: RepresentationEngine
+        re: RepEngineBase
     ) -> dict:
         """Use a Protein Representation Model, loaded with the
         RepresentationEngine class to compute representations
@@ -211,7 +211,7 @@ class AutoPeptideML:
             print('\nStep 4: PLM Peptide Featurization')
         id2rep = {}
         for df in datasets.values():
-            df_repr = re.compute_representations(df.sequence, average_pooling=True)
+            df_repr = re.compute_reps(df.sequence)
             id2rep.update({id: repr for id, repr in zip(df.id, df_repr)})
         return id2rep
 
@@ -632,7 +632,7 @@ class AutoPeptideML:
     def predict(
         self,
         df: pd.DataFrame,
-        re: RepresentationEngine,
+        re: RepEngineBase,
         ensemble_path: str,
         outputdir: str,
         df_repr: list = None
@@ -643,8 +643,8 @@ class AutoPeptideML:
             os.mkdir(outputdir)
         output_path = osp.join(outputdir, 'predictions.csv')
         if df_repr is None:
-            df_repr = re.compute_representations(
-                df.sequence, average_pooling=True
+            df_repr = re.compute_reps(
+                df.sequence
             )
         df_repr = np.stack(df_repr)
 
@@ -688,7 +688,7 @@ class AutoPeptideML:
                     if '/' in line:
                         data.pop()
                     data[-1]['sequence'] = line
-        
+
         output_path = osp.join(
             outputdir,
             f"{dataset.split('/')[-1].split('.')[0]}.csv"

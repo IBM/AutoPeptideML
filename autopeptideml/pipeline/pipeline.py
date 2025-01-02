@@ -68,7 +68,7 @@ class Pipeline:
         self.aggregate = aggregate
 
     def __str__(self) -> str:
-        return json.dumps(self.config)
+        return json.dumps(self.properties)
 
     def __call__(self, mols: List[str],
                  n_jobs: Optional[int] = cpu_count(),
@@ -94,13 +94,11 @@ class Pipeline:
             return mols
 
     def save(self, filename: str):
-        json.dump(open(filename, 'w'), self.config)
+        json.dump(open(filename, 'w'), self.properties)
 
     @classmethod
-    def load(self, filename: str):
-        from autopeptideml import element_registry
-
-        self.config = json.load(open(filename))
+    def load(self, filename: str, element_registry):
+        self.properties = json.load(open(filename))
         elements = []
         for e, e_prop in self.config.items():
             elements.append(element_registry[e](**e_prop))
