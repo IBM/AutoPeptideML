@@ -52,6 +52,8 @@ SYNONYMS = {
 
 
 class RepEngineLM(RepEngineBase):
+    name = 'lm'
+
     def __init__(self, model: str, average_pooling: Optional[bool] = True,
                  cls_token: Optional[bool] = False):
 

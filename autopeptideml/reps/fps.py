@@ -12,6 +12,8 @@ except ImportError:
 
 
 class RepEngineFP(RepEngineBase):
+    name = 'fp'
+
     def __init__(self, rep: str, nbits: int, radius: int):
         super().__init__(rep, nbits=nbits, radius=radius)
         self.nbits = nbits

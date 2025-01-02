@@ -21,8 +21,10 @@ except ImportError:
 
 
 class RepEngineBase:
+    name: str
+
     def __init__(self, rep: str, **args):
-        self.rep = rep
+        self.rep = self.name + '=' + rep
         self.__dict__.update(args)
         self.properties = self.__dict__
 
