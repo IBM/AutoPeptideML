@@ -778,9 +778,13 @@ class AutoPeptideML:
 
     def _convert_to_onnx(self, ensemble_path: str, id2rep: dict,
                          outdir: str):
+        import io
+        from contextlib import redirect_stderr
+
         from skl2onnx import to_onnx
         from skl2onnx.common.data_types import FloatTensorType
         import onnxmltools as onxt
+
         if isinstance(id2rep, dict):
             X = np.array(list(id2rep.values())[:5])
         else:
@@ -790,25 +794,26 @@ class AutoPeptideML:
         for idx, model in enumerate(os.listdir(ensemble_path)):
             model_path = osp.join(ensemble_path, model)
             clf = joblib.load(model_path)
-
-            if 'LGBM' in str(clf):
-                clf_onx = onxt.convert_lightgbm(
-                    clf,
-                    initial_types=[('float_input', variable_type)]
-                )
-            elif 'XGB' in str(clf):
-                clf_onx = onxt.convert_xgboost(
-                    clf,
-                    initial_types=[('float_input', variable_type)]
-                )
-            else:
-                clf_onx = to_onnx(clf, X)
-            if 'class' in str(clf).lower():
-                name = f'{idx}_class.onnx'
-            else:
-                name = f'{idx}_reg.onnx'
-            with open(osp.join(outdir, name), "wb") as f:
-                f.write(clf_onx.SerializeToString())
+            so = io.StringIO()
+            with redirect_stderr(so):
+                if 'LGBM' in str(clf):
+                    clf_onx = onxt.convert_lightgbm(
+                        clf,
+                        initial_types=[('float_input', variable_type)]
+                    )
+                elif 'XGB' in str(clf):
+                    clf_onx = onxt.convert_xgboost(
+                        clf,
+                        initial_types=[('float_input', variable_type)]
+                    )
+                else:
+                    clf_onx = to_onnx(clf, X)
+                if 'class' in str(clf).lower():
+                    name = f'{idx}_class.onnx'
+                else:
+                    name = f'{idx}_reg.onnx'
+                with open(osp.join(outdir, name), "wb") as f:
+                    f.write(clf_onx.SerializeToString())
             os.remove(model_path)
 
     @classmethod
