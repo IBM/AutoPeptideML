@@ -727,34 +727,70 @@ class AutoPeptideML:
         self,
         best_model: list,
         outputdir: str,
-        id2rep: dict
+        id2rep: dict,
+        backend: str = 'onnx'
     ):
-        from skl2onnx import to_onnx
-        from skl2onnx.common.data_types import FloatTensorType
-        import onnxmltools as onxt
+        if backend == 'joblib':
+            try:
+                import joblib
+            except ImportError:
+                raise ImportError(
+                    'This backend requires joblib.',
+                    'Please try: `pip install joblib`'
+                )
+        elif backend == 'onnx':
+            try:
+                import onnxmltools as onxt
+                from skl2onnx.common.data_types import FloatTensorType
+                from skl2onnx import to_onnx
+            except ImportError:
+                raise ImportError(
+                    'This backend requires onnx.',
+                    'Please try: `pip install onnxmltools skl2onnx`'
+                )
+
+        else:
+            raise NotImplementedError(f"Backend: {backend} not implemented.",
+                                      "Please try: `onnx` or `joblib`.")
+
         raw_data_path = osp.join(outputdir, 'ensemble')
         os.makedirs(raw_data_path, exist_ok=True)
-        if isinstance(id2rep, dict):
-            X = np.array(list(id2rep.values())[:5])
-        else:
-            X = id2rep
 
-        variable_type = FloatTensorType([None, X.shape[1]])
-        for idx, clf in enumerate(best_model['estimators']):
-            if 'LGBM' in str(clf):
-                clf_onx = onxt.convert_lightgbm(
-                    clf,
-                    initial_types=[('float_input', variable_type)]
-                )
-            elif 'XGB' in str(clf):
-                clf_onx = onxt.convert_xgboost(
-                    clf,
-                    initial_types=[('float_input', variable_type)]
-                )
+        if backend == 'onnx':
+            if isinstance(id2rep, dict):
+                X = np.array(list(id2rep.values())[:5])
             else:
-                clf_onx = to_onnx(clf, X)
-            with open(osp.join(raw_data_path, f"{idx}.onnx"), "wb") as f:
-                f.write(clf_onx.SerializeToString())
+                X = id2rep
+
+            variable_type = FloatTensorType([None, X.shape[1]])
+            for idx, clf in enumerate(best_model['estimators']):
+                if 'LGBM' in str(clf):
+                    clf_onx = onxt.convert_lightgbm(
+                        clf,
+                        initial_types=[('float_input', variable_type)]
+                    )
+                elif 'XGB' in str(clf):
+                    clf_onx = onxt.convert_xgboost(
+                        clf,
+                        initial_types=[('float_input', variable_type)]
+                    )
+                else:
+                    clf_onx = to_onnx(clf, X)
+
+                if 'class' in str(clf).lower():
+                    name = f'{idx}_class.onnx'
+                else:
+                    name = f'{idx}_reg.onnx'
+                with open(osp.join(raw_data_path, name), "wb") as f:
+
+                    f.write(clf_onx.SerializeToString())
+        else:
+            for idx, clf in enumerate(best_model['estimators']):
+                if 'class' in str(clf).lower():
+                    name = f'{idx}_class.onnx'
+                else:
+                    name = f'{idx}_reg.onnx'
+                joblib.dump(clf, open(osp.join(raw_data_path, name)), 'wb')
 
     def _onnx_prediction(
         self,

@@ -20,6 +20,9 @@ requirements = [
     'lightgbm',
     'xgboost',
     'mdpdf',
+    'onnxmltools',
+    'skl2onnx',
+    'onnxruntime',
     'hestia-ood>=0.0.34'
 ]
 

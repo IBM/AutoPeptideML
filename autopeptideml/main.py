@@ -200,7 +200,8 @@ def build_model(
     apml.save_models(
         best_model=model,
         outputdir=osp.join(outputdir, 'ensemble'),
-        id2rep=id2rep
+        id2rep=id2rep,
+        backend=model_save_backend
     )
     if verbose is True:
         print(results)
@@ -215,7 +216,8 @@ def predict(
     threads: int = typer.Option(cpu_count(), help="Number of threads to use."),
     plm: str = typer.Option("esm2-8m", help="PLM for computing peptide representations. Check GitHub Repository for available options."),
     plm_batch_size: int = typer.Option(12, help="Batch size for PLM."),
-    device: str = typer.Option(None, help="Device where the representations should be computed.")
+    plm_device: str = typer.Option(None, help="Device where the representations should be computed."),
+    model_save_backend: str = typer.Option("onnx", help="Backend for storing models. Options: `onnx` or `joblib`"),
 ) -> pd.DataFrame:
     """
     Predicts peptide representations and outputs predictions using a pre-trained Peptide Language Model (PLM).
@@ -226,7 +228,7 @@ def predict(
     ----------
     dataset : str
         Path to the dataset to be processed. The dataset should be in a format compatible with APML.
-        
+
     ensemble : str, optional
         Path to a directory containing previous APML results for ensemble predictions. If `None`, no ensemble is used.
         Default is `None`.
@@ -279,11 +281,12 @@ def predict(
     )
     """
     re = RepresentationEngine(plm, plm_batch_size)
-    if device is not None:
-        re.move_to_device(device)
+    if plm_device is not None:
+        re.move_to_device(plm_device)
     apml = AutoPeptideML(verbose, threads, 1)
     df = apml.curate_dataset(dataset, outputdir)
-    return apml.predict(df, re, ensemble, outputdir)
+    return apml.predict(df, re, ensemble, outputdir,
+                        backend=model_save_backend)
 
 
 def _build_model():
