@@ -200,7 +200,8 @@ def build_model(
     apml.save_models(
         best_model=model,
         outputdir=osp.join(outputdir, 'ensemble'),
-        id2rep=id2rep
+        id2rep=id2rep,
+        backend=model_save_backend
     )
     if verbose is True:
         print(results)
