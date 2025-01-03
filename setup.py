@@ -12,6 +12,7 @@ readme = (this_directory / "README.md").read_text()
 requirements = [
     'optuna',
     'scikit-learn',
+    'typer',
     'scikit-plot',
     'tokenizers',
     'torch',
