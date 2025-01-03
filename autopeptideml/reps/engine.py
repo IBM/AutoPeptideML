@@ -1,5 +1,6 @@
 import copy
 import json
+import yaml
 from typing import *
 
 import numpy as np
@@ -46,7 +47,6 @@ class RepEngineBase:
             if 'average_pooling' in self.__dict__:
                 if not self.__dict__['average_pooling']:
                     return out
-    
         return np.stack(out)
 
     def dim(self) -> int:
@@ -59,7 +59,7 @@ class RepEngineBase:
         raise NotImplementedError
 
     def save(self, filename: str):
-        json.dump(open(filename, 'w'), self.properties)
+        yaml.safe_dump(self.properties, open(filename, 'w'))
 
     def __str__(self) -> str:
-        return str(self.properties)
+        return str(json.dumps(self.properties))

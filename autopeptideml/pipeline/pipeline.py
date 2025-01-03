@@ -1,4 +1,5 @@
 import json
+import yaml
 
 from concurrent.futures import ThreadPoolExecutor
 from multiprocessing import cpu_count
@@ -11,8 +12,8 @@ class BaseElement:
     properties: Dict[str, Any] = {}
 
     def __call__(self, mol: Union[str, List[str]],
-                 n_jobs: Optional[int] = cpu_count(),
-                 verbose: Optional[bool] = False) -> Union[str, List[str]]:
+                 n_jobs: int = cpu_count(),
+                 verbose: bool = False) -> Union[str, List[str]]:
         if isinstance(mol, str):
             return self._single_call(mol)
         else:
@@ -22,7 +23,7 @@ class BaseElement:
     def _single_call(self, mol: str) -> str:
         raise NotImplementedError
 
-    def _clean(self, mol: List[Union[str, None]]) -> List[str]:
+    def _clean(self, mol: List[Optional[str]]) -> List[str]:
         return [m for m in mol if m is not None]
 
     def _parallel_call(self, mol: List[str], n_jobs: int,
@@ -59,11 +60,15 @@ class ElementRegistry:
 
 class Pipeline:
     def __init__(self, elements: List[BaseElement],
-                 name: Optional[str] = 'pipeline',
-                 aggregate: Optional[bool] = False):
+                 name: str = 'pipeline',
+                 aggregate: bool = False):
         self.elements = elements
         self.name = name
-        self.properties = {e.name: e.properties for e in elements}
+        self.properties = {name: {
+                'name': name,
+                'aggregate': aggregate,
+                'elements': [{e.name: e.properties} for e in elements]}
+        }
         self.properties['aggregate'] = aggregate
         self.aggregate = aggregate
 
@@ -71,8 +76,8 @@ class Pipeline:
         return json.dumps(self.properties)
 
     def __call__(self, mols: List[str],
-                 n_jobs: Optional[int] = cpu_count(),
-                 verbose: Optional[bool] = False):
+                 n_jobs: int = cpu_count(),
+                 verbose: bool = False):
         original_mols = mols
         aggregation = []
         for idx, e in enumerate(self.elements):
@@ -94,7 +99,7 @@ class Pipeline:
             return mols
 
     def save(self, filename: str):
-        json.dump(open(filename, 'w'), self.properties)
+        yaml.safe_dump(self.properties, open(filename, 'w'))
 
     @classmethod
     def load(self, filename: str, element_registry):

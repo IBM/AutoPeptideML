@@ -1,6 +1,6 @@
 from autopeptideml.pipeline import Pipeline
-from autopeptideml.preprocess import (CanonicalCleaner, CanonicalFilter,
-                                      SequenceToSMILES, FilterSMILES)
+from autopeptideml.pipeline import (Pipeline, CanonicalCleaner, CanonicalFilter,
+                                    SequenceToSMILES, FilterSMILES)
 
 
 def test_canonical_filter():

@@ -1,6 +1,6 @@
 from typing import *
 
-from ..pipeline import BaseElement
+from .pipeline import BaseElement
 
 
 RESIDUES = {
@@ -34,13 +34,18 @@ class CanonicalCleaner(BaseElement):
 class CanonicalFilter(BaseElement):
     name = 'canonical-filter'
 
-    def __init__(self):
-        return
+    def __init__(self, keep_canonical: bool = True):
+        super().__init__(keep_canonical=keep_canonical)
+        self.keep_canonical = keep_canonical
 
     def _single_call(self, mol: str) -> Union[str, None]:
         if not (len(mol) > 0):
             return None
         for char in mol:
             if char not in RESIDUES:
-                return None
-        return mol
+                if self.keep_canonical:
+                    return None
+        if self.keep_canonical:
+            return mol
+        else:
+            return None

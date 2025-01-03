@@ -1,0 +1,26 @@
+pipeline:
+  name: main_pipe
+  aggregate: True
+  elements:
+    - pipe1:
+        name: pipe1
+        aggregate: False
+        elements:
+          - filter-smiles:
+    - pipe2:
+        name: pipe2
+        aggregate: False
+        elements:
+          - filter-smiles:
+              keep_smiles: False
+          - canonical-cleaner:
+              substitution: G 
+          - sequence-to-smiles:
+
+representation:
+  engine: LM
+  model: chemberta-2
+  device: mps
+  batch_size: 12
+  average_pooling: True
+

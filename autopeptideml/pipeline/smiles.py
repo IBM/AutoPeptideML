@@ -1,6 +1,6 @@
 from typing import *
 
-from ..pipeline import BaseElement
+from .pipeline import BaseElement
 try:
     import rdkit.Chem.rdmolfiles as rdm
 except ImportError:

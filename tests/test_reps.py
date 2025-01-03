@@ -1,5 +1,6 @@
-from autopeptideml import (RepEngineLM, RepEngineOnehot,
-                           RepEngineFP)
+from autopeptideml.reps.lms import RepEngineLM
+from autopeptideml.reps.seq_based import RepEngineOnehot
+from autopeptideml.reps.fps import RepEngineFP
 import numpy as np
 
 

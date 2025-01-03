@@ -1,3 +1,3 @@
 from .pipeline import Pipeline, BaseElement, ElementRegistry
-
-element_registry = ElementRegistry()
+from .sequence import CanonicalCleaner, CanonicalFilter
+from .smiles import SequenceToSMILES, FilterSMILES
