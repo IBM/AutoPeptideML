@@ -13,7 +13,7 @@ requirements = [
     'optuna',
     'scikit-learn',
     'typer',
-    'scikit-plot',
+    'mljar-scikit-plot',
     'tokenizers',
     'torch',
     'transformers',
