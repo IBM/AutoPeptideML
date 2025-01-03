@@ -32,7 +32,7 @@
 - **Google Collaboratory Notebook:** <a href="https://colab.research.google.com/github/IBM/AutoPeptideML/blob/main/examples/AutoPeptideML_Collab.ipynb" target="_blank">AutoPeptideML_Collab.ipynb</a>
 - **Paper:** <a href="https://doi.org/10.1093/bioinformatics/btae555" target="_blank">https://doi.org/10.1093/bioinformatics/btae555</a>
 - **Blog post:** <a href="https://portal.valencelabs.com/blogs/post/autopeptideml-building-peptide-bioactivity-predictors-automatically-IZZKbJ3Un0qjo4i" target="_blank">Portal - AutoPeptideML Tutorial</a>
-- **Models and Paper SI**: <a href="https://zenodo.org/records/13363975/files/AutoPeptideML_SI.tar.gz?download=1" target="_blank">Zenodo Repository</a>
+- **Models and Paper SI**: <a href="https://zenodo.org/records/14591403/files/AutoPeptideML_SI.tar.gz?download=1" target="_blank">Zenodo Repository</a>
 
 AutoPeptideML allows researchers without prior knowledge of machine learning to build models that are:
 
