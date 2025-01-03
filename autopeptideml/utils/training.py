@@ -112,7 +112,7 @@ class FlexibleObjective:
                 else:
                     result[metric].append(METRIC2FUNCTION[metric](val_y, preds))
             result[f'estimators'].append(clf)
-            
+
         for metric in scoring:
             result[metric] = np.array(result[metric])
         return result
@@ -120,9 +120,10 @@ class FlexibleObjective:
     def callback(self, study, trial):
         if study.best_trial == trial:
             self.best_model = self.model
-            for idx, estimator in enumerate(self.best_model['estimators']):
-                joblib.dump(estimator, open(os.path.join(self.outputdir, 'ensemble', f'{self.name}_{idx}.joblib'), 'wb'))
-            json.dump(self.best_model['estimators'][0].get_params(), open(os.path.join(self.outputdir, 'best_configs', f'{self.name}.json'), 'w'), indent=4)
+            # for idx, estimator in enumerate(self.best_model['estimators']):
+                # joblib.dump(estimator, open(os.path.join(self.outputdir, 'ensemble', f'{self.name}_{idx}.joblib'), 'wb'))
+            json.dump(self.best_model['estimators'][0].get_params(),
+                      open(os.path.join(self.outputdir, 'best_configs', f'{self.name}.json'), 'w'), indent=4)
 
     def get_model(self, model: str):
         for key in SUPPORTED_MODELS:
@@ -157,13 +158,13 @@ class ModelSelectionObjective(FlexibleObjective):
         for variable in self.config[model2idx[model]]['hyperparameter-space']:
             if variable['type'] == 'int':
                 hyperparameter_space[variable['name']] = trial.suggest_int(f"{model}_{variable['name']}", variable['min'], variable['max'], log=variable['log'])
-            
+
             elif variable['type'] == 'float':
                 hyperparameter_space[variable['name']] = trial.suggest_float(f"{model}_{variable['name']}", variable['min'], variable['max'], log=variable['log'])
-            
+
             elif variable['type'] == 'categorical':
                 hyperparameter_space[variable['name']] = trial.suggest_categorical(f"{model}_{variable['name']}", variable['values'])
-            
+
             elif variable['type'] == 'fixed':
                 hyperparameter_space[variable['name']] = variable['value']
 
@@ -188,8 +189,8 @@ class ModelSelectionObjective(FlexibleObjective):
     def callback(self, study, trial):
         if study.best_trial == trial:
             self.best_model = self.model
-            for idx, estimator in enumerate(self.best_model['estimators']):
-                joblib.dump(estimator, open(os.path.join(self.outputdir, 'ensemble', f"{self.model['name']}_{idx}.joblib"), 'wb'))
+            # for idx, estimator in enumerate(self.best_model['estimators']):
+            #     joblib.dump(estimator, open(os.path.join(self.outputdir, 'ensemble', f"{self.model['name']}_{idx}.joblib"), 'wb'))
             json.dump(self.best_model['estimators'][0].get_params(), open(os.path.join(self.outputdir, 'best_configs', f"{self.model['name']}.json"), 'w'), indent=4)
 
 

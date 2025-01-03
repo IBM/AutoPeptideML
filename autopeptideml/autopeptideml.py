@@ -410,7 +410,6 @@ class AutoPeptideML:
             )
             objectives['model_selection'] = objective
 
-
         output = {}
 
         for name, objective in objectives.items():
@@ -431,7 +430,7 @@ class AutoPeptideML:
                 for metric in METRICS:
                     entry[metric] = output[name][metric][i]
                 df_output.append(entry)
-        
+
         df_output = pd.DataFrame(df_output)
         df_output.to_csv(osp.join(evaluation_path, 'cross-validation.csv'), index=False, float_format='{:.4f}'.format)
 
@@ -635,12 +634,65 @@ class AutoPeptideML:
         re: RepresentationEngine,
         ensemble_path: str,
         outputdir: str,
-        df_repr: list = None
+        df_repr: list = None,
+        backend: str = 'onnx'
     ) -> pd.DataFrame:
+        """Predicts scores and uncertainties for input sequences using a pre-trained ensemble of models.
+
+        :param df: DataFrame containing sequences to be predicted. Must include a 'sequence' column.
+        :type df: pd.DataFrame
+        :param re: Representation engine for computing feature representations of sequences.
+        :type re: RepresentationEngine
+        :param ensemble_path: Path to the directory containing the ensemble of trained models.
+        :type ensemble_path: str
+        :param outputdir: Directory where prediction results will be saved. Created if it does not exist.
+        :type outputdir: str
+        :param df_repr: Precomputed representations of the input sequences. If None, representations are computed.
+        :type df_repr: list, optional
+        :param backend: Backend used for prediction. Supported values are 'onnx' (default) and 'joblib'.
+        :type backend: str, optional
+        :return: DataFrame with predictions, including 'score' (average prediction) and 'score_uncertainty' (standard deviation).
+        :rtype: pd.DataFrame
+        :raises ImportError: If required libraries for the selected backend are not installed.
+        :raises NotImplementedError: If an unsupported backend is specified.
+
+        Notes:
+        - Converts joblib models to ONNX format if `backend='onnx'` and joblib models are provided.
+        - Saves predictions to 'predictions.csv' in the specified `outputdir`.
+
+        Example:
+        >>> from mymodule import RepresentationEngine, Predictor
+        >>> predictor = Predictor(verbose=True)
+        >>> df = pd.DataFrame({'sequence': ['ATCG', 'GCTA']})
+        >>> re = RepresentationEngine()
+        >>> predictions = predictor.predict(
+        ...     df, re, ensemble_path='./ensemble', outputdir='./output'
+        ... )
+        >>> print(predictions)
+        """
         if self.verbose is True:
             print('Step 7: Prediction')
         if not osp.isdir(outputdir):
             os.mkdir(outputdir)
+        if backend == 'joblib':
+            try:
+                import joblib
+            except ImportError:
+                raise ImportError(
+                    'This backend requires joblib.',
+                    'Please try: `pip install joblib`'
+                )
+        elif backend == 'onnx':
+            try:
+                import onnxruntime
+            except ImportError:
+                raise ImportError(
+                    'This backend requires onnx.',
+                    'Please try: `pip install onnxruntime onnxmltools skl2onnx`'
+                )
+        else:
+            raise NotImplementedError(f"Backend: {backend} not implemented.",
+                                      "Please try: `onnx` or `joblib`.")
         output_path = osp.join(outputdir, 'predictions.csv')
         if df_repr is None:
             df_repr = re.compute_representations(
@@ -649,18 +701,115 @@ class AutoPeptideML:
         df_repr = np.stack(df_repr)
 
         predictions = []
-        for model in os.listdir(ensemble_path):
-            model_path = osp.join(ensemble_path, model)
-            clf = joblib.load(model_path)
-            predictions.append(clf.predict(df_repr))
+        models = [m for m in os.listdir(ensemble_path)]
+        if backend == 'onnx':
+            if models[0].endswith('.joblib'):
+                self._convert_to_onnx(ensemble_path, df_repr, ensemble_path)
+            predictions = self._onnx_prediction(ensemble_path, df_repr)
+        else:
+            for model in os.listdir(ensemble_path):
+                model_path = osp.join(ensemble_path, model)
+                clf = joblib.load(model_path)
+                predictions.append(clf.predict_proba(df_repr)[:, 1])
 
         predictions = np.stack(predictions)
-        predictions = np.mean(predictions, axis=0)
-        df['prediction'] = predictions
-        df.sort_values(by='prediction', inplace=True, ascending=False, ignore_index=True)
+        pred_avg = np.mean(predictions, axis=0)
+        pred_std = np.std(predictions, axis=0)
 
-        df.to_csv(output_path, index=False)
+        df['score'] = pred_avg
+        df['score_uncertainty'] = pred_std
+        df.sort_values(by='score', inplace=True,
+                       ascending=False, ignore_index=True)
+        df.to_csv(output_path, index=False, float_format="%.2g")
         return df
+
+    def save_models(
+        self,
+        best_model: list,
+        outputdir: str,
+        id2rep: dict
+    ):
+        from skl2onnx import to_onnx
+        from skl2onnx.common.data_types import FloatTensorType
+        import onnxmltools as onxt
+        raw_data_path = osp.join(outputdir, 'ensemble')
+        os.makedirs(raw_data_path, exist_ok=True)
+        if isinstance(id2rep, dict):
+            X = np.array(list(id2rep.values())[:5])
+        else:
+            X = id2rep
+
+        variable_type = FloatTensorType([None, X.shape[1]])
+        for idx, clf in enumerate(best_model['estimators']):
+            if 'LGBM' in str(clf):
+                clf_onx = onxt.convert_lightgbm(
+                    clf,
+                    initial_types=[('float_input', variable_type)]
+                )
+            elif 'XGB' in str(clf):
+                clf_onx = onxt.convert_xgboost(
+                    clf,
+                    initial_types=[('float_input', variable_type)]
+                )
+            else:
+                clf_onx = to_onnx(clf, X)
+            with open(osp.join(raw_data_path, f"{idx}.onnx"), "wb") as f:
+                f.write(clf_onx.SerializeToString())
+
+    def _onnx_prediction(
+        self,
+        ensemble_path: str,
+        X: np.ndarray,
+    ):
+        import onnxruntime as rt
+        preds = []
+        for model in os.listdir(ensemble_path):
+            # clf_onx = onxt.load_model(osp.join(ensemble_path, model))
+            sess = rt.InferenceSession(osp.join(ensemble_path, model),
+                                       providers=['CPUExecutionProvider'])
+            input_name = sess.get_inputs()[0].name
+            if 'class' in model:
+                label_name = sess.get_outputs()[1].name
+            else:
+                label_name = sess.get_outputs()[0].name
+            pred_onx = sess.run([label_name], {input_name: X.astype(np.float32)})[0]
+            preds.append([i[1] for i in pred_onx])
+        return preds
+
+    def _convert_to_onnx(self, ensemble_path: str, id2rep: dict,
+                         outdir: str):
+        from skl2onnx import to_onnx
+        from skl2onnx.common.data_types import FloatTensorType
+        import onnxmltools as onxt
+        if isinstance(id2rep, dict):
+            X = np.array(list(id2rep.values())[:5])
+        else:
+            X = id2rep
+        variable_type = FloatTensorType([None, X.shape[1]])
+
+        for idx, model in enumerate(os.listdir(ensemble_path)):
+            model_path = osp.join(ensemble_path, model)
+            clf = joblib.load(model_path)
+
+            if 'LGBM' in str(clf):
+                clf_onx = onxt.convert_lightgbm(
+                    clf,
+                    initial_types=[('float_input', variable_type)]
+                )
+            elif 'XGB' in str(clf):
+                clf_onx = onxt.convert_xgboost(
+                    clf,
+                    initial_types=[('float_input', variable_type)]
+                )
+            else:
+                clf_onx = to_onnx(clf, X)
+            if 'class' in str(clf).lower():
+                name = f'{idx}_class.onnx'
+            else:
+                name = f'{idx}_reg.onnx'
+            with open(osp.join(outdir, name), "wb") as f:
+                f.write(clf_onx.SerializeToString())
+            os.remove(model_path)
 
     @classmethod
     def _bioactivity_tags(self) -> list:

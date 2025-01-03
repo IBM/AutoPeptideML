@@ -31,6 +31,7 @@ def build_model(
     autosearch_tags: str = typer.Option("", help="Comma-separated list of positive tags to exclude from autosearch."),
     autosearch_proportion: float = typer.Option(1.0, help="Negative:positive proportion."),
     autosearch_db: str = typer.Option(None, help="Alternative database to draw negatives from."),
+    model_save_backend: str = typer.Option("onnx", help="Backend for storing models. Options: `onnx` or `joblib`"),
     balance: Annotated[bool, typer.Option("--balance", help="Whether to oversample the underrepresented class.")] = True,
     test_partition: Annotated[bool, typer.Option("--test-partition", help="Whether to divide dataset into train/test splits.")] = True,
     test_threshold: float = typer.Option(0.3, help="Threshold for test partition."),
@@ -44,126 +45,71 @@ def build_model(
     val_n_folds: int = typer.Option(10, help="Number of validation folds."),
     folds: str = typer.Option(None, help="Folds configuration for validation.")
 ) -> pd.DataFrame:
-    """
-    Builds and trains a predictive model using peptide datasets and a Peptide Language Model (PLM).
+    """Builds and trains a predictive model using peptide datasets and a Protein Language Model (PLM).
 
-    This function integrates the AutoPeptideML (APML) framework to curate datasets, compute peptide representations, partition datasets, perform hyperparameter optimization (HPO), train the model, and evaluate its performance. It supports custom configurations, automated search for negative peptides, and dataset balancing.
-
-    Parameters:
-    ----------
-    dataset : str
-        Path to the dataset to be used for training. If 'None', the dataset will not be curated.
-
-    outputdir : str, optional
-        Directory where the results, configurations, and model outputs will be saved.
-        Default is `"apml_result"`.
-
-    verbose : bool, optional
-        Enables verbose output if set to `True`. Logs progress and detailed outputs during execution.
-        Default is `True`.
-
-    threads : int, optional
-        Number of threads to use for parallel processing. Defaults to the number of CPU cores available.
-
-    seed : int, optional
-        Random seed for reproducibility. Default is `1`.
-
-    plm : str, optional
-        The Peptide Language Model (PLM) to use for computing peptide representations. Refer to the GitHub repository for supported PLM options.
-        Default is `"esm2-8m"`.
-
-    plm_batch_size : int, optional
-        Batch size for processing data through the PLM. Adjust based on available memory and dataset size.
-        Default is `12`.
-
-    plm_device : str, optional
-        Specifies the device (e.g., `"cuda"`, `"cpu"`, `"cuda:0"`) for PLM computations. If `None`, the default device is used.
-        Default is `None`.
-
-    config : str, optional
-        Path to a JSON configuration file or the name of a predefined configuration. Used for hyperparameter optimization and model training.
-        Default is `"default_config"`.
-
-    autosearch : str, optional
-        Determines whether to search for negative peptides. Use `"auto"` to automatically search when insufficient negatives exist or `"True"` to force search.
-        Default is `"auto"`.
-
-    autosearch_tags : str, optional
-        Comma-separated list of positive tags to exclude from the autosearch process.
-        Default is an empty string (`""`).
-
-    autosearch_proportion : float, optional
-        The ratio of negative to positive samples to be maintained in the dataset.
-        Default is `1.0`.
-
-    balance : str, optional
-        Determines whether to oversample the underrepresented class. Set to `"True"` to enable balancing.
-        Default is `"False"`.
-
-    test_partition : str, optional
-        Indicates whether to partition the dataset into training and testing splits. Set to `"True"` to enable partitioning.
-        Default is `"True"`.
-
-    test_threshold : float, optional
-        Threshold value used for test partitioning.
-        Default is `0.3`.
-
-    test_size : float, optional
-        Proportion of the dataset to allocate for testing.
-        Default is `0.2`.
-
-    test_alignment : str, optional
-        Method for aligning the test partition. Default is `"peptides"`.
-
-    splits : str, optional
-        Path to an existing directory containing pre-defined training and testing splits. If provided, these splits will be used instead of generating new ones.
-        Default is `None`.
-
-    val_partition : str, optional
-        Indicates whether to partition the training data into validation folds. Set to `"True"` to enable validation partitioning.
-        Default is `"True"`.
-
-    val_method : str, optional
-        Method for generating validation folds. Default is `"random"`.
-
-    val_alignment : str, optional
-        Method for aligning validation partitions. Default is `"peptides"`.
-
-    val_threshold : float, optional
-        Threshold value used for validation partitioning.
-        Default is `0.5`.
-
-    val_n_folds : int, optional
-        Number of validation folds to generate. Default is `10`.
-
-    folds : str, optional
-        Path to an existing directory containing pre-defined validation folds. If provided, these folds will be used instead of generating new ones.
-        Default is `None`.
-
-    Returns:
-    -------
-    pd.DataFrame
-        A pandas DataFrame containing the evaluation results of the trained model. The structure includes metrics such as accuracy, precision, recall, and F1 score.
+    :param dataset: Path to the dataset to be used for training. If 'None', the dataset will not be curated.
+    :type dataset: str
+    :param outputdir: Directory where the results, configurations, and model outputs will be saved.
+    :type outputdir: str, optional
+    :param verbose: Enables verbose output if set to True. Logs progress and detailed outputs during execution.
+    :type verbose: bool, optional
+    :param threads: Number of threads to use for parallel processing.
+    :type threads: int, optional
+    :param seed: Random seed for reproducibility.
+    :type seed: int, optional
+    :param plm: Peptide Language Model (PLM) to use for computing peptide representations. Refer to the GitHub repository for supported PLM options.
+    :type plm: str, optional
+    :param plm_batch_size: Batch size for processing data through the PLM. Adjust based on available memory and dataset size.
+    :type plm_batch_size: int, optional
+    :param plm_device: Device (e.g., "cuda", "cpu", "cuda:0") for PLM computations. If None, the default device is used.
+    :type plm_device: str, optional
+    :param config: Path to a JSON configuration file or the name of a predefined configuration. Used for hyperparameter optimization and model training.
+    :type config: str, optional
+    :param autosearch: Determines whether to search for negative peptides. Use "auto" to automatically search when insufficient negatives exist or "True" to force search.
+    :type autosearch: str, optional
+    :param autosearch_tags: Comma-separated list of positive tags to exclude from the autosearch process.
+    :type autosearch_tags: str, optional
+    :param autosearch_proportion: Ratio of negative to positive samples to be maintained in the dataset.
+    :type autosearch_proportion: float, optional
+    :param autosearch_db: Alternative database to draw negative samples from.
+    :type autosearch_db: str, optional
+    :param model_save_backend: Backend for storing models. Options: 'onnx' or 'joblib'.
+    :type model_save_backend: str, optional
+    :param balance: Whether to oversample the underrepresented class.
+    :type balance: bool, optional
+    :param test_partition: Whether to divide the dataset into training and testing splits.
+    :type test_partition: bool, optional
+    :param test_threshold: Threshold value used for test partitioning.
+    :type test_threshold: float, optional
+    :param test_size: Proportion of the dataset to allocate for testing.
+    :type test_size: float, optional
+    :param test_alignment: Method for aligning the test partition.
+    :type test_alignment: str, optional
+    :param splits: Path to an existing directory containing predefined training and testing splits.
+    :type splits: str, optional
+    :param val_partition: Whether to partition the training data into validation folds.
+    :type val_partition: bool, optional
+    :param val_method: Method for generating validation folds.
+    :type val_method: str, optional
+    :param val_alignment: Method for aligning validation partitions.
+    :type val_alignment: str, optional
+    :param val_threshold: Threshold value used for validation partitioning.
+    :type val_threshold: float, optional
+    :param val_n_folds: Number of validation folds to generate.
+    :type val_n_folds: int, optional
+    :param folds: Path to an existing directory containing predefined validation folds.
+    :type folds: str, optional
+    :return: A DataFrame containing evaluation results of the trained model, including metrics such as accuracy, precision, recall, and F1 score.
+    :rtype: pd.DataFrame
 
     Notes:
-    -----
-    - The function creates an `apml_config.json` file in the output directory to save configuration details.
-    - Negative peptide samples are generated or balanced as needed based on the input parameters.
-    - The dataset is partitioned into training, validation, and testing sets unless pre-defined splits are provided.
-    - Hyperparameter optimization (HPO) is performed using the provided configuration, and the best model is trained and evaluated.
+    - Creates an `apml_config.yaml` file in the output directory to save configuration details.
+    - Generates or balances negative peptide samples based on input parameters.
+    - Partitions the dataset into training, validation, and testing sets unless predefined splits are provided.
+    - Performs hyperparameter optimization (HPO) and evaluates the best model.
 
-    Examples:
-    --------
-    ```python
-    # Build and train a model with default settings
-    results = build_model("path/to/dataset.csv")
-
-    # Build a model with a custom configuration and specific PLM device
-    results = build_model(
-        dataset="path/to/dataset.csv",
-        config="custom_config.json",
-        plm_device="cuda:0"
-    )
+    Example:
+    >>> results = build_model("path/to/dataset.csv", verbose=True, plm_device="cuda:0")
     """
     AutoPeptideML._welcome()
     typer.echo(f"Dataset: {dataset}")
@@ -250,6 +196,11 @@ def build_model(
         datasets['test'],
         id2rep,
         outputdir
+    )
+    apml.save_models(
+        best_model=model,
+        outputdir=osp.join(outputdir, 'ensemble'),
+        id2rep=id2rep
     )
     if verbose is True:
         print(results)
