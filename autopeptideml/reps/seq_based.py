@@ -20,6 +20,7 @@ class RepEngineOnehot(RepEngineBase):
     def __init__(self, max_length: int):
         super().__init__('one-hot', max_length=max_length)
         self.max_length = max_length
+        self.name = f'{self.engine}'
 
     def _preprocess_batch(self, batch: List[str]):
         return [s[:self.max_length] for s in batch]

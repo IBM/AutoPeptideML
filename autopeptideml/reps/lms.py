@@ -61,6 +61,7 @@ class RepEngineLM(RepEngineBase):
                          cls_token=cls_token)
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.model = None
+        self.name = f'{self.engine}-{model}'
         self._load_model(model)
 
     def move_to_device(self, device: str):
@@ -131,14 +132,16 @@ class RepEngineLM(RepEngineBase):
         self, batch: List[str],
     ) -> List[np.ndarray]:
         inputs = self.tokenizer(batch, add_special_tokens=True,
-                            padding="longest", return_tensors="pt")
+                                truncation=True,
+                                padding="longest", return_tensors="pt")
         inputs = inputs.to(self.device)
         with torch.no_grad():
             if self.lab == 'ElnaggarLab':
-                embd_rpr = self.model(input_ids=inputs['input_ids'],
-                                    attention_mask=inputs['attention_mask'],
-                                    decoder_input_ids=inputs['input_ids']
-                                    ).last_hidden_state
+                embd_rpr = self.model(
+                    input_ids=inputs['input_ids'],
+                    attention_mask=inputs['attention_mask'],
+                    decoder_input_ids=inputs['input_ids']
+                ).last_hidden_state
             else:
                 embd_rpr = self.model(**inputs).last_hidden_state
         output = []

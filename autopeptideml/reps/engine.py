@@ -37,7 +37,7 @@ class RepEngineBase:
         out = []
 
         if verbose:
-            pbar = tqdm(batches)
+            pbar = tqdm(list(batches))
         else:
             pbar = batches
 

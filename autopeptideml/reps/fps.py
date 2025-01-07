@@ -18,6 +18,7 @@ class RepEngineFP(RepEngineBase):
         super().__init__(rep, nbits=nbits, radius=radius)
         self.nbits = nbits
         self.radius = radius
+        self.name = f'{self.engine}-{self.nbits}-{self.radius}'
         self.generator = self._load_generator(rep)
 
     def _preprocess_batch(self, batch: List[str]) -> List[str]:

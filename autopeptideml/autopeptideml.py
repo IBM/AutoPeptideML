@@ -361,8 +361,7 @@ class AutoPeptideML:
         if 'ensemble' in config:
             for study in config['ensemble']:
                 optuna_study = optuna.create_study(
-                    direction="maximize",
-                    sampler=optuna.samplers.RandomSampler(seed=self.seed)
+                    direction="maximize"
                 )
                 if study['model'] in SYNONYMS['unidl4biopep']:
                     objective = UniDL4BioPep_Objective(
