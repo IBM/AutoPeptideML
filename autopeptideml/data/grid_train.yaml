@@ -27,21 +27,20 @@ representation:
         average_pooling: True
     - ecfp:
         engine: fp
+        fp: ecfp
         nbits: 2048
         radius: 8
 
 train:
   optim_strategy:
-    trainer: optuna
-    n_steps: 100
-    patience: 20
+    trainer: grid
     direction: maximize
     task: class
     metric: mcc
-    n_jobs: 10
+
   hspace:
     models:
-      type: select
+      type: fixed
       elements:
         rf:
           - n_estimators:
@@ -49,12 +48,19 @@ train:
               min: 10
               max: 100
               log: true
+              steps: 10
+          - max_features:
+              type: categorical
+              values: 
+                - log2
+                - sqrt
         svm:
           - C:
               type: float
               min: 0.000001
               max: 0.1
               log: true
+              steps: 5
           - probability:
               type: fixed
               value: true

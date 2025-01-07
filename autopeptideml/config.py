@@ -5,7 +5,7 @@ import pandas as pd
 
 from .pipeline import Pipeline, CanonicalCleaner, CanonicalFilter
 from .reps import RepEngineBase
-from .train import BaseTrainer, OptunaTrainer
+from .train import BaseTrainer, OptunaTrainer, GridTrainer
 from .autopeptideml import AutoPeptideML
 
 
@@ -49,18 +49,18 @@ def load_representation(rep_config: str) -> Dict[str, RepEngineBase]:
     for r in rep_config['elements']:
         name = list(r.keys())[0]
         r_config = r[name]
-        if 'LM' in r_config['engine']:
+        if 'lm' in r_config['engine'].lower():
             from .reps.lms import RepEngineLM
             re = RepEngineLM(r_config['model'], r_config['average_pooling'])
             re.batch_size = r_config['batch_size']
             re.device = r_config['device']
 
-        elif 'FP' in r_config['engine']:
+        elif 'fp' in r_config['engine'].lower():
             from .reps.fps import RepEngineFP
             re = RepEngineFP(r_config['fp'], nbits=r_config['nbits'],
                              radius=r_config['radius'])
 
-        elif 'OneHot' in r_config['engine']:
+        elif 'onehot' in r_config['engine'].lower():
             from .reps import RepEngineOnehot
             re = RepEngineOnehot(rep_config['max_length'])
         out[name] = re
@@ -72,6 +72,8 @@ def load_trainer(train_config: dict) -> BaseTrainer:
     optim_strategy = train_config['optim_strategy']
     if optim_strategy['trainer'] == 'optuna':
         trainer = OptunaTrainer(hspace, optim_strategy)
+    elif optim_strategy['trainer'] == 'grid':
+        trainer = GridTrainer(hpspace=hspace, optim_strategy=optim_strategy)
     return trainer
 
 
@@ -80,7 +82,6 @@ def load_modules(path: str):
     pipe_config = config['pipeline']
     rep_config = config['representation']
     train_config = config['train']
-    print(train_config)
     pipeline = load_pipeline(pipe_config)
     pipeline.save('trial.yml')
     rep = load_representation(rep_config)
@@ -92,7 +93,7 @@ if __name__ == "__main__":
     import os.path as osp
     import numpy as np
 
-    path = '/Users/raulfd/Projects/Finished/APML_Project/AutoPeptideML/autopeptideml/data/new_config.yaml' 
+    path = '/Users/raulfd/Projects/Finished/APML_Project/AutoPeptideML/autopeptideml/data/grid_train.yaml'
     pipeline, reps, train = load_modules(path)
 
     df = pd.read_csv('./downstream_data/BBP.csv')
@@ -104,14 +105,18 @@ if __name__ == "__main__":
     folds = apml.train_val_partition(datasets['train'])
     folds = [(f['train'].index.to_numpy(),
               f['val'].index.to_numpy()) for f in folds]
+    x = {}
+    x_light = pipeline(df.sequence, n_jobs=10, verbose=False)
+
     for name, rep in reps.items():
         if osp.exists(f'{rep.name}.pckl'):
-            x = np.load(f'{rep.name}.pckl', allow_pickle=True)
+            x[name] = np.load(f'{rep.name}.pckl', allow_pickle=True)
         else:
-            x = pipeline(df.sequence, n_jobs=10, verbose=False)
             if 'lm' in rep.name:
                 rep.move_to_device(rep.device)
-            x = rep.compute_reps(x, verbose=True, batch_size=rep.batch_size)
-            x.dump(f'{rep.name}.pckl')
-
+                x[name] = rep.compute_reps(x_light, verbose=True,
+                                           batch_size=rep.batch_size)
+            else:
+                x[name] = rep.compute_reps(x_light, verbose=True)
+            x[name].dump(f'{rep.name}.pckl')
     train.hpo(folds, x, df.Y.to_numpy())

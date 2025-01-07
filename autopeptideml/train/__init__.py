@@ -1,1 +1,1 @@
-from .trainer import BaseTrainer, OptunaTrainer
+from .trainer import BaseTrainer, OptunaTrainer, GridTrainer

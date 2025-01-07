@@ -1,4 +1,5 @@
 import copy
+import itertools as it
 import json
 import operator
 import yaml
@@ -7,6 +8,7 @@ import warnings
 import numpy as np
 import pandas as pd
 
+from tqdm import tqdm
 from typing import *
 from .architectures import *
 from .metrics import evaluate, CLASSIFICATION_METRICS, REGRESSION_METRICS
@@ -93,7 +95,6 @@ class OptunaTrainer(BaseTrainer):
     name = 'optuna'
 
     def _prepare_hpspace(self, trial) -> dict:
-        NO_N_JOBS = ['svm', 'mlp', 'xgboost']
         PROBABILITY = ['svm']
         full_hspace = []
         if (self.hpspace['models']['type'] == 'fixed' or
@@ -190,34 +191,41 @@ class OptunaTrainer(BaseTrainer):
                 "Please check the definition of all fields."
             )
         warnings.filterwarnings('ignore')
-        results, supensemble = [], []
+        results, supensemble = [], {'models': [], 'reps': []}
         train_folds = self.train_folds
         x = self.x
         y = self.y
+
         for train_idx, valid_idx in train_folds:
-            train_x, train_y = x[train_idx], y[train_idx]
-            valid_x, valid_y = x[valid_idx], y[valid_idx]
-            ensemble = []
+            ensemble = {'models': [], 'reps': []}
+
             for h_m in hspace:
                 arch = self.models[h_m['name']]
                 arch = arch(**h_m['variables'])
-                arch.fit(train_x, train_y)
-                ensemble.append(arch)
+                train_x, train_y = x[h_m['representation']][train_idx], y[train_idx]
 
+                arch.fit(train_x, train_y)
+                ensemble['models'].append(arch)
+                ensemble['reps'].append(h_m['representation'])
+
+            valid_y = y[valid_idx]
             preds = np.zeros(valid_y.shape)
-            for arch in ensemble:
-                preds += arch.predict_proba(valid_x)[:, 1] / len(ensemble)
+            for arch, rep in zip(ensemble['models'], ensemble['reps']):
+                valid_x = x[rep][valid_idx]
+                preds += (arch.predict_proba(valid_x)[:, 1] /
+                          len(ensemble['models']))
 
             result = evaluate(preds, valid_y, self.optim_strategy['task'])
             results.append(result)
-            supensemble.extend(ensemble)
+            supensemble['models'].extend(ensemble['models'])
+            supensemble['reps'].extend(ensemble['reps'])
 
         result_df = pd.DataFrame(results)
         perf = result_df[self.metric].mean()
         if ((self.optim_strategy['direction'] == 'minimize' and
-             perf > self.best_metric) or
+             perf < self.best_metric) or
            (self.optim_strategy['direction'] == 'maximize' and
-           perf < self.best_metric)):
+           perf > self.best_metric)):
 
             self.best_metric = perf
             self.best_config = hspace
@@ -227,7 +235,7 @@ class OptunaTrainer(BaseTrainer):
     def hpo(
         self,
         train_folds: List[Tuple[np.ndarray, np.ndarray]],
-        x: np.ndarray,
+        x: Dict[str, np.ndarray],
         y: np.ndarray
     ) -> Union[Callable, List[Callable]]:
         try:
@@ -266,3 +274,130 @@ class OptunaTrainer(BaseTrainer):
 
 class GridTrainer(BaseTrainer):
     name = 'grid'
+
+    def _prepare_hpspace(self) -> dict:
+        PROBABILITY = ['svm']
+        full_hspace = []
+        for m_key, model in self.hpspace['models']['elements'].items():
+            hspace = {}
+            for variable in model:
+                key = list(variable.keys())[0]
+                variable = variable[key]
+
+                if variable['type'] == 'int':
+                    min, max = variable['min'], variable['max']
+                    if variable['log']:
+                        min, max = np.log10(min), np.log10(max)
+                        step = (max - min) / (variable['steps'] - 1)
+                    hspace[key] = []
+                    for i in range(variable['steps']):
+                        val = min + step * i
+                        if variable['log']:
+                            hspace[key].append(int(10**val))
+                        else:
+                            hspace[key].append(int(val))
+
+                elif variable['type'] == 'float':
+                    min, max = variable['min'], variable['max']
+                    if variable['log']:
+                        min, max = np.log10(min), np.log10(max)
+                        step = (max - min) / (variable['steps'] - 1)
+                    hspace[key] = []
+                    for i in range(variable['steps']):
+                        val = min + step * i
+                        if variable['log']:
+                            hspace[key].append(10**val)
+                        else:
+                            hspace[key].append(val)
+
+                elif variable['type'] == 'categorical':
+                    hspace[key] = variable['values']
+
+                elif variable['type'] == 'fixed':
+                    hspace[key] = [variable['value']]
+
+                if key.lower() in PROBABILITY:
+                    hspace['probability'] = [True]
+
+            full_hspace.append(
+                {'name': m_key, 'variables': hspace,
+                 'representation': self.hpspace['representations']})
+
+        real_hspace = []
+        for m_space in full_hspace:
+            model = m_space['name']
+            variables = [v for v in m_space['variables'].values()]
+            names = list(m_space['variables'].keys())
+            names.append('representation')
+            combs = it.product(*variables, m_space['representation'])
+            hspace = [{n: v[idx] for idx, n in enumerate(names)}
+                      for v in combs]
+            for idx in range(len(hspace)):
+                hspace[idx]['name'] = model
+            real_hspace.extend(hspace)
+        return real_hspace
+
+    def hpo(
+        self,
+        train_folds: List[Tuple[np.ndarray, np.ndarray]],
+        x: Dict[str, np.ndarray],
+        y: np.ndarray
+    ) -> Union[Callable, List[Callable]]:
+        self.best_model = None
+        self.best_metric = (
+            float("inf") if self.optim_strategy['direction'] == 'minimize'
+            else float('-inf')
+        )
+        self.metric = self.optim_strategy['metric']
+        hspace = self._prepare_hpspace()
+        if (self.hpspace['models']['type'] == 'fixed' or
+           self.hpspace['models']['type'] == 'ensemble'):
+            o_hspace = copy.deepcopy(hspace)
+            n_hspace = {}
+            for e in o_hspace:
+                if e['name'] in n_hspace:
+                    n_hspace[e['name']].append(e)
+                else:
+                    n_hspace[e['name']] = [e]
+
+            hspace = list(it.product(*list(n_hspace.values())))
+
+        pbar = tqdm(hspace)
+        for idx, h in enumerate(pbar):
+            supensemble = {'models': [], 'reps': []}
+            results = []
+            for train_idx, valid_idx in train_folds:
+                ensemble = {'models': [], 'reps': []}
+
+                for h_m in h:
+                    h_m = copy.deepcopy(h_m)
+                    arch = self.models[h_m['name']]
+                    train_x, train_y = x[h_m['representation']][train_idx], y[train_idx]
+                    ensemble['reps'].append(h_m['representation'])
+                    del h_m['name'],  h_m['representation']
+                    arch = arch(**h_m)
+                    arch.fit(train_x, train_y)
+                    ensemble['models'].append(arch)
+
+                valid_y = y[valid_idx]
+                preds = np.zeros(valid_y.shape)
+                for arch, rep in zip(ensemble['models'], ensemble['reps']):
+                    valid_x = x[rep][valid_idx]
+                    preds += (arch.predict_proba(valid_x)[:, 1] /
+                              len(ensemble['models']))
+
+                result = evaluate(preds, valid_y, self.optim_strategy['task'])
+                results.append(result)
+                supensemble['models'].extend(ensemble['models'])
+                supensemble['reps'].extend(ensemble['reps'])
+
+            result_df = pd.DataFrame(results)
+            perf = result_df[self.metric].mean()
+            if ((self.optim_strategy['direction'] == 'minimize' and
+                perf < self.best_metric) or
+                (self.optim_strategy['direction'] == 'maximize' and
+               perf > self.best_metric)):
+                self.best_metric = perf
+                self.best_config = hspace
+                self.best_model = supensemble
+                pbar.set_description(f'Best Value: {perf:.4g} at step {idx}')
