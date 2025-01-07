@@ -220,6 +220,7 @@ class OptunaTrainer(BaseTrainer):
            perf < self.best_metric)):
 
             self.best_metric = perf
+            self.best_config = hspace
             self.best_model = supensemble
         return perf
 
@@ -261,3 +262,7 @@ class OptunaTrainer(BaseTrainer):
                        n_jobs=self.optim_strategy['n_jobs'],
                        callbacks=[callback], gc_after_trial=True,
                        show_progress_bar=True)
+
+
+class GridTrainer(BaseTrainer):
+    name = 'grid'
