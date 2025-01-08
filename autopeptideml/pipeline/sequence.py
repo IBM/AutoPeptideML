@@ -41,11 +41,8 @@ class CanonicalFilter(BaseElement):
     def _single_call(self, mol: str) -> Union[str, None]:
         if not (len(mol) > 0):
             return None
-        for char in mol:
-            if char not in RESIDUES:
-                if self.keep_canonical:
-                    return None
-        if self.keep_canonical:
+        if ((is_canonical(mol) and self.keep_canonical) or
+           (not is_canonical(mol) and not self.keep_canonical)):
             return mol
         else:
             return None

@@ -8,6 +8,14 @@ except ImportError:
                       " Try: `pip install rdkit`")
 
 
+def is_smiles(mol: str):
+    return (
+        '(' in mol or ')' in mol or
+        '[' in mol or ']' in mol or
+        '@' in mol or 'O' in mol
+    )
+
+
 class SequenceToSMILES(BaseElement):
     name = 'sequence-to-smiles'
 
@@ -25,18 +33,9 @@ class FilterSMILES(BaseElement):
         self.properties['keep_smiles'] = keep_smiles
         self.keep_smiles = keep_smiles
 
-    def _single_call(self, mol):
-        if ('(' in mol or
-            ')' in mol or
-            '[' in mol or
-            ']' in mol or
-           '@' in mol):
-            if self.keep_smiles:
-                return mol
-            else:
-                return None
+    def _single_call(self, mol: str):
+        if ((is_smiles(mol) and self.keep_smiles) or
+           (not is_smiles(mol) and not self.keep_smiles)):
+            return mol
         else:
-            if self.keep_smiles:
-                return None
-            else:
-                return mol
+            return None

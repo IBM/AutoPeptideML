@@ -1,10 +1,10 @@
 import json
 import yaml
+from typing import *
 
 from concurrent.futures import ThreadPoolExecutor
 from multiprocessing import cpu_count
 from tqdm import tqdm
-from typing import *
 
 
 class BaseElement:
@@ -36,7 +36,7 @@ class BaseElement:
                     jobs.append(job)
 
                 if verbose:
-                    pbar = tqdm(jobs)
+                    pbar = tqdm(jobs, unit_scale=True)
                 else:
                     pbar = jobs
 
@@ -51,15 +51,8 @@ class BaseElement:
         return self._clean(out)
 
 
-class ElementRegistry:
-    element_dict: Dict[str, BaseElement] = {}
-
-    def add_element(self, element: BaseElement):
-        self.element_dict[element.name] = element
-
-
 class Pipeline:
-    def __init__(self, elements: List[BaseElement],
+    def __init__(self, elements: Union[List[BaseElement], List["Pipeline"]],
                  name: str = 'pipeline',
                  aggregate: bool = False):
         self.elements = elements

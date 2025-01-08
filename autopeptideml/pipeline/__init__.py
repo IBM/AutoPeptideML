@@ -1,3 +1,3 @@
-from .pipeline import Pipeline, BaseElement, ElementRegistry
+from .pipeline import Pipeline, BaseElement
 from .sequence import CanonicalCleaner, CanonicalFilter
 from .smiles import SequenceToSMILES, FilterSMILES

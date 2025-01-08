@@ -6,6 +6,7 @@ import pandas as pd
 from .pipeline import Pipeline, CanonicalCleaner, CanonicalFilter
 from .reps import RepEngineBase
 from .train import BaseTrainer, OptunaTrainer, GridTrainer
+from .db import Database
 from .autopeptideml import AutoPeptideML
 
 
@@ -96,27 +97,36 @@ if __name__ == "__main__":
     path = '/Users/raulfd/Projects/Finished/APML_Project/AutoPeptideML/autopeptideml/data/grid_train.yaml'
     pipeline, reps, train = load_modules(path)
 
-    df = pd.read_csv('./downstream_data/BBP.csv')
+    db = Database('./downstream_data/BBP.csv', pipe=pipeline,
+                  feat_fields=['SMILES'], label_field='Y')
+    df2 = pd.read_csv('peptipedia2.csv')[:1_000]
+    db2 = Database(df=df2, pipe=pipeline,
+                   feat_fields=['sequence'], verbose=True)
+    db.df = db.df[db.df['Y'] == 1].copy()
+    negs = db2.draw_samples(
+        db, columns_to_exclude=['Blood brain barrier penetrating']
+    )
+    db.add_negatives(negs)
+    print(db.df.Y.value_counts())
+
     apml = AutoPeptideML(verbose=False)
     datasets = apml.train_test_partition(
-        df=df, test_size=0.2, threshold=0.5,
+        df=db.df, test_size=0.2, threshold=0.5,
         denominator='longest', alignment='peptides'
     )
     folds = apml.train_val_partition(datasets['train'])
     folds = [(f['train'].index.to_numpy(),
               f['val'].index.to_numpy()) for f in folds]
     x = {}
-    x_light = pipeline(df.sequence, n_jobs=10, verbose=False)
-
     for name, rep in reps.items():
         if osp.exists(f'{rep.name}.pckl'):
             x[name] = np.load(f'{rep.name}.pckl', allow_pickle=True)
         else:
             if 'lm' in rep.name:
                 rep.move_to_device(rep.device)
-                x[name] = rep.compute_reps(x_light, verbose=True,
+                x[name] = rep.compute_reps(db.df['SMILES'], verbose=True,
                                            batch_size=rep.batch_size)
             else:
-                x[name] = rep.compute_reps(x_light, verbose=True)
+                x[name] = rep.compute_reps(db.df['SMILES'], verbose=True)
             x[name].dump(f'{rep.name}.pckl')
-    train.hpo(folds, x, df.Y.to_numpy())
+    train.hpo(folds, x, db.df.Y.to_numpy())
