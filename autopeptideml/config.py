@@ -94,7 +94,7 @@ if __name__ == "__main__":
     import os.path as osp
     import numpy as np
 
-    path = '/Users/raulfd/Projects/Finished/APML_Project/AutoPeptideML/autopeptideml/data/grid_train.yaml'
+    path = '/Users/raulfd/Projects/Finished/APML_Project/AutoPeptideML/autopeptideml/data/optuna_train.yaml'
     pipeline, reps, train = load_modules(path)
 
     db = Database('./downstream_data/BBP.csv', pipe=pipeline,
@@ -103,11 +103,9 @@ if __name__ == "__main__":
     db2 = Database(df=df2, pipe=pipeline,
                    feat_fields=['sequence'], verbose=True)
     db.df = db.df[db.df['Y'] == 1].copy()
-    negs = db2.draw_samples(
-        db, columns_to_exclude=['Blood brain barrier penetrating']
+    db.add_negatives(
+        db2, columns_to_exclude=['Blood brain barrier penetrating']
     )
-    db.add_negatives(negs)
-    print(db.df.Y.value_counts())
 
     apml = AutoPeptideML(verbose=False)
     datasets = apml.train_test_partition(

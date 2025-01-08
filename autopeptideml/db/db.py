@@ -81,7 +81,11 @@ class Database:
             entries_df.drop_duplicates(field, inplace=True)
         return entries_df
 
-    def add_negatives(self, other: "Database"):
+    def add_negatives(
+        self, other: "Database",
+        columns_to_exclude: Optional[Union[List[str], str]] = None
+    ):
+        other = other.draw_samples(self, columns_to_exclude)
         other[self.label_field] = 0
         self.df = pd.concat([self.df, other])
 
