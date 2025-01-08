@@ -411,7 +411,6 @@ class AutoPeptideML:
             )
             objectives['model_selection'] = objective
 
-
         output = {}
 
         for name, objective in objectives.items():

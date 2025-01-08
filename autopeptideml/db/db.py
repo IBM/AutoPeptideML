@@ -10,6 +10,9 @@ from tqdm import tqdm
 
 
 class Database:
+    """
+    Class that handles the dataset operation within AutoPeptideML.
+    """
     df: pd.DataFrame
     # Pipeline can be a single pipeline or a dictionary of field - Pipeline
     pipe: Union[Pipeline, Dict[str, Pipeline]]
@@ -26,6 +29,29 @@ class Database:
         label_field: Optional[str] = None,
         verbose: bool = False
     ):
+        """Initialises a Database instance.
+
+        :type path: Optional[str]
+        :param path: Path to the CSV file containing the dataset. If provided, the dataset will be loaded from this path.
+
+        :type df: Optional[pd.DataFrame]
+        :param df: The dataset represented as a pandas DataFrame. If `path` is provided, this will be ignored.
+
+        :type pipe: Union[Pipeline, Dict[str, Pipeline]]
+        :param pipe: A preprocessing pipeline or a dictionary of feature fields mapped to their respective pipelines. 
+                    If not provided, no preprocessing is applied.
+
+        :type feat_fields: Union[str, List[str]]
+        :param feat_fields: A single feature field or a list of feature fields (e.g., `['seq', 'smiles']`) 
+                            used for processing and model input. This parameter is required.
+
+        :type label_field: Optional[str]
+        :param label_field: The name of the column representing labels in the dataset. If `None`, no label column is specified.
+
+        :type verbose: bool
+        :param verbose: Enables verbose output if set to `True`. Logs detailed preprocessing steps. Default is `False`.
+
+        """
         if path is not None:
             self.df = pd.read_csv(path)
         else:
@@ -47,6 +73,19 @@ class Database:
         target_db: "Database",
         columns_to_exclude: Optional[Union[List[str], str]] = None
     ) -> pd.DataFrame:
+        """
+        Draws samples from the current database to match the distribution of the target database. 
+        Excludes specified columns if provided.
+
+        :type target_db: Database
+          :param target_db: The target `Database` whose distribution is used to sample data.
+
+        :type columns_to_exclude: Optional[Union[List[str], str]]
+          :param columns_to_exclude: A single column or list of columns to exclude from sampling. If `None`, no columns are excluded.
+
+        :rtype: pd.DataFrame
+          :return: A DataFrame containing the sampled data matching the target database distribution.
+        """
         if columns_to_exclude is not None:
             self._filter(columns_to_exclude)
 
@@ -85,11 +124,30 @@ class Database:
         self, other: "Database",
         columns_to_exclude: Optional[Union[List[str], str]] = None
     ):
+        """
+        Adds negative samples to the current database using another database. 
+        The label for negative samples is set to `0`.
+
+        :type other: Database
+          :param other: The source `Database` from which negative samples are drawn.
+
+        :type columns_to_exclude: Optional[Union[List[str], str]]
+          :param columns_to_exclude: A single column or list of columns to exclude during sampling. If `None`, no columns are excluded.
+
+        :rtype: None
+          :return: Updates the current database with the added negative samples.
+        """
         other = other.draw_samples(self, columns_to_exclude)
         other[self.label_field] = 0
         self.df = pd.concat([self.df, other])
 
     def _check_fields(self):
+        """
+        Validates that all feature fields exist in the dataset.
+
+        :rtype: None
+          :return: Raises a `KeyError` if any feature field is missing from the dataset.
+        """
         for field in self.feat_fields:
             if field not in self.df.columns:
                 raise KeyError(
@@ -98,6 +156,12 @@ class Database:
                 )
 
     def _get_mw(self):
+        """
+        Computes the molecular weight (MW) for each entry in the dataset using RDKit.
+
+        :rtype: None
+          :return: Adds a `tmp_mw` column to the dataset with computed molecular weights.
+        """
         try:
             from rdkit import Chem
             from rdkit.Chem import Descriptors
@@ -120,6 +184,15 @@ class Database:
                 )
 
     def _preprocess(self, verbose):
+        """
+        Applies preprocessing steps to the dataset, including field validation and pipeline execution.
+
+        :type verbose: bool
+          :param verbose: Enables verbose output if set to `True`.
+
+        :rtype: None
+          :return: Updates the dataset with preprocessed feature fields.
+        """
         self._check_fields()
         if verbose:
             print("Preprocessing database")
@@ -129,12 +202,27 @@ class Database:
         self._get_mw()
 
     def _filter(self, columns: Union[List[str], str]):
+        """
+        Filters out rows where specified columns contain the value `1`.
+
+        :type columns: Union[List[str], str]
+          :param columns: A single column or list of columns to filter.
+
+        :rtype: None
+          :return: Updates the dataset after filtering.
+        """
         if isinstance(columns, str):
             columns = [columns]
         for column in columns:
             self.df = self.df[self.df[column] != 1].copy().reset_index(drop=True)
 
     def _hist(self) -> List[np.ndarray]:
+        """
+        Creates histograms based on molecular weight ranges for the dataset.
+
+        :rtype: List[np.ndarray]
+          :return: A list of boolean arrays indicating the molecular weight bins.
+        """
         av_mw_aa = 110
         step = 5 * av_mw_aa
         max_mw = int(self.df['tmp_mw'].max())
@@ -146,8 +234,26 @@ class Database:
         return out
 
     def __len__(self) -> int:
+        """
+        Returns the number of rows in the dataset.
+
+        :rtype: int
+          :return: The number of rows in the dataset.
+        """
         return len(self.df)
 
     def __getitem__(self, idx: int) -> pd.Series:
+        """
+        Retrieves a row from the dataset by index, returning only the feature fields and the label field, if specified.
+
+        :type idx: int
+          :param idx: The index of the row to retrieve.
+
+        :rtype: pd.Series
+          :return: A series containing the feature fields and the label field if specified for the specified row.
+        """
         item = self.df.iloc[idx]
-        return item[self.feat_fields]
+        if self.label_field is None:
+            return item[self.feat_fields]
+        else:
+            return item[self.feat_fields + self.label_field]
