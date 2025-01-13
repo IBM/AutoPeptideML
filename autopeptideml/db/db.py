@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 class Database:
     """
-    Class that handles the dataset operation within AutoPeptideML.
+    Class that handles dataset operations within AutoPeptideML.
     """
     df: pd.DataFrame
     # Pipeline can be a single pipeline or a dictionary of field - Pipeline
@@ -110,7 +110,7 @@ class Database:
                 tmp_df = tmp_df.sample(smp, replace=False)
                 left_out = 0
             else:
-                smp = (left_out + len(tgt_df)) - len(tmp_df)
+                smp = len(tmp_df) - len(tgt_df)
                 tmp_df = tmp_df.sample(smp, replace=False)
             for field in self.feat_fields:
                 entries[field].extend(tmp_df[field].tolist())
@@ -140,6 +140,7 @@ class Database:
         other = other.draw_samples(self, columns_to_exclude)
         other[self.label_field] = 0
         self.df = pd.concat([self.df, other])
+        self.df = self.df[[self.label_field, *self.feat_fields]]
 
     def _check_fields(self):
         """

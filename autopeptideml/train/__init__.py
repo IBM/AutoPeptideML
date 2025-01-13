@@ -1,1 +1,1 @@
-from .trainer import BaseTrainer, OptunaTrainer, GridTrainer
+from .trainer import BaseTrainer, OptunaTrainer, GridTrainer, NoHpoTrainer

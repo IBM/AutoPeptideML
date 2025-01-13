@@ -1,0 +1,14 @@
+outputdir: butina2
+representation: butina_eval
+test: butina_eval
+databases:
+  precalculated: butina_eval
+  feat_fields: 
+    - sequence
+  label_field: Y
+pipeline: butina_eval
+train: butina_eval
+val:
+  type: kfold
+  k: 10
+  random_state: 1

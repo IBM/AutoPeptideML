@@ -16,14 +16,10 @@ from sklearn.model_selection import StratifiedKFold
 from hestia.partition import ccpart, graph_part
 from hestia.similarity import sequence_similarity_peptides, sequence_similarity_needle
 
-from .data.algorithms import SYNONYMS, SUPPORTED_MODELS
-from .data.metrics import METRICS, METRIC2FUNCTION, THRESHOLDED_METRICS
 from .pipeline.sequence import is_canonical
 from .reps import RepEngineBase, RepEngineOnehot
 from .reps.lms import RepEngineLM
 from .reps.fps import RepEngineFP
-from .utils.training import (FlexibleObjective, UniDL4BioPep_Objective,
-                             ModelSelectionObjective)
 
 
 __version__ = '1.0.5'

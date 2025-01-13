@@ -1,3 +1,20 @@
+outputdir: butina_eval
+
+databases:
+  neg_database:
+    path: peptipedia2.csv
+    feat_fields: sequence
+    verbose: true
+    columns_to_exclude: 
+      - Blood brain barrier penetrating
+
+  dataset:
+    path: ./downstream_data/BBP.csv
+    feat_fields: sequence
+    label_field: "Y"
+    verbose: false
+
+
 pipeline:
   name: main_pipe
   aggregate: True
@@ -18,6 +35,7 @@ pipeline:
           - sequence-to-smiles:
 
 representation:
+  verbose: true
   elements:
     - chemberta-2:
         engine: lm
@@ -31,15 +49,39 @@ representation:
         nbits: 2048
         radius: 8
 
+test:
+  partitions: all
+  threshold_step: 0.1
+  min_threshold: 0
+  verbose: 1
+  algorithm: butina
+  filter: 0.185
+  sim_arguments:
+    data_type: molecule
+    min_threshold: 0
+    sim_function: tanimoto
+    field_name: sequence
+    fingerprint: ecfp
+    radius: 6
+    bits: 2048
+    verbose: 1
+
+val:
+  type: kfold
+  k: 10
+  random_state: 1
+
 train:
   optim_strategy:
     trainer: optuna
-    n_steps: 100
+    n_steps: 20
     patience: 20
     direction: maximize
     task: class
     metric: mcc
     n_jobs: 10
+    partition: random
+
   hspace:
     models:
       type: fixed
@@ -48,7 +90,7 @@ train:
           - n_estimators:
               type: int
               min: 10
-              max: 100
+              max: 1000
               log: true
         svm:
           - C:

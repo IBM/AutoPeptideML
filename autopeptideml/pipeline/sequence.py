@@ -84,7 +84,6 @@ class CanonicalFilter(BaseElement):
 
         :rtype: None
         """
-        super().__init__(keep_canonical=keep_canonical)
         self.keep_canonical = keep_canonical
 
     def _single_call(self, mol: str) -> Union[str, None]:

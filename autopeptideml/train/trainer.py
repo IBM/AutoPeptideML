@@ -47,6 +47,8 @@ class BaseTrainer:
     name: str
     hpspace: Dict[str, Any]
     optim_strategy: Dict[str, Any]
+    best_config: dict = None
+    best_model: List[Dict[str, Union[str, Callable]]]
 
     def __init__(self, hpspace: Dict[str, Any],
                  optim_strategy: Dict[str, Any], **args):
@@ -401,3 +403,38 @@ class GridTrainer(BaseTrainer):
                 self.best_config = hspace
                 self.best_model = supensemble
                 pbar.set_description(f'Best Value: {perf:.4g} at step {idx}')
+
+
+class NoHpoTrainer(BaseTrainer):
+    def __init__(self, hpspace: List[dict],
+                 optim_strategy: Dict[str, Any], **args):
+
+        self.hpspace = hpspace
+        self.optim_strategy = optim_strategy
+        self.properties = copy.deepcopy(self.__dict__)
+        self.models = self._import_models(
+            optim_strategy['task'],
+            [x['name'] for x in hpspace]
+        )
+
+    def train(
+        self,
+        train_folds: List[Tuple[np.ndarray, np.ndarray]],
+        x: Dict[str, np.ndarray],
+        y: np.ndarray
+    ) -> Union[Callable, List[Callable]]:
+        pbar = self.hpspace
+        for idx, h_m in enumerate(pbar):
+            supensemble = {'models': [], 'reps': []}
+            results = []
+            for train_idx, valid_idx in train_folds:
+                ensemble = {'models': [], 'reps': []}
+                arch = self.models[h_m['name']]
+                train_x, train_y = x[h_m['representation']][train_idx], y[train_idx]
+                ensemble['reps'].append(h_m['representation'])
+                arch = arch(**h_m['variables'])
+                arch.fit(train_x, train_y)
+                ensemble['models'].append(arch)
+                supensemble['models'].extend(ensemble['models'])
+                supensemble['reps'].extend(ensemble['reps'])
+        return supensemble
