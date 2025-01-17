@@ -46,6 +46,8 @@ class BaseElement:
         """
         if isinstance(mol, str):
             return self._single_call(mol)
+        elif len(mol) == 0:
+            return mol
         else:
             return self._parallel_call(mol, n_jobs=n_jobs,
                                        verbose=verbose)
