@@ -15,6 +15,8 @@ from .train import BaseTrainer, OptunaTrainer, GridTrainer, NoHpoTrainer
 from .train.metrics import evaluate
 from .db import Database
 
+#TODO: Predict
+
 
 class AutoPeptideML:
     config: dict
@@ -151,7 +153,6 @@ class AutoPeptideML:
                 feat_fields=db_config['neg_database']['feat_fields'],
                 verbose=db_config['neg_database']['verbose']
             )
-            db.df = db.df[db.df['Y'] == 1].copy()
             db.add_negatives(
                 db2,
                 columns_to_exclude=db_config['neg_database']['columns_to_exclude']
@@ -217,68 +218,6 @@ class AutoPeptideML:
                 x[name].dump(path)
         self.x = x
         return x
-
-    def save_models(
-        self,
-        ensemble_path: str,
-        backend: str = 'onnx'
-    ):
-        if backend == 'joblib':
-            try:
-                import joblib
-            except ImportError:
-                raise ImportError(
-                    'This backend requires joblib.',
-                    'Please try: `pip install joblib`'
-                )
-        elif backend == 'onnx':
-            try:
-                import onnxmltools as onxt
-                from skl2onnx.common.data_types import FloatTensorType
-                from skl2onnx import to_onnx
-            except ImportError:
-                raise ImportError(
-                    'This backend requires onnx.',
-                    'Please try: `pip install onnxmltools skl2onnx`'
-                )
-        else:
-            raise NotImplementedError(f"Backend: {backend} not implemented.",
-                                      "Please try: `onnx` or `joblib`.")
-        for th, model in self.models.items():
-            model['save_path'] = []
-            if backend == 'onnx':
-                for idx, clf in enumerate(model['models']):
-                    m_x = self.x[model['reps'][idx]]
-                    variable_type = FloatTensorType([None, m_x.shape[1]])
-                    if 'LGBM' in str(clf):
-                        clf_onx = onxt.convert_lightgbm(
-                            clf,
-                            initial_types=[('float_input', variable_type)]
-                        )
-                    elif 'XGB' in str(clf):
-                        clf_onx = onxt.convert_xgboost(
-                            clf,
-                            initial_types=[('float_input', variable_type)]
-                        )
-                    else:
-                        clf_onx = to_onnx(clf, [('X', variable_type)])
-
-                    if 'class' in str(clf).lower():
-                        name = f'{th}_{idx}_class.onnx'
-                    else:
-                        name = f'{th}_{idx}_reg.onnx'
-                    model['save_path'].append(name)
-
-                    with open(osp.join(ensemble_path, name), "wb") as f:
-                        f.write(clf_onx.SerializeToString())
-            else:
-                for idx, clf in enumerate(self.models['models']):
-                    if 'class' in str(clf).lower():
-                        name = f'{idx}_class.onnx'
-                    else:
-                        name = f'{idx}_reg.onnx'
-                    model['save_path'].append(name)
-                    joblib.dump(clf, open(osp.join(ensemble_path, name)), 'wb')
 
     def run_hpo(self):
         self._get_reps()
@@ -375,6 +314,71 @@ class AutoPeptideML:
     def save_database(self):
         db_path = osp.join(self.outputdir, 'db.csv')
         self.db.df.to_csv(db_path, index=False)
+
+    def save_models(
+        self,
+        ensemble_path: str,
+        backend: str = 'onnx'
+    ):
+        if backend == 'joblib':
+            try:
+                import joblib
+            except ImportError:
+                raise ImportError(
+                    'This backend requires joblib.',
+                    'Please try: `pip install joblib`'
+                )
+        elif backend == 'onnx':
+            try:
+                import onnxmltools as onxt
+                from skl2onnx.common.data_types import FloatTensorType
+                from skl2onnx import to_onnx
+                import logging
+            except ImportError:
+                raise ImportError(
+                    'This backend requires onnx.',
+                    'Please try: `pip install onnxmltools skl2onnx`'
+                )
+        else:
+            raise NotImplementedError(f"Backend: {backend} not implemented.",
+                                      "Please try: `onnx` or `joblib`.")
+        for th, model in self.models.items():
+            model['save_path'] = []
+            logger = logging.getLogger("skl2onnx")
+            logger.setLevel(logging.DEBUG)
+            if backend == 'onnx':
+                for idx, clf in enumerate(model['models']):
+                    m_x = self.x[model['reps'][idx]]
+                    variable_type = FloatTensorType([None, m_x.shape[1]])
+                    if 'LGBM' in str(clf):
+                        clf_onx = onxt.convert_lightgbm(
+                            clf,
+                            initial_types=[('float_input', variable_type)]
+                        )
+                    elif 'XGB' in str(clf):
+                        clf_onx = onxt.convert_xgboost(
+                            clf,
+                            initial_types=[('float_input', variable_type)]
+                        )
+                    else:
+                        clf_onx = to_onnx(clf, [('X', variable_type)])
+
+                    if 'class' in str(clf).lower():
+                        name = f'{th}_{idx}_class.onnx'
+                    else:
+                        name = f'{th}_{idx}_reg.onnx'
+                    model['save_path'].append(name)
+
+                    with open(osp.join(ensemble_path, name), "wb") as f:
+                        f.write(clf_onx.SerializeToString())
+            else:
+                for idx, clf in enumerate(self.models['models']):
+                    if 'class' in str(clf).lower():
+                        name = f'{idx}_class.onnx'
+                    else:
+                        name = f'{idx}_reg.onnx'
+                    model['save_path'].append(name)
+                    joblib.dump(clf, open(osp.join(ensemble_path, name)), 'wb')
 
     def save_reps(self, rep_dir: str):
         for name, rep in self.reps.items():
