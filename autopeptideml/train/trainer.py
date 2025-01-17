@@ -310,7 +310,7 @@ class OptunaTrainer(BaseTrainer):
 
         :raises ValueError: If the hyperparameter space is improperly defined.
         :raises KeyError: If required fields are missing in the hyperparameter space.
-        """"
+        """
         try:
             hspace = self._prepare_hpspace(trial)
         except KeyError:
