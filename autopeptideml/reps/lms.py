@@ -1,3 +1,4 @@
+import urllib.error
 import numpy as np
 import torch
 import transformers
@@ -26,7 +27,8 @@ AVAILABLE_MODELS = {
     'ankh-base': 768,
     'ankh-large': 1536,
     'MoLFormer-XL-both-10pct': 768,
-    'ChemBERTa-77M-MLM': 384
+    'ChemBERTa-77M-MLM': 384,
+    'PeptideCLM-23M-all': 768
 }
 
 SYNONYMS = {
@@ -47,6 +49,7 @@ SYNONYMS = {
     'ankh-large': 'ankh-large',
     'molformer-xl': 'MoLFormer-XL-both-10pct',
     'chemberta-2': 'ChemBERTa-77M-MLM',
+    'peptideclm': 'PeptideCLM-23M-all'
 
 }
 
@@ -149,7 +152,7 @@ class RepEngineLM(RepEngineBase):
         :rtype: int
           :return: The number of parameters in the model.
         """
-        return sum(p.numel() for p in self.parameters())
+        return sum(p.numel() for p in self.model.parameters())
 
     def _load_model(self, model: str):
         """
@@ -183,10 +186,43 @@ class RepEngineLM(RepEngineBase):
             self.lab = 'ibm'
         elif 'chemberta' in model.lower():
             self.lab = 'DeepChem'
+        elif 'clm' in model.lower():
+            self.lab = 'aaronfeller'
         if 't5' in model.lower():
             self.tokenizer = T5Tokenizer.from_pretrained(f'Rostlab/{model}',
                                                          do_lower_case=False)
             self.model = T5EncoderModel.from_pretrained(f"Rostlab/{model}")
+        elif 'feller' in self.lab.lower():
+            import os
+            import urllib
+            import urllib.request as request
+            try:
+                from .utils.peptideclm_tokenizer import SMILES_SPE_Tokenizer
+            except ImportError:
+                raise ImportError("This function requires smilespe. Please install: `pip install smilespe`")
+            if os.getenv('HF_HOME') is None:
+                hf_home = os.path.abspath('~./cache/HF_HOME')
+            else:
+                hf_home = os.path.abspath(os.getenv('HF_HOME'))
+            path = os.path.join(hf_home, 'peptideclm_tokenizer')
+            vocab = os.path.join(path, 'new_vocab.txt')
+            splits = os.path.join(path, 'new_splits.txt')
+
+            if not (os.path.exists(vocab) and os.path.exists(splits)):
+                os.makedirs(path, exist_ok=True)
+                try:
+                    url1 = 'https://raw.githubusercontent.com/AaronFeller/PeptideCLM/refs/heads/master/tokenizer/new_vocab.txt'
+                    url2 = 'https://raw.githubusercontent.com/AaronFeller/PeptideCLM/refs/heads/master/tokenizer/new_splits.txt'
+                    request.urlretrieve(url1, vocab)
+                    request.urlretrieve(url2, splits)
+                except urllib.error.URLError:
+                    raise RuntimeError("Tokenizer could not be downloaded. Please try again later and if the problem persists,",
+                                       "raise an issue in on the AutoPeptideML github so that the issue can be",
+                                       "investigated: https://github.com/IBM/AutoPeptideML/issues")
+            self.tokenizer = SMILES_SPE_Tokenizer(vocab_file=vocab,
+                                                  spe_file=splits)
+            self.model = AutoModel.from_pretrained(f'{self.lab}/{model}',
+                                                   trust_remote_code=True)
         else:
             self.model = AutoModel.from_pretrained(f'{self.lab}/{model}',
                                                    trust_remote_code=True)
