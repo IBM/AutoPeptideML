@@ -44,6 +44,26 @@ class EarlyStoppingCallback(object):
 
 
 class BaseTrainer:
+    """
+    Class `BaseTrainer` provides a framework for hyperparameter optimization (HPO) and model training. 
+    It initializes models based on the specified task and optimization strategy, and serves as a base class for trainers.
+
+    Attributes:
+        :type name: str
+        :param name: The name of the trainer. Set dynamically in derived classes.
+
+        :type hpspace: Dict[str, Any]
+        :param hpspace: The hyperparameter search space for the models.
+
+        :type optim_strategy: Dict[str, Any]
+        :param optim_strategy: The optimization strategy, including the task type and other configurations.
+
+        :type best_config: dict
+        :param best_config: The best configuration identified during HPO. Default is `None`.
+
+        :type best_model: List[Dict[str, Union[str, Callable]]]
+        :param best_model: The best-performing model(s) identified during training.
+    """
     name: str
     hpspace: Dict[str, Any]
     optim_strategy: Dict[str, Any]
@@ -52,7 +72,15 @@ class BaseTrainer:
 
     def __init__(self, hpspace: Dict[str, Any],
                  optim_strategy: Dict[str, Any], **args):
+        """
+        Initializes the trainer with the specified hyperparameter space and optimization strategy.
 
+        :param hpspace: Dictionary describing the hyperparameter search space for the models.
+        :type hpspace: Dict[str, Any]
+        :param optim_strategy: Dictionary describing the optimization strategy,
+            including the task type and other configurations.
+        :type optim_strategy: Dict[str, Any]
+        """
         self.hpspace = hpspace
         self.optim_strategy = optim_strategy
         self.properties = copy.deepcopy(self.__dict__)
@@ -65,6 +93,20 @@ class BaseTrainer:
         self, task: str,
         models: List[str]
     ) -> Dict[str, Callable]:
+        """
+        Imports and initializes model architectures based on the specified task and model list.
+
+        :type task: str
+            :param task: The task type (e.g., classification, regression).
+
+        :type models: List[str]
+            :param models: List of model names to be imported.
+
+        :rtype: Dict[str, Callable]
+            :return: A dictionary mapping model names to their corresponding callable objects.
+
+        :raises NotImplementedError: If a specified model is not implemented.
+        """
         archs = {}
         for model in models:
             if model in archs:
@@ -83,20 +125,93 @@ class BaseTrainer:
                 )
         return archs
 
+    def add_custom_model(self, name: str, model: Callable):
+        """
+        Introduces a custom learning algorithm to the list of available models of the trainer class.
+
+        :param name: Name of the model, used to define hyperparameter search space.
+        :type name: str
+        :param model: Callable function or object that initializes a learning algorithm compatible with the scikit-learn API.
+        :type model: Callable
+        """
+
     def __str__(self) -> str:
+        """
+        Returns a JSON string with the properties of the trainer.
+
+        :rtype: str
+            :return: A JSON string of the trainer's attributes.
+        """
         return json.dumps(self.properties)
 
     def hpo(
         self,
         train_folds: List[Tuple[np.ndarray, np.ndarray]]
     ) -> Union[Callable, List[Callable]]:
+        """
+        Abstract method for performing hyperparameter optimization.
+
+        :type train_folds: List[Tuple[np.ndarray, np.ndarray]]
+            :param train_folds: Training data folds for cross-validation.
+
+        :rtype: Union[Callable, List[Callable]]
+            :return: The best model(s) identified during HPO.
+
+        :raises NotImplementedError: Must be implemented in derived classes.
+        """
         raise NotImplementedError
 
 
 class OptunaTrainer(BaseTrainer):
+    """
+    Class `OptunaTrainer` implements a hyperparameter optimization (HPO) framework using Optuna.
+    It builds on `BaseTrainer` to perform model selection and tuning based on user-defined
+    hyperparameter spaces and optimization strategies.
+
+    Attributes:
+        :type name: str
+        :param name: The name of the trainer. Default is `'optuna'`.
+
+    Example Usage:
+        ```python
+        trainer = OptunaTrainer(hpspace=my_hpspace, optim_strategy=my_strategy)
+        best_model = trainer.hpo(train_folds, x, y)
+        ```
+    Example Schema for `hpspace`:
+        ```python
+        hpspace = {
+            'models': {
+                'type': 'fixed',  # Options: 'fixed', 'ensemble'
+                'elements': {
+                    'svm': [
+                        {'C': {'type': 'float', 'min': 0.1, 'max': 10, 'log': True}},
+                        {'kernel': {'type': 'categorical', 'values': ['linear', 'rbf']}},
+                        {'probability': {'type': 'fixed', 'value': True}}
+                    ],
+                    'xgboost': [
+                        {'n_estimators': {'type': 'int', 'min': 50, 'max': 200, 'log': False}},
+                        {'learning_rate': {'type': 'float', 'min': 0.01, 'max': 0.1, 'log': True}},
+                        {'max_depth': {'type': 'int', 'min': 3, 'max': 10, 'log': False}}
+                    ]
+                }
+            },
+            'representations': ['representation1', 'representation2']
+        }
+        ```
+    """
     name = 'optuna'
 
     def _prepare_hpspace(self, trial) -> dict:
+        """Prepares the hyperparameter space for a given Optuna trial.
+
+        :type trial: optuna.trial.Trial
+            :param trial: An Optuna trial object used to suggest hyperparameter values.
+
+        :rtype: dict
+            :return: A dictionary containing the hyperparameter configurations for the models.
+
+        :raises KeyError: If the hyperparameter space is not properly defined.
+        """
         PROBABILITY = ['svm']
         full_hspace = []
         if (self.hpspace['models']['type'] == 'fixed' or
@@ -185,6 +300,17 @@ class OptunaTrainer(BaseTrainer):
         return full_hspace
 
     def _hpo_step(self, trial) -> dict:
+        """Executes a single HPO step by evaluating a configuration from the hyperparameter space.
+
+        :type trial: optuna.trial.Trial
+            :param trial: An Optuna trial object.
+
+        :rtype: float
+            :return: The performance metric for the evaluated configuration.
+
+        :raises ValueError: If the hyperparameter space is improperly defined.
+        :raises KeyError: If required fields are missing in the hyperparameter space.
+        """"
         try:
             hspace = self._prepare_hpspace(trial)
         except KeyError:
@@ -240,6 +366,24 @@ class OptunaTrainer(BaseTrainer):
         x: Dict[str, np.ndarray],
         y: np.ndarray
     ) -> Union[Callable, List[Callable]]:
+        """
+        Performs hyperparameter optimization using Optuna.
+
+        :type train_folds: List[Tuple[np.ndarray, np.ndarray]]
+            :param train_folds: A list of training folds for cross-validation.
+
+        :type x: Dict[str, np.ndarray]
+            :param x: A dictionary mapping representations to feature matrices.
+
+        :type y: np.ndarray
+            :param y: The target labels for the dataset.
+
+        :rtype: Union[Callable, List[Callable]]
+            :return: The best-performing model(s) after optimization.
+
+        :raises ImportError: If Optuna is not installed.
+        :raises ValueError: If required fields in the hyperparameter space are missing.
+        """
         try:
             import optuna
         except ImportError:
@@ -275,9 +419,54 @@ class OptunaTrainer(BaseTrainer):
 
 
 class GridTrainer(BaseTrainer):
+    """
+    Class `GridTrainer` implements a grid search-based hyperparameter optimization (HPO) framework.
+    It systematically explores a predefined hyperparameter space by evaluating all possible combinations.
+
+    Attributes:
+        :type name: str
+        :param name: The name of the trainer. Default is `'grid'`.
+
+    Example Usage:
+        ```python
+        trainer = GridTrainer(hpspace=my_hpspace, optim_strategy=my_strategy)
+        best_model = trainer.hpo(train_folds, x, y)
+        ```
+
+    Example Schema for `hpspace`:
+
+        ```python
+        hpspace = {
+            'models': {
+                'type': 'fixed',  # Options: 'fixed', 'ensemble'
+                'elements': {
+                    'svm': [
+                        {'C': {'type': 'float', 'min': 0.1, 'max': 10, 'steps': 5, 'log': True}},
+                        {'kernel': {'type': 'categorical', 'values': ['linear', 'rbf']}},
+                        {'probability': {'type': 'fixed', 'value': True}}
+                    ],
+                    'xgboost': [
+                        {'n_estimators': {'type': 'int', 'min': 50, 'max': 200, 'steps': 4}},
+                        {'learning_rate': {'type': 'float', 'min': 0.01, 'max': 0.1, 'steps': 5}},
+                        {'max_depth': {'type': 'int', 'min': 3, 'max': 10, 'steps': 3}}
+                    ]
+                }
+            },
+            'representations': ['representation1', 'representation2']
+        }
+        ```
+    """
     name = 'grid'
 
     def _prepare_hpspace(self) -> dict:
+        """
+        Prepares the hyperparameter space for grid search by generating all possible combinations
+        of hyperparameter values.
+
+        :rtype: dict
+            :return: A list of dictionaries representing all possible hyperparameter configurations.
+    
+        """
         PROBABILITY = ['svm']
         full_hspace = []
         for m_key, model in self.hpspace['models']['elements'].items():
@@ -345,6 +534,20 @@ class GridTrainer(BaseTrainer):
         x: Dict[str, np.ndarray],
         y: np.ndarray
     ) -> Union[Callable, List[Callable]]:
+        """Performs hyperparameter optimization using grid search.
+
+        :type train_folds: List[Tuple[np.ndarray, np.ndarray]]
+            :param train_folds: A list of training folds for cross-validation.
+
+        :type x: Dict[str, np.ndarray]
+            :param x: A dictionary mapping representations to feature matrices.
+
+        :type y: np.ndarray
+            :param y: The target labels for the dataset.
+
+        :rtype: Union[Callable, List[Callable]]
+            :return: The best-performing model(s) after optimization.
+        """
         self.best_model = None
         self.best_metric = (
             float("inf") if self.optim_strategy['direction'] == 'minimize'
@@ -406,9 +609,61 @@ class GridTrainer(BaseTrainer):
 
 
 class NoHpoTrainer(BaseTrainer):
+    """
+    Class `NoHpoTrainer` provides a training framework without hyperparameter optimization (HPO). 
+    It assumes that the user provides a fixed set of hyperparameter configurations (`hpspace`) 
+    for training and directly trains models using these configurations.
+
+    Attributes:
+        :type hpspace: List[dict]
+        :param hpspace: A list of dictionaries, each specifying a model name, representation, 
+                        and fixed hyperparameter configurations.
+
+        :type optim_strategy: Dict[str, Any]
+        :param optim_strategy: A dictionary specifying optimization-related properties, such as 
+                               the task type (e.g., classification or regression).
+
+    Example Schema for `hpspace`:
+        ```python
+        hpspace = [
+            {
+                'name': 'svm',
+                'representation': 'representation1',
+                'variables': {
+                    'C': 1.0,
+                    'kernel': 'linear',
+                    'probability': True
+                }
+            },
+            {
+                'name': 'xgboost',
+                'representation': 'representation2',
+                'variables': {
+                    'n_estimators': 100,
+                    'learning_rate': 0.05,
+                    'max_depth': 6
+                }
+            }
+        ]
+        ```
+
+    Example Usage:
+        ```python
+        trainer = NoHpoTrainer(hpspace=my_hpspace, optim_strategy=my_strategy)
+        trained_models = trainer.train(train_folds, x, y)
+        ```
+    """
     def __init__(self, hpspace: List[dict],
                  optim_strategy: Dict[str, Any], **args):
+        """
+        Initializes the trainer with the provided hyperparameter space and optimization strategy.
 
+        :type hpspace: List[dict]
+            :param hpspace: A list of dictionaries defining the models and their fixed hyperparameters.
+
+        :type optim_strategy: Dict[str, Any]
+            :param optim_strategy: Dictionary defining the task type and other optimization properties.
+        """
         self.hpspace = hpspace
         self.optim_strategy = optim_strategy
         self.properties = copy.deepcopy(self.__dict__)
@@ -423,6 +678,21 @@ class NoHpoTrainer(BaseTrainer):
         x: Dict[str, np.ndarray],
         y: np.ndarray
     ) -> Union[Callable, List[Callable]]:
+        """
+        Trains models using the provided fixed hyperparameter configurations and cross-validation folds.
+
+        :type train_folds: List[Tuple[np.ndarray, np.ndarray]]
+            :param train_folds: A list of training folds for cross-validation.
+
+        :type x: Dict[str, np.ndarray]
+            :param x: A dictionary mapping representations to feature matrices.
+
+        :type y: np.ndarray
+            :param y: The target labels for the dataset.
+
+        :rtype: Union[Callable, List[Callable]]
+            :return: A dictionary containing the trained models and their associated representations.
+        """
         pbar = self.hpspace
         for idx, h_m in enumerate(pbar):
             supensemble = {'models': [], 'reps': []}
