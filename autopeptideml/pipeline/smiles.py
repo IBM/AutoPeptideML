@@ -40,7 +40,8 @@ class SequenceToSMILES(BaseElement):
         """
         rd_mol = rdm.MolFromFASTA(mol)
         if rd_mol is None:
-            raise RuntimeError(f'Molecule: {mol} could not be read by RDKit.')
+            raise RuntimeError(f'Molecule: {mol} could not be read by RDKit.',
+                               'Maybe introduce a filtering step in your pipeline')
         return rdm.MolToSmiles(rd_mol, canonical=True, isomericSmiles=True)
 
 
@@ -87,3 +88,32 @@ class FilterSMILES(BaseElement):
             return mol
         else:
             return None
+
+
+class CanonicalizeSmiles(BaseElement):
+    """
+    Class `CanonicalizeSmiles` converts SMILES (Simplified Molecular Input Line Entry System) strings into their canonical forms using RDKit.
+
+    Attributes:
+        :type name: str
+        :param name: The name of the element. Default is `'canonicalize-smiles'`.
+    """
+    name = 'canonicalize-smiles'
+
+    def _single_call(self, mol):
+        """
+        Converts a SMILES string into its canonical representation.
+
+        :type mol: str
+          :param mol: A SMILES string representing a molecule.
+
+        :rtype: str
+          :return: The canonical SMILES representation of the molecule.
+
+        :raises RuntimeError: If the molecule cannot be read by RDKit.
+        """
+        rd_mol = rdm.MolFromSmiles(mol)
+        if rd_mol is None:
+            raise RuntimeError(f'Molecule: {mol} could not be read by RDKit.',
+                               'Maybe introduce a filtering step in your pipeline')
+        return rdm.MolToSmiles(rd_mol, canonical=True, isomericSmiles=True)
