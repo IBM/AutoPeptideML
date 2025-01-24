@@ -23,7 +23,7 @@ requirements = [
     'onnxmltools',
     'skl2onnx',
     'onnxruntime',
-    'hestia-ood>=0.0.34'
+    'hestia-good'
 ]
 
 test_requirements = requirements
