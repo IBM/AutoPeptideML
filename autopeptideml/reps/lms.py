@@ -142,6 +142,8 @@ class RepEngineLM(RepEngineBase):
         """
         if self.lab == 'facebook':
             return 1022
+        elif self.lab.lower() == 'evolutionaryscale':
+            return 2046
         else:
             return -1
 
@@ -172,10 +174,12 @@ class RepEngineLM(RepEngineBase):
             )
         if model not in AVAILABLE_MODELS:
             model = SYNONYMS[model.lower()]
-        if 'pro' in model.lower():
+        if model.lower().startswith('pro'):
             self.lab = 'Rostlab'
         elif 'plusplus' in model.lower():
             self.lab = 'Synthyra'
+        elif 'esmc' in model.lower():
+            self.lab = 'EvolutionaryScale'
         elif 'esm' in model.lower():
             self.lab = 'facebook'
         elif 'lobster' in model.lower():
@@ -201,7 +205,7 @@ class RepEngineLM(RepEngineBase):
             except ImportError:
                 raise ImportError("This function requires smilespe. Please install: `pip install smilespe`")
             if os.getenv('HF_HOME') is None:
-                hf_home = os.path.abspath('~./cache/HF_HOME')
+                hf_home = os.path.abspath('~/.cache/huggingface/hub/')
             else:
                 hf_home = os.path.abspath(os.getenv('HF_HOME'))
             path = os.path.join(hf_home, 'peptideclm_tokenizer')

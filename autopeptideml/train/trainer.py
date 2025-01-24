@@ -219,8 +219,10 @@ class OptunaTrainer(BaseTrainer):
             for m_key, model in self.hpspace['models']['elements'].items():
                 hspace = {}
                 for variable in model:
+                    dont_save = False
                     key = list(variable.keys())[0]
                     variable = variable[key]
+
                     if variable['type'] == 'int':
                         hspace[key] = trial.suggest_int(
                             f"{m_key}_{key}",
@@ -249,10 +251,21 @@ class OptunaTrainer(BaseTrainer):
                     if key.lower() in PROBABILITY:
                         hspace['probability'] = True
 
+                    if 'condition' in variable:
+                        conditions = variable['condition'].split('|')
+                        for condition in conditions:
+                            condition = condition.split('-')
+                            v, f = condition[0], condition[1]
+                            if hspace[v] == f:
+                                dont_save = True
+                                break
+                if dont_save:
+                    continue
                 full_hspace.append(
                     {'name': m_key, 'variables': hspace,
                      'representation': trial.suggest_categorical(
                         f"{m_key}_rep", self.hpspace['representations'])})
+
         else:
             models = []
             for m_key, model in self.hpspace['models']['elements'].items():
@@ -261,6 +274,7 @@ class OptunaTrainer(BaseTrainer):
             hspace = {}
 
             for variable in self.hpspace['models']['elements'][model]:
+                dont_save = False
                 key = list(variable.keys())[0]
                 variable = variable[key]
                 if variable['type'] == 'int':
@@ -291,12 +305,20 @@ class OptunaTrainer(BaseTrainer):
                 if key.lower() in PROBABILITY:
                     hspace['probability'] = True
 
+                if 'condition' in variable:
+                    conditions = variable['condition'].split('|')
+                    for condition in conditions:
+                        condition = condition.split('-')
+                        v, f = condition[0], condition[1]
+                        if hspace[v] != f:
+                            del hspace[v]
+                            break
+
             full_hspace.append(
                 {'name': model, 'variables': hspace,
                  'representation': trial.suggest_categorical(
-                     f"{model}_rep", self.hpspace['representations']
+                     "rep", self.hpspace['representations']
                  )})
-
         return full_hspace
 
     def _hpo_step(self, trial) -> dict:

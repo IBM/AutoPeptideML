@@ -23,10 +23,7 @@ requirements = [
 ]
 
 test_requirements = requirements
-files = [f'autopeptideml/data/peptipedia/{file}' for file in
-         os.listdir('autopeptideml/data/peptipedia')]
-files.append('autopeptideml/data/bioactivities.txt')
-files.append('autopeptideml/data/readme_ex.md')
+files = ['autopeptideml/data/readme_ex.md']
 setup(
     author="Raul Fernandez-Diaz",
     author_email='raulfd@ibm.com',

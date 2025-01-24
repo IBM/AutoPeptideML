@@ -85,9 +85,10 @@ class RepEngineBase:
         for batch in pbar:
             self._preprocess_batch(batch)
             out.extend(self._rep_batch(batch))
-            if 'average_pooling' in self.__dict__:
-                if not self.__dict__['average_pooling']:
-                    return out
+
+        if 'average_pooling' in self.__dict__:
+            if not self.__dict__['average_pooling']:
+                return out
         return np.stack(out)
 
     def dim(self) -> int:

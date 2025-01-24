@@ -20,38 +20,60 @@ from .db import Database
 
 class AutoPeptideML:
     config: dict
-    pipeline: Pipeline
+    pipeline: Pipeline = None
     rep: Dict[str, RepEngineBase]
-    train: BaseTrainer
-    db: Database
-    parts: dict
+    train: BaseTrainer = None
+    db: Database = None
+    parts: dict = None
     x: Optional[Dict[str, np.ndarray]] = None
     y: np.ndarray
 
     def __init__(self, config: dict):
-        self.pipe_config = config['pipeline']
-        self.rep_config = config['representation']
-        self.train_config = config['train']
-        self.db_config = config['databases']
-        self.test_config = config['test']
+        if 'pipeline' in config:
+            self.pipe_config = config['pipeline']
+        if 'representation' in config:
+            self.rep_config = config['representation']
+        if 'train' in config:
+            self.train_config = config['train']
+        if 'databases' in config:
+            self.db_config = config['databases']
+        if 'test' in config:
+            self.test_config = config['test']
 
         self.config = config
         self.outputdir = config['outputdir']
         if osp.isdir(self.outputdir):
-            raise ValueError(f"Output dir: {self.outputdir} exists.")
+            print(f"Warning - Output dir: {self.outputdir} exists. Results may be overwritten")
         else:
             os.makedirs(self.outputdir)
+
+    def get_pipeline(self, pipe_config: Optional[dict] = None) -> Pipeline:
+        if pipe_config is not None:
+            self.pipe_config = pipe_config
 
         if isinstance(self.pipe_config, str):
             pipe_config_path = osp.join(self.pipe_config, 'config.yml')
             self.pipe_config = yaml.safe_load(open(pipe_config_path))['pipeline']
         else:
             self.pipeline = self._load_pipeline(self.pipe_config)
+        return self.pipeline
+
+    def get_database(self, db_config: Optional[dict] = None) -> Database:
+        if db_config is not None:
+            self.db_config = db_config
 
         if 'precalculated' in self.db_config:
             self.get_precalculated_db(self.db_config)
         else:
+            if self.pipeline is None:
+                self.get_pipeline()
             self.db = self._load_database(self.db_config)
+
+        return self.db
+
+    def get_reps(self, rep_config: Optional[dict] = None) -> Dict[str, np.ndarray]:
+        if rep_config is not None:
+            self.rep_config = rep_config
 
         if isinstance(self.rep_config, str):
             self.outputdir = self.rep_config
@@ -59,6 +81,14 @@ class AutoPeptideML:
             self.outputdir = self.config['outputdir']
         else:
             self.reps = self._load_representation(self.rep_config)
+        return self.reps
+
+    def get_test(self, test_config: Optional[Dict] = None) -> HestiaGenerator:
+        if test_config is not None:
+            self.test_config = test_config
+
+        if self.db is None:
+            self.get_database()
 
         if isinstance(self.test_config, str):
             config_path = osp.join(self.test_config, 'config.yml')
@@ -66,6 +96,16 @@ class AutoPeptideML:
             self.parts = self._load_test(self.test_config)
         else:
             self.parts = self._load_test(self.test_config)
+        return self.parts
+
+    def get_train(self, train_config: Optional[Dict] = None) -> BaseTrainer:
+        if train_config is not None:
+            self.train_config = train_config
+
+        if self.x is None:
+            self.get_reps()
+        if self.parts is None:
+            self.get_test()
 
         if isinstance(self.train_config, str):
             train_config_path = osp.join(self.train_config, 'config.yml')
@@ -73,6 +113,7 @@ class AutoPeptideML:
             self.train = self._load_trainer(self.train_config)
         else:
             self.train = self._load_trainer(self.train_config)
+        return self.train
 
     def _load_pipeline(self, pipe_config: dict) -> Pipeline:
         elements = []
@@ -220,6 +261,8 @@ class AutoPeptideML:
         return x
 
     def run_hpo(self):
+        if self.train is None:
+            self.get_train()
         self._get_reps()
         x = self.x
         y = self.db.df[self.db.label_field].to_numpy()
