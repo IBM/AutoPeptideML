@@ -14,7 +14,9 @@ import sklearn.metrics
 
 from sklearn.model_selection import StratifiedKFold
 from hestia.partition import ccpart, graph_part
-from hestia.similarity import sequence_similarity_peptides, sequence_similarity_needle
+from hestia.similarity import (sequence_similarity_peptides,
+                               sequence_similarity_needle,
+                               sequence_similarity_mmseqs)
 
 from .data.algorithms import SYNONYMS, SUPPORTED_MODELS
 from .data.metrics import METRICS, METRIC2FUNCTION, THRESHOLDED_METRICS
@@ -517,6 +519,14 @@ class AutoPeptideML:
                 df_query=df, field_name='sequence', denominator=denominator,
                 threads=self.threads, verbose=3 if self.verbose else 0,
                 threshold=threshold,
+            )
+        elif 'mmseqs' in alignment:
+            sim_df = sequence_similarity_mmseqs(
+                df_query=df, field_name='sequence',
+                prefilter='+prefilter' in alignment,
+                denominator=denominator, threads=self.threads,
+                threshold=threshold,
+                verbose=3 if self.verbose else 0,
             )
         train_idx, test_idx, label_ids = ccpart(
             df=df,
