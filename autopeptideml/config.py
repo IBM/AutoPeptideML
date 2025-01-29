@@ -8,6 +8,7 @@ from typing import *
 import pandas as pd
 import numpy as np
 from hestia import HestiaGenerator, SimArguments
+import typer
 
 from .pipeline import Pipeline, CanonicalCleaner, CanonicalFilter
 from .reps import RepEngineBase
@@ -81,7 +82,8 @@ class AutoPeptideML:
             self.outputdir = self.config['outputdir']
         else:
             self.reps = self._load_representation(self.rep_config)
-        return self.reps
+        self.x = self._get_reps()
+        return self.reps, self.x
 
     def get_test(self, test_config: Optional[Dict] = None) -> HestiaGenerator:
         if test_config is not None:
@@ -194,6 +196,7 @@ class AutoPeptideML:
                 feat_fields=db_config['neg_database']['feat_fields'],
                 verbose=db_config['neg_database']['verbose']
             )
+            print("Adding negatives")
             db.add_negatives(
                 db2,
                 columns_to_exclude=db_config['neg_database']['columns_to_exclude']
@@ -214,9 +217,24 @@ class AutoPeptideML:
                                      partition_algorithm=test_config['algorithm'],
                                      valid_size=0)
         self.hdg = hdg
-        partitions = hdg.get_partitions(filter=test_config['filter'],
-                                        return_dict=True)
-        return partitions
+        self.parts = hdg.get_partitions(filter=test_config['filter'])
+        if self.test_config['partitions'] == 'all':
+            parts = {th: v for th, v in self.parts}
+        elif self.test_config['partitions'] == 'min':
+            min_th = min([th for th, v in self.parts if th != 'random'])
+            parts = {th: v for th, v in self.parts if th == min_th}
+        elif self.test_config['partitions'] == 'max':
+            max_th = max([th for th, v in self.parts if th != 'random'])
+            parts = {th: v for th, v in self.parts if th == max_th}
+        elif isinstance(self.test_config['partitions'], float):
+            parts = {th: v for th, v in self.parts if th == self.test_config['partitions']}
+        elif self.test_config['partitions'] == 'random':
+            parts = {th: v for th, v in self.parts if th == 'random'}
+        else:
+            raise ValueError(f"Test partitions: {self.test_config['partitions']} are not supported.")
+
+        self.parts = parts
+        return parts
 
     def _get_folds(self, val_config: dict, part, y) -> Dict[str, np.ndarray]:
         if val_config['type'] == 'kfold':
@@ -233,9 +251,14 @@ class AutoPeptideML:
             raise NotImplementedError(f"Validation split: {val_config['type']} is not supported.")
         return folds
 
+    def _load_models(self, ensemble_dir: str) -> List[Callable]:
+        
+
     def _get_reps(self) -> Dict[str, np.ndarray]:
         if self.x is not None:
             return self.x
+        if self.reps is None:
+            self.get_reps()
         x = {}
         rep_dir = osp.join(self.outputdir, 'reps')
         os.makedirs(rep_dir, exist_ok=True)
@@ -263,13 +286,15 @@ class AutoPeptideML:
     def run_hpo(self):
         if self.train is None:
             self.get_train()
+        print("Calculating representations")
         self._get_reps()
         x = self.x
         y = self.db.df[self.db.label_field].to_numpy()
         models = {}
 
+        print("Performing HPO")
         if self.train_config['optim_strategy']['partition'] == 'all':
-            for th, part in self.parts:
+            for th, part in self.parts.items():
                 folds = self._get_folds(self.config['val'], part, y)
                 self.train.hpo(folds, x, y)
                 models[th] = self.train.best_model
@@ -287,26 +312,14 @@ class AutoPeptideML:
         return models
 
     def run_evaluation(self, models) -> pd.DataFrame:
+        print("Run evaluation")
         self._get_reps()
         x = self.x
         y = self.db.df[self.db.label_field].to_numpy()
 
         results = []
-        if self.test_config['partitions'] == 'all':
-            parts = self.parts
-        elif self.test_config['partitions'] == 'min':
-            th = min([th for th, v in self.parts.items() if th != 'random'])
-            parts = {th: self.parts[th]}
-        elif self.test_config['partitions'] == 'max':
-            th = max([th for th, v in self.parts.items() if th != 'random'])
-            parts = {th: self.parts[th]}
-        elif isinstance(self.test_config['partitions'], float):
-            parts = {th: self.parts[self.test_config['partitions']]}
-        elif self.test_config['partitions'] == 'random':
-            parts = parts['random']
-        else:
-            raise ValueError(f"Test partitions: {self.test_config['partitions']} are not supported.")
-        for th, part in parts.items():
+
+        for th, part in self.parts.items():
             test_y = y[part['test']]
             preds = np.zeros(test_y.shape)
             ensemble = models[th]
@@ -453,19 +466,17 @@ class AutoPeptideML:
                            label_field=db_config['label_field'])
 
 
-if __name__ == "__main__":
-    # import shutil
-    # path = 'AutoPeptideML/autopeptideml/data/configs/optuna_train.yaml'
-    # try:
-    #     config = yaml.safe_load(open(path))
-    # except yaml.scanner.ScannerError:
-    #     raise RuntimeError("The YAML config file has syntax errors.")
-    # if osp.exists(config['outputdir']):
-    #     shutil.rmtree(config['outputdir'])
-    path = 'AutoPeptideML/autopeptideml/data/configs/restart.yml'
+def main(path):
     config = yaml.safe_load(open(path))
     apml = AutoPeptideML(config)
+    db = apml.get_database()
+    reps = apml.get_reps()
+    test = apml.get_test()
     models = apml.run_hpo()
     r_df = apml.run_evaluation(models)
     apml.save_experiment(save_reps=True, save_test=False)
     print(r_df)
+
+
+def _main():
+    typer.run(main)
