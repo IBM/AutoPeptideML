@@ -138,11 +138,16 @@ class Database:
           :return: Updates the current database with the added negative samples.
         """
         other.df = other.draw_samples(self, columns_to_exclude)
+        if self.label_field is None:
+            self.label_field = "Y"
+            self.df[self.label_field] = 1
+
         other.df[self.label_field] = 0
         if other.feat_fields[0] != self.feat_fields[0]:
             other.df[self.feat_fields[0]] = other.df[other.feat_fields[0]]
-
+        print(other.df)
         self.df = pd.concat([self.df, other.df])
+        print(self.df[self.label_field].value_counts())
         self.df = self.df[[self.label_field, *self.feat_fields]]
 
     def _check_fields(self):
