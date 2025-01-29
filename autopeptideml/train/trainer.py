@@ -14,6 +14,9 @@ from .architectures import *
 from .metrics import evaluate, CLASSIFICATION_METRICS, REGRESSION_METRICS
 
 
+PROBABILITY = ['svm']
+
+
 class EarlyStoppingCallback(object):
     """Early stopping callback for Optuna."""
     def __init__(self, early_stopping_rounds: int,
@@ -41,6 +44,38 @@ class EarlyStoppingCallback(object):
 
         if self._iter >= self.early_stopping_rounds:
             study.stop()
+
+
+def choose_hps(variable, trial, hspace, model, key):
+    if variable['type'] == 'int':
+        hspace[key] = trial.suggest_int(
+            f"{model}_{key}",
+            variable['min'],
+            variable['max'],
+            log=variable['log']
+        )
+
+    elif variable['type'] == 'float':
+        hspace[key] = trial.suggest_float(
+            f"{model}_{key}",
+            variable['min'],
+            variable['max'],
+            log=variable['log']
+        )
+
+    elif variable['type'] == 'categorical':
+        hspace[key] = trial.suggest_categorical(
+            f"{model}_{key}",
+            variable['values']
+        )
+
+    elif variable['type'] == 'fixed':
+        hspace[key] = variable['value']
+
+    if key.lower() in PROBABILITY:
+        hspace['probability'] = True
+
+    return hspace
 
 
 class BaseTrainer:
@@ -212,55 +247,32 @@ class OptunaTrainer(BaseTrainer):
 
         :raises KeyError: If the hyperparameter space is not properly defined.
         """
-        PROBABILITY = ['svm']
         full_hspace = []
         if (self.hpspace['models']['type'] == 'fixed' or
            self.hpspace['models']['type'] == 'ensemble'):
             for m_key, model in self.hpspace['models']['elements'].items():
                 hspace = {}
-                for variable in model:
-                    dont_save = False
-                    key = list(variable.keys())[0]
-                    variable = variable[key]
+                for key, variable in model.items():
+                    if 'condition' in variable:
+                        continue
 
-                    if variable['type'] == 'int':
-                        hspace[key] = trial.suggest_int(
-                            f"{m_key}_{key}",
-                            variable['min'],
-                            variable['max'],
-                            log=variable['log']
-                        )
+                    hspace = choose_hps(variable, trial, hspace, model,
+                                        key)
+                for key, variable in model.items():
+                    if 'condition' not in variable:
+                        continue
 
-                    elif variable['type'] == 'float':
-                        hspace[key] = trial.suggest_float(
-                            f"{m_key}_{key}",
-                            variable['min'],
-                            variable['max'],
-                            log=variable['log']
-                        )
-
-                    elif variable['type'] == 'categorical':
-                        hspace[key] = trial.suggest_categorical(
-                            f"{m_key}_{key}",
-                            variable['values']
-                        )
-
-                    elif variable['type'] == 'fixed':
-                        hspace[key] = variable['value']
-
-                    if key.lower() in PROBABILITY:
-                        hspace['probability'] = True
-
+                    hspace = choose_hps(variable, trial, hspace, model,
+                                        key)
                     if 'condition' in variable:
                         conditions = variable['condition'].split('|')
                         for condition in conditions:
                             condition = condition.split('-')
                             v, f = condition[0], condition[1]
-                            if hspace[v] == f:
-                                dont_save = True
+                            if hspace[v] != f:
+                                del hspace[v]
                                 break
-                if dont_save:
-                    continue
+
                 full_hspace.append(
                     {'name': m_key, 'variables': hspace,
                      'representation': trial.suggest_categorical(
@@ -273,46 +285,24 @@ class OptunaTrainer(BaseTrainer):
             model = trial.suggest_categorical('model', models)
             hspace = {}
 
-            for variable in self.hpspace['models']['elements'][model]:
-                dont_save = False
-                key = list(variable.keys())[0]
-                variable = variable[key]
-                if variable['type'] == 'int':
-                    hspace[key] = trial.suggest_int(
-                        f"{model}_{key}",
-                        variable['min'],
-                        variable['max'],
-                        log=variable['log']
-                    )
-
-                elif variable['type'] == 'float':
-                    hspace[key] = trial.suggest_float(
-                        f"{model}_{key}",
-                        variable['min'],
-                        variable['max'],
-                        log=variable['log']
-                    )
-
-                elif variable['type'] == 'categorical':
-                    hspace[key] = trial.suggest_categorical(
-                        f"{model}_{key}",
-                        variable['values']
-                    )
-
-                elif variable['type'] == 'fixed':
-                    hspace[key] = variable['value']
-
-                if key.lower() in PROBABILITY:
-                    hspace['probability'] = True
-
+            for key, variable in self.hpspace['models']['elements'][model].items():
                 if 'condition' in variable:
-                    conditions = variable['condition'].split('|')
-                    for condition in conditions:
-                        condition = condition.split('-')
-                        v, f = condition[0], condition[1]
-                        if hspace[v] != f:
-                            del hspace[v]
-                            break
+                    continue
+                print(key, variable)
+                hspace = choose_hps(variable, trial, hspace, model, key)
+
+            for key, variable in self.hpspace['models']['elements'][model].items():
+                if 'condition' not in variable:
+                    continue
+                hspace = choose_hps(variable, trial, hspace, model, key)
+
+                conditions = variable['condition'].split('|')
+                for condition in conditions:
+                    condition = condition.split('-')
+                    v, f = condition[0], condition[1]
+                    if hspace[v] != f:
+                        del hspace[v]
+                        break
 
             full_hspace.append(
                 {'name': model, 'variables': hspace,
