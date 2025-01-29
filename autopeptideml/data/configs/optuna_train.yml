@@ -87,62 +87,62 @@ train:
       type: select
       elements:
         rf:
-          - n_estimators:
+          n_estimators:
             type: int
             min: 10
             max: 1000
             log: true
-          - ccp_alpha:
+          ccp_alpha:
             type: float
             min: 1e-10
             max: 1e-3
             log: True
-          - min_samples_split:
+          min_samples_split:
             type: int
             min: 2
             max: 100
             log: False
         lightgbm:
-          - n_estimators:
+          n_estimators:
             type: int
             min: 10
             max: 1000
             log: False
-          - min_split_gain:
+          min_split_gain:
             type: float
             min: 1e-10
             max: 1e-3
             log: True
-          - reg_alpha:
+          reg_alpha:
             type: float
             min: 1e-10
             max: 1e-3
             log: True
-          - learning_rate:
+          learning_rate:
             type: float
             min: 0.00000001
             max: 0.1
             log: True
-          - verbose:
+          verbose:
             type: fixed-int
             value: -1
         svm:
-          - C:
+          C:
             type: float
             min: 0.000001
             max: 0.1
             log: true
-          - probability:
+          probability:
             type: fixed
             value: true
-          - kernel:
+          kernel:
             type: categorical
             values:
               - linear
               - poly
               - rbf
               - sigmoid
-          - degree:
+          degree:
             condition: kernel-poly
             log: false
             max: 5
