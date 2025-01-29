@@ -2,6 +2,7 @@ from typing import *
 
 
 SKLEARN_MODELS = ['knn', 'svm', 'rf', 'adaboost', 'gradboost']
+ALL_MODELS = SKLEARN_MODELS + ['lightgbm', 'xgboost']
 
 
 def load_sklearn_models(task: str) -> Dict[str, Callable]:
