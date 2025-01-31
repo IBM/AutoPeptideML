@@ -288,7 +288,6 @@ class OptunaTrainer(BaseTrainer):
             for key, variable in self.hpspace['models']['elements'][model].items():
                 if 'condition' in variable:
                     continue
-                print(key, variable)
                 hspace = choose_hps(variable, trial, hspace, model, key)
 
             for key, variable in self.hpspace['models']['elements'][model].items():
