@@ -19,7 +19,7 @@ requirements = [
     'lightgbm',
     'xgboost',
     'mdpdf',
-    'hestia-ood>=0.0.34'
+    'hestia-good'
 ]
 
 test_requirements = requirements
@@ -50,6 +50,6 @@ setup(
     name='autopeptideml',
     packages=find_packages(exclude=['examples']),
     url='https://ibm.github.io/AutoPeptideML/',
-    version='1.0.5',
+    version='2.0.0',
     zip_safe=False,
 )
