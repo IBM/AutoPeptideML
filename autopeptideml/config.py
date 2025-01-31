@@ -43,6 +43,7 @@ class AutoPeptideML:
 
         self.config = config
         self.outputdir = config['outputdir']
+        self.x = None
         if osp.isdir(self.outputdir):
             print(f"Warning - Output dir: {self.outputdir} exists. Results may be overwritten")
         else:
@@ -82,7 +83,16 @@ class AutoPeptideML:
             self.outputdir = self.config['outputdir']
         else:
             self.reps = self._load_representation(self.rep_config)
-        self.x = self._get_reps()
+
+        if self.x is not None:
+            return self.reps, self.x
+        if self.reps is None:
+            self.get_reps()
+
+        x = {}
+        rep_dir = osp.join(self.outputdir, 'reps')
+        os.makedirs(rep_dir, exist_ok=True)
+        self.x = self._get_reps(rep_dir, self.db)
         return self.reps, self.x
 
     def get_test(self, test_config: Optional[Dict] = None) -> HestiaGenerator:
@@ -194,7 +204,8 @@ class AutoPeptideML:
             db2 = Database(
                 db_config['neg_database']['path'], pipe=self.pipeline,
                 feat_fields=db_config['neg_database']['feat_fields'],
-                verbose=db_config['neg_database']['verbose']
+                verbose=db_config['neg_database']['verbose'],
+                seed=1 if 'seed' not in db_config else db_config['seed']
             )
             print("Adding negatives")
             db.add_negatives(
@@ -242,6 +253,7 @@ class AutoPeptideML:
             kf = StratifiedKFold(n_splits=val_config['k'], shuffle=True,
                                  random_state=val_config['random_state'])
             folds = [fold for fold in kf.split(part['train'], y[part['train']])]
+
         elif val_config['type'] == 'single':
             from sklearn.model_selection import train_test_split
             folds = train_test_split(part['train'], test_size=val_config['size'],
@@ -251,36 +263,27 @@ class AutoPeptideML:
             raise NotImplementedError(f"Validation split: {val_config['type']} is not supported.")
         return folds
 
-    def _load_models(self, ensemble_dir: str) -> List[Callable]:
-        
-
-    def _get_reps(self) -> Dict[str, np.ndarray]:
-        if self.x is not None:
-            return self.x
-        if self.reps is None:
-            self.get_reps()
+    def _get_reps(self, rep_dir: str, db: Database) -> Dict[str, np.ndarray]:
         x = {}
-        rep_dir = osp.join(self.outputdir, 'reps')
-        os.makedirs(rep_dir, exist_ok=True)
-
         for name, rep in self.reps.items():
-            path = osp.join(rep_dir, f'{rep.name}.pckl')
-            if osp.exists(path):
-                x[name] = np.load(path, allow_pickle=True)
+            if rep_dir is not None:
+                path = osp.join(rep_dir, f'{rep.name}.pckl')
+                if osp.exists(path):
+                    x[name] = np.load(path, allow_pickle=True)
+
+            if self.rep_config['verbose']:
+                print(f'Computing representations with: {name}')
+            if 'lm' in rep.name:
+                rep.move_to_device(rep.device)
+                x[name] = rep.compute_reps(
+                    db.df[db.feat_fields[0]], verbose=True,
+                    batch_size=rep.batch_size
+                )
             else:
-                if self.rep_config['verbose']:
-                    print(f'Computing representations with: {name}')
-                if 'lm' in rep.name:
-                    rep.move_to_device(rep.device)
-                    x[name] = rep.compute_reps(
-                        self.db.df[self.db.feat_fields[0]], verbose=True,
-                        batch_size=rep.batch_size
-                    )
-                else:
-                    x[name] = rep.compute_reps(self.db.df[self.db.feat_fields[0]],
-                                               verbose=True)
+                x[name] = rep.compute_reps(db.df[db.feat_fields[0]],
+                                           verbose=True)
+            if rep_dir is not None:
                 x[name].dump(path)
-        self.x = x
         return x
 
     def run_hpo(self):
@@ -352,6 +355,7 @@ class AutoPeptideML:
         self.save_models(ensemble_path, model_backend)
         self.save_database()
         to_save = copy.deepcopy(self.models)
+
         for th, model in to_save.items():
             del model['models']
 
@@ -400,6 +404,7 @@ class AutoPeptideML:
                                       "Please try: `onnx` or `joblib`.")
         for th, model in self.models.items():
             model['save_path'] = []
+            model['task'] = []
             logger = logging.getLogger("skl2onnx")
             logger.setLevel(logging.DEBUG)
             if backend == 'onnx':
@@ -419,27 +424,108 @@ class AutoPeptideML:
                     else:
                         clf_onx = to_onnx(clf, [('X', variable_type)])
 
-                    if 'class' in str(clf).lower():
-                        name = f'{th}_{idx}_class.onnx'
-                    else:
-                        name = f'{th}_{idx}_reg.onnx'
+                    name = f'{th}_{idx}.onnx'
                     model['save_path'].append(name)
+                    model['task'].append(self.train_config['task'])
 
                     with open(osp.join(ensemble_path, name), "wb") as f:
                         f.write(clf_onx.SerializeToString())
             else:
                 for idx, clf in enumerate(self.models['models']):
-                    if 'class' in str(clf).lower():
-                        name = f'{idx}_class.onnx'
-                    else:
-                        name = f'{idx}_reg.onnx'
+                    name = f'{idx}.onnx'
                     model['save_path'].append(name)
+                    model['task'].append(self.train_config['task'])
                     joblib.dump(clf, open(osp.join(ensemble_path, name)), 'wb')
 
     def save_reps(self, rep_dir: str):
         for name, rep in self.reps.items():
             path = osp.join(rep_dir, f'{rep.name}.pckl')
             self.x[name].dump(path)
+
+    def predict(self, features: str, experiment_dir: str,
+                backend: str = 'onnx') -> np.ndarray:
+        if backend == 'joblib':
+            try:
+                import joblib
+            except ImportError:
+                raise ImportError(
+                    'This backend requires joblib.',
+                    'Please try: `pip install joblib`'
+                )
+        elif backend == 'onnx':
+            try:
+                import onnxruntime
+            except ImportError:
+                raise ImportError(
+                    'This backend requires onnx.',
+                    'Please try: `pip install onnxruntime onnxmltools skl2onnx`'
+                )
+        else:
+            raise NotImplementedError(f"Backend: {backend} not implemented.",
+                                      "Please try: `onnx` or `joblib`.")
+        ensemble_dir = osp.join(experiment_dir, 'model_info', 'ensemble')
+        ensemble_config = osp.join(experiment_dir, 'model_info', 'ensemble_config.json')
+        if not osp.exists(ensemble_config):
+            raise FileNotFoundError("Configuration file for ensemble was not found in experiment dir.")
+        if not osp.isdir(ensemble_dir):
+            raise NotADirectoryError("Ensemble directory not found.")
+        ensemble_config = json.load(open(ensemble_config))
+        pipe = self.get_pipeline()
+        db = Database(
+            df=pd.DataFrame({"features": features}),
+            feat_fields='features',
+            pipe=pipe
+        )
+        self.reps = self._load_representation(self.rep_config)
+        x = self._get_reps(None, db)
+        output = {}
+        for th, model in ensemble_config.items():
+            model_paths = [path for path in model['save_path']]
+            reps = [rep for rep in model['reps']]
+            task = [t for t in model['task']]
+            preds = []
+            for m, r, t in zip(model_paths, reps, task):
+                if backend == 'onnx':
+                    preds.append(self._onnx_prediction(
+                        osp.join(ensemble_dir, m), t, x[r]
+                    ))
+                else:
+                    raise NotImplementedError()
+            preds = np.stack(preds, axis=1)
+            if len(ensemble_config) > 1:
+                output.update({
+                    f'{th}_score': preds.mean(1),
+                    f'{th}_std': preds.std(1)
+                })
+            else:
+                output.update({'score': preds.mean(1),
+                               'std': preds.std(1)})
+        df = pd.DataFrame(output)
+        if len(ensemble_config) == 1:
+            df.sort_values("score", ignore_index=True, ascending=False,
+                           inplace=True)
+        return df
+
+    def _onnx_prediction(
+        self,
+        path: str,
+        task: str,
+        X: np.ndarray,
+    ):
+        import onnxruntime as rt
+        sess = rt.InferenceSession(path, providers=['CPUExecutionProvider'])
+        input_name = sess.get_inputs()[0].name
+        pred_onx = sess.run(None, {input_name: X.astype(np.float32)})[1]
+
+        if task == 'class':
+            preds = np.array([i[1]] for i in pred_onx)
+        elif task == 'reg':
+            preds = np.array([i[1] for i in pred_onx])
+        else:
+            preds = np.stack([i[l] for i in pred_onx
+                              for l in range(len(i.keys()))])
+
+        return preds
 
     def get_precalculated_reps(self, outputdir: str) -> Dict[str, np.ndarray]:
         config_path = osp.join(outputdir, 'config.yml')
@@ -478,5 +564,27 @@ def main(path):
     print(r_df)
 
 
+def predict(experiment_dir: str, features_path: str, feature_field: str,
+            output_path: str = 'apml_predictions.csv'):
+    config_path = osp.join(experiment_dir, 'config.yml')
+    if not osp.exists(config_path):
+        raise FileNotFoundError("Configuration file was not found in experiment dir.")
+    config = yaml.safe_load(open(config_path))
+    apml = AutoPeptideML(config)
+    df = pd.read_csv(features_path)
+    results_df = apml.predict(
+        df[feature_field],
+        experiment_dir=experiment_dir, backend='onnx'
+    )
+    results_df.to_csv(output_path, index=False, float_format="%.3g")
+
 def _main():
     typer.run(main)
+
+
+def _predict():
+    typer.run(predict)
+
+
+if __name__ == "__main__":
+    predict("Raul1", "Raul1/db.csv", "sequence", "output.csv")
