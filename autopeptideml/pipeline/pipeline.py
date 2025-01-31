@@ -173,7 +173,7 @@ class Pipeline:
         :rtype: str
           :return: A JSON string representing the pipeline's configuration and properties.
         """
-        return json.dumps(self.properties)
+        return json.dumps(self.properties, indent=3)
 
     def __call__(self, mols: List[str],
                  n_jobs: int = cpu_count(),
