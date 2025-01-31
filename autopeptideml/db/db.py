@@ -27,7 +27,8 @@ class Database:
         feat_fields: Union[str, List[str]] = None,
         pipe: Optional[Union[Pipeline, Dict[str, Pipeline]]] = None,
         label_field: Optional[str] = None,
-        verbose: bool = False
+        verbose: bool = False,
+        seed: int = 1
     ):
         """Initialises a Database instance.
 
@@ -64,6 +65,7 @@ class Database:
             self.pipe = {field: pipe for field in feat_fields}
         else:
             self.pipe = pipe
+        self.seed = seed
         self.label_field = label_field
         self.feat_fields = feat_fields
         self._preprocess(verbose)
@@ -107,11 +109,11 @@ class Database:
                     smp = len(tgt_df)
                 else:
                     smp = len(tgt_df) + left_out
-                tmp_df = tmp_df.sample(smp, replace=False)
+                tmp_df = tmp_df.sample(smp, replace=False, random_state=self.seed)
                 left_out = 0
             else:
                 smp = len(tmp_df) - len(tgt_df)
-                tmp_df = tmp_df.sample(smp, replace=False)
+                tmp_df = tmp_df.sample(smp, replace=False, random_state=self.seed)
             for field in self.feat_fields:
                 entries[field].extend(tmp_df[field].tolist())
 
