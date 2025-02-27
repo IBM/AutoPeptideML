@@ -1,4 +1,5 @@
-import urllib.error
+from contextlib import nullcontext
+
 import numpy as np
 import torch
 import transformers
@@ -89,7 +90,7 @@ class RepEngineLM(RepEngineBase):
     engine = 'lm'
 
     def __init__(self, model: str, average_pooling: Optional[bool] = True,
-                 cls_token: Optional[bool] = False):
+                 cls_token: Optional[bool] = False, fp16: bool = True):
         """
         Initializes the `RepEngineLM` with the specified model and pooling options. The model is loaded based on 
         the given `model` name and its associated tokenizer.
@@ -110,6 +111,7 @@ class RepEngineLM(RepEngineBase):
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.model = None
         self.name = f'{self.engine}-{model}'
+        self.fp16 = fp16
         self._load_model(model)
 
     def move_to_device(self, device: str):
@@ -145,7 +147,7 @@ class RepEngineLM(RepEngineBase):
         elif self.lab.lower() == 'evolutionaryscale':
             return 2046
         else:
-            return -1
+            return 2046
 
     def get_num_params(self) -> int:
         """
@@ -276,22 +278,44 @@ class RepEngineLM(RepEngineBase):
                                 truncation=True,
                                 padding="longest", return_tensors="pt")
         inputs = inputs.to(self.device)
+        mps_autocast = int(torch.__version__.split('.')[1]) >= 6
+        autocast = self.fp16 and (self.device == 'cuda' or
+                                  (self.device == 'mps' and mps_autocast) or
+                                  self.device == 'cpu')
+        if autocast:
+            autocast = torch.autocast(
+                device_type=self.device,
+                dtype=torch.bfloat16
+            )
+        else:
+            autocast = nullcontext()
+
         with torch.no_grad():
-            if self.lab == 'ElnaggarLab':
-                embd_rpr = self.model(
-                    input_ids=inputs['input_ids'],
-                    attention_mask=inputs['attention_mask'],
-                    decoder_input_ids=inputs['input_ids']
-                ).last_hidden_state
-            else:
-                embd_rpr = self.model(**inputs).last_hidden_state
+            with autocast:
+                if self.lab == 'ElnaggarLab':
+                    embd_rpr = self.model(
+                        input_ids=inputs['input_ids'],
+                        attention_mask=inputs['attention_mask'],
+                        decoder_input_ids=inputs['input_ids']
+                    ).last_hidden_state
+                else:
+                    embd_rpr = self.model(**inputs).last_hidden_state
         output = []
         for idx in range(len(batch)):
-            seq_len = len(batch[idx])
+            if self.lab == 'facebook' or self.lab == 'EvolutionaryScale':
+                initial = 1
+                final = len(batch[idx]) + 1
+            elif self.lab == 'RostLab':
+                initial = 0
+                final = len(batch[idx].replace(' ', ''))
+            else:
+                initial = 0
+                final = len(batch[idx])
+
             if self.average_pooling:
-                output.append(embd_rpr[idx, :seq_len].mean(0).detach().cpu().numpy())
+                output.append(embd_rpr[idx, initial:final].mean(0).detach().cpu().numpy())
             elif self.cls_token:
                 output.append(embd_rpr[idx, 0].detach().cpu().numpy())
             else:
-                output.append(embd_rpr[idx, :seq_len].detach().cpu().numpy())
+                output.append(embd_rpr[idx, initial:final].detach().cpu().numpy())
         return output
