@@ -306,7 +306,7 @@ class OptunaTrainer(BaseTrainer):
             full_hspace.append(
                 {'name': model, 'variables': hspace,
                  'representation': trial.suggest_categorical(
-                     "rep", self.hpspace['representations']
+                     f"{model}_rep", self.hpspace['representations']
                  )})
         return full_hspace
 
