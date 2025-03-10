@@ -1,762 +1,558 @@
-import joblib
+import copy
 import os
 import os.path as osp
+import json
+import yaml
+from typing import *
 
-from copy import deepcopy
-from multiprocessing import cpu_count
-from typing import Dict, List, Optional, Union
-
-import matplotlib.pyplot as plt
-import numpy as np
-import optuna
 import pandas as pd
-import sklearn.metrics
+import numpy as np
+from hestia import HestiaGenerator, SimArguments
+import typer
 
-from sklearn.model_selection import StratifiedKFold
-from hestia.partition import ccpart, graph_part
-from hestia.similarity import sequence_similarity_peptides, sequence_similarity_needle
-
-from .pipeline.sequence import is_canonical
-from .reps import RepEngineBase, RepEngineOnehot
-from .reps.lms import RepEngineLM
-from .reps.fps import RepEngineFP
+from .pipeline import Pipeline, CanonicalCleaner, CanonicalFilter
+from .reps import RepEngineBase
+from .train import BaseTrainer, OptunaTrainer, GridTrainer, NoHpoTrainer
+from .train.metrics import evaluate
+from .db import Database
 
 
-__version__ = '1.0.5'
+__version__ = '2.0.0'
+
+
+app = typer.Typer()
 
 
 class AutoPeptideML:
-    """
-    Main class for handling the automatic development
-    of bioactive peptide ML predictors.
-    """
-    def __init__(
-        self,
-        verbose: bool = True,
-        threads: int = cpu_count(),
-        seed: int = 42
-    ):
-        """Initialize instance of the AutoPeptideML class
+    config: dict
+    pipeline: Pipeline = None
+    rep: Dict[str, RepEngineBase]
+    train: BaseTrainer = None
+    db: Database = None
+    parts: dict = None
+    x: Optional[Dict[str, np.ndarray]] = None
+    y: np.ndarray
 
-        :param verbose: Whether to output information, defaults to True
-        :type verbose: bool, optional
-        :param threads: Number of threads to compute parallelise
-                        processes, defaults to cpu_count()
-        :type threads: int, optional
-        :param seed: Pseudo-random number generator seed.
-                        Important for reproducibility, defaults to 42
-        :type seed: int, optional
-        """
-        self.verbose = verbose
-        self.threads = threads
-        self.seed = seed
-        if self.verbose:
-            self._welcome()
-        self.db = osp.join(
-            osp.dirname(osp.realpath(__file__)),
-            'data', 'peptipedia'
-        )
-        self.tags = self._bioactivity_tags()
+    def __init__(self, config: dict):
+        if 'pipeline' in config:
+            self.pipe_config = config['pipeline']
+        if 'representation' in config:
+            self.rep_config = config['representation']
+        if 'train' in config:
+            self.train_config = config['train']
+        if 'databases' in config:
+            self.db_config = config['databases']
+        if 'test' in config:
+            self.test_config = config['test']
 
-    def autosearch_negatives(
-        self,
-        df_pos: pd.DataFrame,
-        positive_tags: List[str],
-        proportion: float = 1.0,
-        target_db: Optional[str] = None
-    ) -> pd.DataFrame:
-        """Method for searching bioactive databases for peptides
-
-        :param df_pos: DataFrame with positive peptides.
-        :type df_pos: pd.DataFrame
-        :param positive_tags: List of names of bioactivities
-                              that may overlap with the target
-                              bioactivities.
-        :type positive_tags: List[str]
-        :param proportion: Negative:Positive ration in
-                           the new dataset. Defaults to 1.0.,
-                           defaults to 1.0.
-        :type proportion: float, optional
-        :param target_db: Path to CSV containing a database with
-                          columns `sequence` and bioactivities.
-        :type target_db: str, optional
-        :return: New dataset with both positive and negative
-                 peptides.
-        :rtype: pd.DataFrame
-        """
-        if self.verbose is True:
-            print('\nStep 2: Autosearch for negative peptides')
-
-        df_neg = pd.DataFrame()
-        lengths = df_pos.sequence.map(len).to_numpy()
-        min_length, max_length = lengths.min(), lengths.max()
-        min_length = min_length - (min_length % 5)
-        missing = 0
-        if target_db is not None:
-            target_df = pd.DataFrame(target_db)
-            target_df['lenghts'] = target_df.sequence.map(len)
-
-        for length in range(min_length, max_length, 5):
-            if target_db is not None: 
-                subdf = target_df[(target_df['length'] >= length) &
-                                  (target_df['length'] < length + 5)]
-            else:
-                subdb_path = osp.join(self.db, f'peptipedia_{length}-{length+5}.csv')
-                if osp.isfile(subdb_path):
-                    subdf = pd.read_csv(subdb_path)
-                    subdf.drop_duplicates(subset=['sequence'],
-                                          inplace=True,
-                                          ignore_index=True)
-
-                for name in positive_tags:
-                    name = ' '.join(name.split('_'))
-                    try:
-                        subdf = subdf[subdf[name] == 0]
-                    except KeyError:
-                        continue
-
-                df_len_bin = df_pos[(lengths >= length) & (lengths < length+5)]
-                samples_to_draw = int(df_len_bin.shape[0] * proportion) + missing
-
-                if samples_to_draw < len(subdf):
-                    subdf = subdf.sample(
-                        samples_to_draw,
-                        replace=False,
-                        random_state=self.seed
-                    )
-                    subdf.reset_index(drop=True)
-                    missing = 0
-                elif len(subdf) > 0:
-                    subdf = subdf.sample(
-                        len(subdf),
-                        replace=False,
-                        random_state=self.seed
-                    )
-                    subdf.reset_index(drop=True)
-                    missing += samples_to_draw - len(subdf)
-                else:
-                    missing += samples_to_draw
-                df_neg = pd.concat([df_neg, subdf])
-
-        get_tags = lambda x: ';'.join(sorted(set(
-            [column if (x[column] == 1) else df_neg.columns[0]
-             for column in self.tags]
-        )))
-
-        df_neg['bioactivity'] = df_neg.apply(get_tags, axis=1)
-        df_neg.drop(columns=self.tags+['is_aa_seq'], inplace=True)
-        n_pos = len(df_pos)
-        df_neg.reset_index(inplace=True)
-        df_neg['id'] = df_neg.index.map(lambda x: n_pos + x)
-        df_neg['Y'] = 0
-        df = pd.concat([df_pos, df_neg]).sample(
-            frac=1,
-            replace=False,
-            random_state=self.seed
-        )
-        return df.reset_index(drop=True)
-
-    def balance_samples(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Oversample the underrepresented class in the DataFrame.
-
-        :param df:  DataFrame with positive and
-                    negative peptides to be balanced.
-        :type df: pd.DataFrame
-        :return: DataFrame with balanced number of 
-                 positive and negative peptides.
-        :rtype: pd.DataFrame
-        """
-        df.Y = df.Y.map(int)
-        df_pos, df_neg = deepcopy(df[df.Y == 1]), deepcopy(df[df.Y == 0])
-
-        if len(df_pos) > len(df_neg):
-            df_neg = df_neg.sample(
-                len(df_pos),
-                replace=True,
-                random_state=self.seed,
-                ignore_index=True
-            )
-        elif len(df_pos) < len(df_neg):
-            df_pos = df_pos.sample(
-                len(df_neg),
-                replace=True,
-                random_state=self.seed,
-                ignore_index=True
-            )
-        df = pd.concat([df_pos, df_neg])
-        df = df.sample(len(df), random_state=self.seed)
-        return df.reset_index(drop=True)
-
-    def compute_representations(
-        self,
-        datasets: Dict[str, pd.DataFrame],
-        re: RepEngineBase
-    ) -> dict:
-        """Use a Protein Representation Model, loaded with the
-        RepresentationEngine class to compute representations
-        for the peptides in the `dataasets`.
-
-        :param datasets: dictionary with the dataset partitions as DataFrames.
-                        Output from the method `train_test_partition`.
-        :type datasets: Dict[str, pd.DataFrame]
-        :param re: class with a Protein Representation Model.
-        :type re: RepresentationEngine
-        :return: Dictionary with pd.DataFrame `id` column as keys and
-                 the representation of the `sequence` column as values.
-        :rtype: dict
-        """
-        if self.verbose is True:
-            print('\nStep 4: PLM Peptide Featurization')
-        id2rep = {}
-        for df in datasets.values():
-            df_repr = re.compute_reps(df.sequence)
-            id2rep.update({id: repr for id, repr in zip(df.id, df_repr)})
-        return id2rep
-
-    def curate_dataset(
-        self,
-        dataset: Union[str, pd.DataFrame],
-        outputdir: str = None
-    ) -> pd.DataFrame:
-        """Load a DataFrame or use one already loaded and then remove
-        all entries with non-canonical residues or repeated sequences.
-
-        :param dataset: Dataset or path to dataset.
-        :type dataset: Union[str, pd.DataFrame]
-        :param outputdir: Path were to save the curated dataset, defaults to None
-        :type outputdir: str, optional
-        :return: Curated dataset.
-        :rtype: pd.DataFrame
-        """
-        if self.verbose is True:
-            print('\nStep 1: Dataset curation')
-
-        if isinstance(dataset, pd.DataFrame):
-           df = dataset
-
-        elif dataset.endswith('.fasta'):
-            if outputdir is None:
-                pass
-            elif not osp.isdir(outputdir):
-                os.mkdir(outputdir)
-            df = self._fasta2csv(dataset, outputdir)
+        self.config = config
+        self.outputdir = config['outputdir']
+        self.x = None
+        if osp.isdir(self.outputdir):
+            print(f"Warning - Output dir: {self.outputdir} exists. Results may be overwritten")
         else:
-            df = pd.read_csv(dataset)
+            os.makedirs(self.outputdir)
 
-        if not ('y' in df.columns or 'Y' in df.columns):
-            df['Y'] = 1
+    def get_pipeline(self, pipe_config: Optional[dict] = None) -> Pipeline:
+        if pipe_config is not None:
+            self.pipe_config = pipe_config
 
-        df.drop_duplicates('sequence', inplace=True, ignore_index=True)
-        df = df[df.sequence.map(is_canonical)].reset_index(drop=True)
-        df = df[~pd.isna(df.sequence)]
-        return df
+        if isinstance(self.pipe_config, str):
+            pipe_config_path = osp.join(self.pipe_config, 'config.yml')
+            self.pipe_config = yaml.safe_load(open(pipe_config_path))['pipeline']
+        else:
+            self.pipeline = self._load_pipeline(self.pipe_config)
+        return self.pipeline
 
-    def evaluate_model(
-        self,
-        best_model: list,
-        test_df: pd.DataFrame,
-        id2rep: dict,
-        outputdir: str
-    ) -> pd.DataFrame:
-        """Evaluate an ensemble model.
+    def get_database(self, db_config: Optional[dict] = None) -> Database:
+        if db_config is not None:
+            self.db_config = db_config
 
-        :param best_model:  List of models with a `predict_proba` method.
-        :type best_model: list
-        :param test_df: Evaluation dataset with `id`, `sequence`
-                        and `Y` columns.
-        :type test_df: pd.DataFrame
-        :param id2rep: Dictionary with keys being the `id` and the values
-                       the peptide representations.
-        :type id2rep: dict
-        :param outputdir: Path were to save the evaluation data.
-        :type outputdir: str
-        :return: Dataset with the evaluation metrics.
-        :rtype: pd.DataFrame
-        """
-        if self.verbose is True:
-            print('\nStep 6: Model evaluation')
-        raw_data_path = osp.join(outputdir, 'evaluation_data')
-        figures_path = osp.join(outputdir, 'figures')
-        paths = [outputdir, raw_data_path, figures_path]
-        for path in paths:
-            if not osp.isdir(path):
-                os.mkdir(path)
-        embds = np.stack([id2rep[id] for id in test_df.id])
-        truths = np.array(test_df.Y.tolist())
+        if 'precalculated' in self.db_config:
+            self.get_precalculated_db(self.db_config)
+        else:
+            if self.pipeline is None:
+                self.get_pipeline()
+            self.db = self._load_database(self.db_config)
 
-        scores = []
-        preds_proba = np.zeros(len(test_df))
-        for idx, clf in enumerate(best_model['estimators']):
-            preds_proba = preds_proba + clf.predict_proba(embds)[:, 1] * (1/len(best_model['estimators']))
+        return self.db
 
-        preds = preds_proba > 0.5
+    def get_reps(self, rep_config: Optional[dict] = None) -> Dict[str, np.ndarray]:
+        if rep_config is not None:
+            self.rep_config = rep_config
 
-        for metric in METRICS:
-            if metric in THRESHOLDED_METRICS:
-                score = METRIC2FUNCTION[metric](truths, preds)
+        if isinstance(self.rep_config, str):
+            self.outputdir = self.rep_config
+            self.get_precalculated_reps(self.rep_config)
+            self.outputdir = self.config['outputdir']
+        else:
+            self.reps = self._load_representation(self.rep_config)
+
+        if self.x is not None:
+            return self.reps, self.x
+        if self.reps is None:
+            self._load_representation(self.rep_config)
+
+        x = {}
+        rep_dir = osp.join(self.outputdir, 'reps')
+        os.makedirs(rep_dir, exist_ok=True)
+        self.x = self._get_reps(rep_dir, self.db)
+        return self.reps, self.x
+
+    def get_test(self, test_config: Optional[Dict] = None) -> HestiaGenerator:
+        if test_config is not None:
+            self.test_config = test_config
+
+        if self.db is None:
+            self.get_database()
+
+        if isinstance(self.test_config, str):
+            config_path = osp.join(self.test_config, 'config.yml')
+            self.test_config = yaml.safe_load(open(config_path))['test']
+            self.parts = self._load_test(self.test_config)
+        else:
+            self.parts = self._load_test(self.test_config)
+        return self.parts
+
+    def get_train(self, train_config: Optional[Dict] = None) -> BaseTrainer:
+        if train_config is not None:
+            self.train_config = train_config
+
+        if self.x is None:
+            self.get_reps()
+        if self.parts is None:
+            self.get_test()
+
+        if isinstance(self.train_config, str):
+            train_config_path = osp.join(self.train_config, 'config.yml')
+            self.train_config = yaml.safe_load(open(train_config_path))['train']
+            self.train = self._load_trainer(self.train_config)
+        else:
+            self.train = self._load_trainer(self.train_config)
+        return self.train
+
+    def _load_pipeline(self, pipe_config: dict) -> Pipeline:
+        elements = []
+
+        for config in pipe_config['elements']:
+            name = list(config.keys())[0]
+            if 'pipe' in name:
+                item = self._load_pipeline(config[name])
             else:
-                score = METRIC2FUNCTION[metric](truths, preds_proba)
-            scores.append({'metric': metric, 'score': score})
+                if 'filter-smiles' in config:
+                    from .pipeline.smiles import FilterSMILES
+                    config = config['filter-smiles']
+                    config = {} if config is None else config
+                    item = FilterSMILES(**config)
 
-        confusion_matrix = sklearn.metrics.confusion_matrix(truths, preds)
-        scores.append({'metric': 'TP', 'score': confusion_matrix[0, 0]})
-        scores.append({'metric': 'TN', 'score': confusion_matrix[1, 1]})
-        scores.append({'metric': 'FP', 'score': confusion_matrix[0, 1]})
-        scores.append({'metric': 'FN', 'score': confusion_matrix[1, 0]})
+                elif 'sequence-to-smiles' in config:
+                    from .pipeline.smiles import SequenceToSMILES
+                    config = config['sequence-to-smiles']
+                    config = {} if config is None else config
+                    item = SequenceToSMILES(**config)
 
-        self._make_figures(figures_path, truths, preds_proba)
-        df = pd.DataFrame(scores)
-        df.to_csv(osp.join(raw_data_path, 'test_scores.csv'), index=False, float_format="{:.4f}".format)
-        self._summary(outputdir)
-        return df
+                elif 'canonical-cleaner' in config:
+                    config = config['canonical-cleaner']
+                    config = {} if config is None else config
+                    item = CanonicalCleaner(**config)
 
-    def hpo_train(
-        self,
-        config: dict,
-        train_df: pd.DataFrame,
-        id2rep: dict,
-        folds: list,
-        outputdir: str,
-        n_jobs: int = 1
-    ) -> list:
-        """Hyperparameter Optimisation and training.
+                elif 'canonical-filter' in config:
+                    config = config['canonical-filter']
+                    config = {} if config is None else config
+                    item = CanonicalFilter(**config)
 
-        :param config: dictionary with hyperparameter search space.
-        :type config: dict
-        :param train_df: Training dataset with `id` column and `Y` column
-                         with the bioactivity target.
-        :type train_df: pd.DataFrame
-        :param id2rep: Dictionary with pd.DataFrame `id` column as keys and
-                       the representation of the `sequence` column as values.
-        :type id2rep: dict
-        :param folds: List with the training/validation folds
-        :type folds: list
-        :param outputdir: Path to the directory where information should be
-                          saved.
-        :type outputdir: str
-        :param n_jobs: Number of threads to parallelise the training,
-                       defaults to 1.
-        :type n_jobs: int, optional
-        :return: List with the models that comprise the final ensemble.
-        :rtype: list
-        """
-        if self.verbose is True:
-            print('\nStep 5: Hyperparameter Optimisation and Model Training')
-        np.random.seed(self.seed)
-        best_configs_path = osp.join(outputdir, 'best_configs')
-        best_ensemble_path = osp.join(outputdir, 'ensemble')
-        evaluation_path = osp.join(outputdir, 'evaluation_data')
-        paths = [outputdir, best_configs_path, best_ensemble_path, evaluation_path]
-        for path in paths:
-            if not osp.exists(path):
-                os.mkdir(path)
+            elements.append(item)
+        return Pipeline(name=pipe_config['name'], elements=elements,
+                        aggregate=pipe_config['aggregate'])
 
-        objectives = {}
+    def _load_representation(self, rep_config: str) -> Dict[str, RepEngineBase]:
+        out = {}
+        for r in rep_config['elements']:
+            name = list(r.keys())[0]
+            r_config = r[name]
+            if 'lm' in r_config['engine'].lower():
+                from .reps.lms import RepEngineLM
+                re = RepEngineLM(r_config['model'], r_config['average_pooling'])
+                re.batch_size = r_config['batch_size']
+                re.device = r_config['device']
 
-        optuna.logging.set_verbosity(optuna.logging.WARNING)
-        if 'ensemble' in config:
-            for study in config['ensemble']:
-                optuna_study = optuna.create_study(
-                    direction="maximize"
-                )
-                if study['model'] in SYNONYMS['unidl4biopep']:
-                    objective = UniDL4BioPep_Objective(
-                        study,
-                        train_df,
-                        folds,
-                        id2rep,
-                        self.threads,
-                        outputdir
-                    )
-                else:
-                    objective = FlexibleObjective(
-                        study,
-                        train_df,
-                        folds,
-                        id2rep,
-                        self.threads,
-                        outputdir
-                    )
-                optuna_study.optimize(
-                    objective,
-                    n_trials=study['trials'],
-                    callbacks=[objective.callback],
-                    n_jobs=n_jobs,
-                    show_progress_bar=self.verbose
-                )
-                objectives[study['model']] = objective
-        elif 'model_selection':
-            optuna_study = optuna.create_study(
-                direction='maximize',
-                sampler=optuna.samplers.RandomSampler(seed=self.seed)
-            )
-            objective = ModelSelectionObjective(
-                config['model_selection'],
-                train_df,
-                folds,
-                id2rep,
-                self.threads,
-                outputdir
-            )
-            optuna_study.optimize(
-                objective,
-                n_trials=config['trials'],
-                callbacks=[objective.callback],
-                n_jobs=n_jobs,
-                show_progress_bar=self.verbose
-            )
-            objectives['model_selection'] = objective
+            elif 'fp' in r_config['engine'].lower():
+                from .reps.fps import RepEngineFP
+                re = RepEngineFP(r_config['fp'], nbits=r_config['nbits'],
+                                 radius=r_config['radius'])
 
-        output = {}
+            elif 'onehot' in r_config['engine'].lower():
+                from .reps import RepEngineOnehot
+                re = RepEngineOnehot(rep_config['max_length'])
 
-        for name, objective in objectives.items():
-            output[name] = {}
-            for key, value in objective.model.items():
-                if isinstance(value, np.ndarray):
-                    output[name][key] = value.tolist() 
-                    continue
-                for model_class in SUPPORTED_MODELS.values():
-                    if not isinstance(value, model_class):
-                        continue
-                    output[name][key] = value.get_params()
+            out[name] = re
+        return out
 
-        df_output = []
-        for i, fold in enumerate(folds):
-            for name in output.keys():
-                entry = {'model': name, 'fold': i}
-                for metric in METRICS:
-                    entry[metric] = output[name][metric][i]
-                df_output.append(entry)
-        
-        df_output = pd.DataFrame(df_output)
-        df_output.to_csv(osp.join(evaluation_path, 'cross-validation.csv'), index=False, float_format='{:.4f}'.format)
+    def _load_trainer(self, train_config: dict) -> BaseTrainer:
+        hspace = train_config['hspace']
+        optim_strategy = train_config['optim_strategy']
+        if optim_strategy['trainer'] == 'optuna':
+            trainer = OptunaTrainer(hspace, optim_strategy)
+        elif optim_strategy['trainer'] == 'grid':
+            trainer = GridTrainer(hpspace=hspace, optim_strategy=optim_strategy)
+        return trainer
 
-        output = {}
-        output['estimators'] = []
-
-        for name in objectives.keys():
-            if name == 'unidl4biopep':
-                output['estimators'].append(objectives[name].best_model)
-            else:
-                output['estimators'].extend(objectives[name].best_model['estimators'])
-        return output
-
-    def train_test_partition(
-        self,
-        df: pd.DataFrame,
-        threshold: float = 0.3,
-        test_size: float = 0.2,
-        denominator: str = 'n_aligned',
-        alignment: str = None,
-        outputdir: str = './splits'
-    ) -> Dict[str, pd.DataFrame]:
-        """
-        Novel homology partitioning algorithm for generating independent hold-out evaluation sets.
-
-        This method partitions the provided dataset into training and testing sets based on sequence similarity.
-        It ensures that sequences in the training and testing sets do not exceed a specified sequence identity 
-        threshold, resulting in distinct datasets for evaluation.
-
-        :param df: Dataset to partition with the following columns:
-                `id`, `sequence`, and `Y`.
-        :type df: pd.DataFrame
-        :param threshold: Maximum sequence identity allowed between sequences in training and evaluation sets. 
-                        Sequences exceeding this threshold in similarity will not appear in both sets.
-                        Defaults to 0.3.
-        :type threshold: float, optional
-        :param test_size: Proportion of samples in evaluation (test) set. A float between 0 and 1, where 0.2 means 20% 
-                        of the dataset will be allocated to the test set. Defaults to 0.2.
-        :type test_size: float, optional
-        :param denominator: Denominator used to calculate sequence identity between pairs of sequences. Options include:
-                            - `'shortest'`: The shortest sequence length.
-                            - `'longest'`: The longest sequence length.
-                            - `'n_aligned'`: The length of the aligned region between sequences.
-        :type denominator: str, optional
-        :param alignment: Sequence alignment method to compute similarity. Options include:
-                        - `'peptides'`: Peptide sequence alignment.
-                        - `'mmseqs'`: Local Smith-Waterman alignment.
-                        - `'mmseqs+prefilter'`: Fast alignment using Smith-Waterman with k-mer prefiltering.
-                        - `'needle'`: Global Needleman-Wunsch alignment.
-        :type alignment: str, optional
-        :param outputdir: Directory where the resulting train and test CSV files will be saved. Defaults to `'./splits'`.
-        :type outputdir: str, optional
-        :return: A dictionary containing the training and testing DataFrames:
-                - `'train'`: The DataFrame for the training set.
-                - `'test'`: The DataFrame for the testing set.
-        :rtype: Dict[str, pd.DataFrame]
-        :raises FileNotFoundError: If the output directory cannot be created or accessed.
-        :raises ValueError: If an unsupported alignment method is specified.
-
-        :example:
-        data = pd.DataFrame({'id': [...], 'sequence': [...], 'Y': [...]})
-        partitioned_data = train_test_partition(
-            df=data,
-            threshold=0.4,
-            test_size=0.25,
-            denominator='shortest',
-            alignment='needle',
-            outputdir='./data_splits'
+    def _load_database(self, db_config: dict) -> Database:
+        db = Database(
+            db_config['dataset']['path'], pipe=self.pipeline,
+            feat_fields=db_config['dataset']['feat_fields'],
+            label_field=db_config['dataset']['label_field'],
+            verbose=db_config['dataset']['verbose']
         )
-        """
-        if self.verbose:
-            print('\nStep 3a: Dataset Partitioning (Train/Test)')
-        np.random.seed(self.seed)
-        os.makedirs(outputdir, exist_ok=True)
-
-        df = df.sample(len(df), random_state=self.seed).reset_index(drop=True)
-        if alignment == 'peptides':
-            sim_df = sequence_similarity_peptides(
-                df_query=df, field_name='sequence', denominator=denominator,
-                threads=self.threads, verbose=3 if self.verbose else 0,
-                threshold=threshold
+        if 'neg_database' in db_config:
+            db2 = Database(
+                db_config['neg_database']['path'], pipe=self.pipeline,
+                feat_fields=db_config['neg_database']['feat_fields'],
+                verbose=db_config['neg_database']['verbose'],
+                seed=1 if 'seed' not in db_config else db_config['seed']
             )
-        elif alignment == 'needle':
-            sim_df = sequence_similarity_needle(
-                df_query=df, field_name='sequence', denominator=denominator,
-                threads=self.threads, verbose=3 if self.verbose else 0,
-                threshold=threshold,
+            print("Adding negatives")
+            db.add_negatives(
+                db2,
+                columns_to_exclude=db_config['neg_database']['columns_to_exclude']
             )
-        train_idx, test_idx, label_ids = ccpart(
-            df=df,
-            sim_df=sim_df,
-            field_name='sequence',
-            label_name='Y',
-        )
-        if len(test_idx) < 0.1 * len(df):
-            raise ValueError("Similarity threshold is too restrictive. No test set available.",
-                             "Please try a higher threshold.")
-        train = df.iloc[train_idx].copy().reset_index(drop=True)
-        test = df.iloc[test_idx].copy().reset_index(drop=True)
-        train = train[~train.sequence.isin(test.sequence)].reset_index(drop=True)
+        return db
 
-        train.to_csv(osp.join(outputdir, 'train.csv'), index=False)
-        test.to_csv(osp.join(outputdir, 'test.csv'), index=False)
+    def _load_test(self, test_config: dict) -> HestiaGenerator:
+        parts_path = osp.join(self.outputdir, 'parts.pckl')
+        if osp.exists(parts_path):
+            hdg = HestiaGenerator(self.db.df, verbose=test_config['verbose'])
+            hdg.from_precalculated(parts_path)
+        else:
+            sim_args = SimArguments(**test_config['sim_arguments'])
+            hdg = HestiaGenerator(self.db.df, verbose=test_config['verbose'])
+            hdg.calculate_partitions(sim_args, label_name=self.db.label_field,
+                                     threshold_step=test_config['threshold_step'],
+                                     min_threshold=test_config['min_threshold'],
+                                     partition_algorithm=test_config['algorithm'],
+                                     valid_size=0)
+        self.hdg = hdg
+        self.parts = hdg.get_partitions(filter=test_config['filter'])
+        if self.test_config['partitions'] == 'all':
+            parts = {th: v for th, v in self.parts}
+        elif self.test_config['partitions'] == 'min':
+            min_th = min([th for th, v in self.parts if th != 'random'])
+            parts = {th: v for th, v in self.parts if th == min_th}
+        elif self.test_config['partitions'] == 'max':
+            max_th = max([th for th, v in self.parts if th != 'random'])
+            parts = {th: v for th, v in self.parts if th == max_th}
+        elif isinstance(self.test_config['partitions'], float):
+            parts = {th: v for th, v in self.parts if th == self.test_config['partitions']}
+        elif self.test_config['partitions'] == 'random':
+            parts = {th: v for th, v in self.parts if th == 'random'}
+        else:
+            raise ValueError(f"Test partitions: {self.test_config['partitions']} are not supported.")
 
-        return {'train': train, 'test': test}
+        self.parts = parts
+        return parts
 
-    def train_val_partition(
-        self,
-        df: pd.DataFrame,
-        method: str = 'random',
-        threshold: float = 0.5,
-        alignment: str = 'peptides',
-        denominator: str = 'n_aligned',
-        n_folds: int = 10,
-        outputdir: str = './folds'
-    ) -> list:
-        """Method for generating `n` training/validation folds for
-        cross-validation.
+    def _get_folds(self, val_config: dict, part, y) -> Dict[str, np.ndarray]:
+        if val_config['type'] == 'kfold':
+            from sklearn.model_selection import StratifiedKFold
+            kf = StratifiedKFold(n_splits=val_config['k'], shuffle=True,
+                                 random_state=val_config['random_state'])
+            folds = [fold for fold in kf.split(part['train'], y[part['train']])]
 
-        :param df: Training dataset with `id`, `sequence`, and `Y` columns.
-        :type df: pd.DataFrame
-        :param method: Method for generating the folds. Options available:
-                       `random` through `sklearn.model_selection.StratifiedKFold` or
-                       `graph-part` through `graphpart.stratified_k_fold`, defaults to
-                       `random`.
-        :type method: str
-        :param threshold: If mode is `graph-part`, maximum sequence identity allowed
-                          between sequences
-                          in training and evaluation sets, defaults to 0.5
-        :type threshold: float, optional
-        :param denominator: Denominator to calculate sequence identity.
-            Options;
-                - `shortest`: Shortest sequence length
-                - `longest`: Longest sequence length
-                - `n_aligned`: Length of the alignment
-        :type denominator: str
-        :param alignment: If mode is `graph-part`,
-                          alignment algorithm to use. Options available: 
-                          `mmseqs` (local Smith-Waterman alignment), `mmseqs+prefilter`
-                          (local fast alignment Smith-Waterman + k-mer prefiltering),
-                          and `needle` (global Needleman-Wunch alignment),
-                          defaults to 'mmseqs+prefiler', defaults to 'mmseqs+prefilter'
-        :type alignment: str, optional
-        :param n_folds: Number of training/validation folds to generate, defaults to 10
-        :type n_folds: int, optional
-        :param outputdir: Path where data should be saved, defaults to './folds'
-        :type outputdir: str, optional
-        :return: List of training/validation folds
-        :rtype: list
-        """
-        if self.verbose:
-            print('\nStep 3b: Dataset Partitioning (Train/Val)')
-        np.random.seed(self.seed)
-        os.makedirs(outputdir, exist_ok=True)
-
-        df = df.sample(len(df), random_state=self.seed).reset_index(drop=True)
-        if method == 'random':
-            kf = StratifiedKFold(n_splits=n_folds, shuffle=True,
-                                 random_state=self.seed)
-            x, y = df.index.to_numpy(), df.Y.to_numpy()
-            fold_ids = [fold[1] for fold in kf.split(x, y)]
-        elif method == 'graph-part':
-            if alignment == 'peptides':
-                sim_df = sequence_similarity_peptides(
-                    df_query=df, field_name='sequence', denominator=denominator,
-                    threads=self.threads, verbose=3 if self.verbose else 0,
-                    threshold=threshold
-                )
-            elif alignment == 'needle':
-                sim_df = sequence_similarity_needle(
-                    df_query=df, field_name='sequence', denominator=denominator,
-                    threads=self.threads, verbose=3 if self.verbose else 0,
-                    threshold=threshold,
-                )
-            fold_ids, clusters = graph_part(
-                df=df,
-                label_name='Y',
-                sim_df=sim_df,
-                threshold=threshold,
-                n_parts=n_folds
-            )
-
-        folds = []
-        for i, fold in enumerate(fold_ids):
-            train_df = df.iloc[~df.index.isin(fold)]
-            val_df = df.iloc[fold]
-            train_df.to_csv(
-                osp.join(outputdir, f'train_{i}.csv'),
-                index=False
-            )
-            val_df.to_csv(
-                osp.join(outputdir, f'val_{i}.csv'),
-                index=False
-            )
-            folds.append({'train': train_df, 'val': val_df})
+        elif val_config['type'] == 'single':
+            from sklearn.model_selection import train_test_split
+            folds = train_test_split(part['train'], test_size=val_config['size'],
+                                     random_state=val_config['random_state'],
+                                     shuffle=True)
+        else:
+            raise NotImplementedError(f"Validation split: {val_config['type']} is not supported.")
         return folds
 
-    def predict(
+    def _get_reps(self, rep_dir: str, db: Database) -> Dict[str, np.ndarray]:
+        x = {}
+        for name, rep in self.reps.items():
+            if rep_dir is not None:
+                path = osp.join(rep_dir, f'{rep.name}.pckl')
+                if osp.exists(path):
+                    x[name] = np.load(path, allow_pickle=True)
+
+            if self.rep_config['verbose']:
+                print(f'Computing representations with: {name}')
+            if 'lm' in rep.name:
+                rep.move_to_device(rep.device)
+                x[name] = rep.compute_reps(
+                    db.df[db.feat_fields[0]], verbose=True,
+                    batch_size=rep.batch_size
+                )
+            else:
+                x[name] = rep.compute_reps(db.df[db.feat_fields[0]],
+                                           verbose=True)
+            if rep_dir is not None:
+                x[name].dump(path)
+        return x
+
+    def run_hpo(self):
+        if self.train is None:
+            self.get_train()
+        print("Calculating representations")
+        self.get_reps()
+        x = self.x
+        y = self.db.df[self.db.label_field].to_numpy()
+        models = {}
+
+        print("Performing HPO")
+        if self.train_config['optim_strategy']['partition'] == 'all':
+            for th, part in self.parts.items():
+                folds = self._get_folds(self.config['val'], part, y)
+                self.train.hpo(folds, x, y)
+                models[th] = self.train.best_model
+        else:
+            part = self.parts[self.train_config['optim_strategy']['partition']]
+            folds = self._get_folds(self.config['val'], part, y)
+            self.train.hpo(folds, x, y)
+            trainer2 = NoHpoTrainer(self.train.best_config,
+                                    self.train.optim_strategy)
+            for th, part in self.parts.items():
+                print(f"Training Partition: {th}")
+                folds = self._get_folds(self.config['val'], part, y)
+                model = trainer2.train(folds, x, y)
+                models[th] = model
+        self.models = models
+        return models
+
+    def run_evaluation(self, models) -> pd.DataFrame:
+        print("Run evaluation")
+        self.get_reps()
+        x = self.x
+        y = self.db.df[self.db.label_field].to_numpy()
+
+        results = []
+
+        for th, part in self.parts.items():
+            test_y = y[part['test']]
+            preds = np.zeros(test_y.shape)
+            ensemble = models[th]
+            for arch, rep in zip(ensemble['models'], ensemble['reps']):
+                test_x = x[rep][part['test']]
+                preds += (arch.predict_proba(test_x)[:, 1] /
+                          len(ensemble['models']))
+            result = evaluate(preds, test_y, self.train.optim_strategy['task'])
+            result['threshold'] = th
+            results.append(result)
+
+        df = pd.DataFrame(results)
+        path = osp.join(self.outputdir, 'results.csv')
+        df.to_csv(path, index=False)
+        return df
+
+    def save_experiment(self, model_backend: str = 'onnx', save_reps: bool = False,
+                        save_test: bool = True):
+        config_path = osp.join(self.outputdir, 'config.yml')
+        parts_path = osp.join(self.outputdir, 'parts.pckl')
+        model_info = osp.join(self.outputdir, 'model_info')
+        ensemble_path = osp.join(model_info, 'ensemble')
+        reps_dir = osp.join(self.outputdir, 'reps')
+
+        ensemble_config_path = osp.join(model_info, 'ensemble_config.json')
+
+        os.makedirs(ensemble_path, exist_ok=True)
+        os.makedirs(reps_dir, exist_ok=True)
+
+        self.save_models(ensemble_path, model_backend)
+        self.save_database()
+        to_save = copy.deepcopy(self.models)
+
+        for th, model in to_save.items():
+            del model['models']
+
+        if save_test:
+            self.hdg.save_precalculated(parts_path)
+        if save_reps:
+            self.save_reps(reps_dir)
+
+        self.config['databases'] = self.db_config
+        self.config['representation'] = self.rep_config
+        self.config['test'] = self.test_config
+        self.config['train'] = self.train_config
+        yaml.safe_dump(self.config, open(config_path, 'w'))
+        json.dump(to_save, open(ensemble_config_path, 'w'))
+
+    def save_database(self):
+        db_path = osp.join(self.outputdir, 'db.csv')
+        self.db.df.to_csv(db_path, index=False)
+
+    def save_models(
         self,
-        df: pd.DataFrame,
-        re: RepEngineBase,
         ensemble_path: str,
-        outputdir: str,
-        df_repr: list = None
-    ) -> pd.DataFrame:
-        if self.verbose is True:
-            print('Step 7: Prediction')
-        if not osp.isdir(outputdir):
-            os.mkdir(outputdir)
-        output_path = osp.join(outputdir, 'predictions.csv')
-        if df_repr is None:
-            df_repr = re.compute_reps(
-                df.sequence
-            )
-        df_repr = np.stack(df_repr)
+        backend: str = 'onnx'
+    ):
+        if backend == 'joblib':
+            try:
+                import joblib
+            except ImportError:
+                raise ImportError(
+                    'This backend requires joblib.',
+                    'Please try: `pip install joblib`'
+                )
+        elif backend == 'onnx':
+            try:
+                import onnxmltools as onxt
+                from skl2onnx.common.data_types import FloatTensorType
+                from skl2onnx import to_onnx
+                import logging
+            except ImportError:
+                raise ImportError(
+                    'This backend requires onnx.',
+                    'Please try: `pip install onnxmltools skl2onnx`'
+                )
+        else:
+            raise NotImplementedError(f"Backend: {backend} not implemented.",
+                                      "Please try: `onnx` or `joblib`.")
+        for th, model in self.models.items():
+            model['save_path'] = []
+            model['task'] = []
+            logger = logging.getLogger("skl2onnx")
+            logger.setLevel(logging.DEBUG)
+            if backend == 'onnx':
+                for idx, clf in enumerate(model['models']):
+                    m_x = self.x[model['reps'][idx]]
+                    variable_type = FloatTensorType([None, m_x.shape[1]])
+                    if 'LGBM' in str(clf):
+                        clf_onx = onxt.convert_lightgbm(
+                            clf,
+                            initial_types=[('float_input', variable_type)]
+                        )
+                    elif 'XGB' in str(clf):
+                        clf_onx = onxt.convert_xgboost(
+                            clf,
+                            initial_types=[('float_input', variable_type)]
+                        )
+                    else:
+                        clf_onx = to_onnx(clf, [('X', variable_type)])
 
-        predictions = []
-        for model in os.listdir(ensemble_path):
-            model_path = osp.join(ensemble_path, model)
-            clf = joblib.load(model_path)
-            predictions.append(clf.predict(df_repr))
+                    name = f'{th}_{idx}.onnx'
+                    model['save_path'].append(name)
+                    model['task'].append(self.train_config['task'])
 
-        predictions = np.stack(predictions)
-        predictions = np.mean(predictions, axis=0)
-        df['prediction'] = predictions
-        df.sort_values(by='prediction', inplace=True, ascending=False, ignore_index=True)
+                    with open(osp.join(ensemble_path, name), "wb") as f:
+                        f.write(clf_onx.SerializeToString())
+            else:
+                for idx, clf in enumerate(self.models['models']):
+                    name = f'{idx}.onnx'
+                    model['save_path'].append(name)
+                    model['task'].append(self.train_config['task'])
+                    joblib.dump(clf, open(osp.join(ensemble_path, name)), 'wb')
 
-        df.to_csv(output_path, index=False)
-        return df
+    def save_reps(self, rep_dir: str):
+        for name, rep in self.reps.items():
+            path = osp.join(rep_dir, f'{rep.name}.pckl')
+            self.x[name].dump(path)
 
-    @classmethod
-    def _bioactivity_tags(self) -> list:
-        tags = []
-        path = osp.join(
-            osp.dirname(osp.realpath(__file__)),
-            'data', 'bioactivities.txt'
+    def predict(self, features: List[str], experiment_dir: str,
+                backend: str = 'onnx') -> np.ndarray:
+        if backend == 'joblib':
+            try:
+                import joblib
+            except ImportError:
+                raise ImportError(
+                    'This backend requires joblib.',
+                    'Please try: `pip install joblib`'
+                )
+        elif backend == 'onnx':
+            try:
+                import onnxruntime
+            except ImportError:
+                raise ImportError(
+                    'This backend requires onnx.',
+                    'Please try: `pip install onnxruntime onnxmltools skl2onnx`'
+                )
+        else:
+            raise NotImplementedError(f"Backend: {backend} not implemented.",
+                                      "Please try: `onnx` or `joblib`.")
+        ensemble_dir = osp.join(experiment_dir, 'model_info', 'ensemble')
+        ensemble_config = osp.join(experiment_dir, 'model_info', 'ensemble_config.json')
+        if not osp.exists(ensemble_config):
+            raise FileNotFoundError("Configuration file for ensemble was not found in experiment dir.")
+        if not osp.isdir(ensemble_dir):
+            raise NotADirectoryError("Ensemble directory not found.")
+        ensemble_config = json.load(open(ensemble_config))
+        pipe = self.get_pipeline()
+        db = Database(
+            df=pd.DataFrame({"features": features}),
+            feat_fields='features',
+            pipe=pipe
         )
-        with open(path) as file:
-            for line in file:
-                tags.append(line.strip('\n'))
-        return tags
+        self.reps = self._load_representation(self.rep_config)
+        x = self._get_reps(None, db)
 
-    def _fasta2csv(self, dataset: str, outputdir: str) -> pd.DataFrame:
-        data = []
-        with open(dataset) as file:
-            for idx, line in enumerate(file):
-                line = line.strip('\n')
-                if idx % 2 == 0:
-                    try:
-                        data.append({'Y': int(line[1:])})
-                    except ValueError:
-                        data.append({'Y': 1, 'id': line[1:]})
-                elif idx % 2 == 1:
-                    if '/' in line:
-                        data.pop()
-                    data[-1]['sequence'] = line
-
-        output_path = osp.join(
-            outputdir,
-            f"{dataset.split('/')[-1].split('.')[0]}.csv"
-        )
-        df = pd.DataFrame(data)
-        df.to_csv(output_path, index=False, sep=',')
-        return df
-
-    def _make_figures(self, figures_path: str, truths, preds_proba):
-        import matplotlib
-        matplotlib.use('Agg')
-        import scikitplot.metrics as skplt
-
-        preds = preds_proba > 0.5
-        new_preds_proba = np.zeros((len(preds_proba), 2))
-        new_preds_proba[:, 0] = 1 - preds_proba
-        new_preds_proba[:, 1] = preds_proba
-        preds_proba = new_preds_proba
-        skplt.plot_confusion_matrix(truths, preds, normalize=False, 
-                                    title='Confusion Matrix')
-        plt.savefig(osp.join(figures_path, 'confusion_matrix.png'))
-        plt.close()
-        skplt.plot_roc(truths, preds_proba, title='ROC Curve',
-                       plot_micro=False, plot_macro=False,
-                       classes_to_plot=[1])
-        plt.savefig(osp.join(figures_path, 'roc_curve.png'))
-        plt.close()
-        skplt.plot_precision_recall(truths, preds_proba,
-                                    title='Precision-Recall Curve',
-                                    plot_micro=False, classes_to_plot=[1])
-        plt.savefig(osp.join(figures_path, 'precision_recall_curve.png'))
-        plt.close()
-        skplt.plot_calibration_curve(truths, [preds_proba],
-                                     title='Calibration Curve')
-        plt.savefig(osp.join(figures_path, 'calibration_curve.png'))
-        plt.close()
-
-    @classmethod
-    def _welcome(self) -> None:
-        message = f'| Welcome to AutoPeptideML v.{__version__} |'
-        print('-' * len(message))
-        print(message)
-        print('-' * len(message))
-
-    def _summary(self, outputdir: str) -> None:
-        metrics = {
-            "- **Accuracy:**": "accuracy",
-            "- **Sensitivity or recall:**": "recall",
-            "- **Specificity or precision:**": "precision",
-            "- **F1:**": "f1",
-            "- **Matthew's correlation coefficient:**": "matthews_corrcoef"
-        }
-        df = pd.read_csv(osp.join(outputdir, 'evaluation_data', 'test_scores.csv'))
-        path = osp.join(
-            osp.dirname(osp.realpath(__file__)),
-            'data', 'readme_ex.md'
-        )
-        new_lines = []
-        with open(path) as file:
-            for line in file:
-                if line.strip() in metrics.keys():
-                    new_value = df.loc[df['metric'] == metrics[line.strip('\n')], 'score'].tolist()[0]
-                if '    - *Value:*' in line:
-                    new_lines.append(line.strip('\n') + ' `' + str(round(new_value, 3)) + '`\n')
+        output = {}
+        for th, model in ensemble_config.items():
+            model_paths = [path for path in model['save_path']]
+            reps = [rep for rep in model['reps']]
+            task = [t for t in model['task']]
+            preds = []
+            for m, r, t in zip(model_paths, reps, task):
+                if backend == 'onnx':
+                    preds.append(self._onnx_prediction(
+                        osp.join(ensemble_dir, m), t, x[r]
+                    ))
                 else:
-                    new_lines.append(line)
-        
-        new_readme = ''.join(new_lines)
-        summary_path = osp.join(outputdir, 'summary')
-        with open(f"{summary_path}.md", 'w') as file:
-            file.write(new_readme)
-        
-        os.system(f"mdpdf -o {summary_path}.pdf {summary_path}.md")
-        os.remove(f"{summary_path}.md")
-        os.remove("mdpdf.log")
+                    raise NotImplementedError()
+            preds = np.stack(preds, axis=1)
+            if len(ensemble_config) > 1:
+                output.update({
+                    f'{th}_score': preds.mean(1),
+                    f'{th}_std': preds.std(1)
+                })
+            else:
+                output.update({'score': preds.mean(1),
+                               'std': preds.std(1)})
+        df = pd.DataFrame(output)
+        if len(ensemble_config) == 1:
+            df.sort_values("score", ignore_index=True, ascending=False,
+                           inplace=True)
+        return df
+
+    def _onnx_prediction(
+        self,
+        path: str,
+        task: str,
+        X: np.ndarray,
+    ):
+        import onnxruntime as rt
+        sess = rt.InferenceSession(path, providers=['CPUExecutionProvider'])
+        input_name = sess.get_inputs()[0].name
+        label_name = sess.get_outputs()[1].name
+        pred_onx = sess.run([label_name], {input_name: X.astype(np.float32)})[0]
+
+        if task == 'class':
+            preds = np.array([i[1] for i in pred_onx])
+        elif task == 'reg':
+            preds = np.array([i[1] for i in pred_onx])
+        else:
+            preds = np.stack([i[l] for i in pred_onx
+                             for l in range(len(i.keys()))])
+        return preds
+
+    def get_precalculated_reps(self, outputdir: str) -> Dict[str, np.ndarray]:
+        config_path = osp.join(outputdir, 'config.yml')
+        config = yaml.safe_load(open(config_path))
+        rep_config = config['representation']
+        self.rep_config = rep_config
+        self.reps = self._load_representation(rep_config)
+        self.x = self._get_reps()
+        return self.x
+
+    def get_precalculated_test(self, outputdir: str) -> Dict[str, np.ndarray]:
+        config_path = osp.join(outputdir, 'config.yml')
+        config = yaml.safe_load(open(config_path))
+        rep_config = config['test']
+        c_outputdir = self.outputdir
+        self.outputdir = config['outputdir']
+        self.parts = self._load_test(rep_config)
+        self.outputdir = c_outputdir
+        return self.parts
+
+    def get_precalculated_db(self, db_config: dict) -> Database:
+        db_path = osp.join(db_config['precalculated'], 'db.csv')
+        self.db = Database(db_path, feat_fields=db_config['feat_fields'],
+                           label_field=db_config['label_field'])

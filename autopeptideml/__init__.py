@@ -5,4 +5,3 @@ __email__ = 'raul.fernandezdiaz@ucdconnect.ie'
 # __all__ = ['AutoPeptideML', '__version__', '']
 
 from .autopeptideml import AutoPeptideML, __version__
-from .reps import *
