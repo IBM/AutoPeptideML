@@ -68,6 +68,7 @@ class Database:
         self.seed = seed
         self.label_field = label_field
         self.feat_fields = feat_fields
+        self.verbose = verbose
         self._preprocess(verbose)
 
     def draw_samples(
@@ -147,9 +148,7 @@ class Database:
         other.df[self.label_field] = 0
         if other.feat_fields[0] != self.feat_fields[0]:
             other.df[self.feat_fields[0]] = other.df[other.feat_fields[0]]
-        print(other.df)
         self.df = pd.concat([self.df, other.df])
-        print(self.df[self.label_field].value_counts())
         self.df = self.df[[self.label_field, *self.feat_fields]]
 
     def _check_fields(self):
@@ -238,7 +237,11 @@ class Database:
         step = 5 * av_mw_aa
         max_mw = int(self.df['tmp_mw'].max())
         out = []
-        for mw in tqdm(range(0, max_mw, step)):
+        if self.verbose:
+            pbar = tqdm(range(0, max_mw, step), desc='Computing MW')
+        else:
+            pbar = range(0, max_mw, step)
+        for mw in pbar:
             cond = ((self.df.tmp_mw > mw) & (self.df.tmp_mw <= mw + step)).to_numpy()
             cond = cond.astype(np.bool_)
             out.append(cond)

@@ -1,7 +1,10 @@
+import json
+
+import numpy as np
+
 from autopeptideml.reps.lms import RepEngineLM
 from autopeptideml.reps.seq_based import RepEngineOnehot
 from autopeptideml.reps.fps import RepEngineFP
-import numpy as np
 
 
 def test_esm_family():
@@ -27,20 +30,23 @@ def test_elnaggar_family():
 def test_one_hot():
     re = RepEngineOnehot(19)
     a = re.compute_reps(['AACFFF', 'AACCF'], batch_size=4)
-    assert str(re) == "{'rep': 'one-hot', 'max_length': 19}"
+    dict_re = json.loads(str(re))
+    assert dict_re == {'rep': 'one-hot', 'max_length': 19}
     assert re.dim() == 19 * 21
     assert a.shape == (2, 19 * 21)
 
 
 def test_fps():
-    re1 = RepEngineFP('ecfp', 256, 8)
+    re1 = RepEngineFP('ecfp', 512, 8)
     a = re1.compute_reps(['C[C@H](N)C(=O)N[C@@H](CCCNC(=N)N)C(=O)N[C@H]'], batch_size=1)
-    re2 = RepEngineFP('fcfp', 256, 8)
+    re2 = RepEngineFP('fcfp', 256, 12)
     b = re2.compute_reps(['C[C@H](N)C(=O)N[C@@H](CCCNC(=N)N)C(=O)N[C@H]'], batch_size=1)
-    assert str(re1) == "{'rep': 'ecfp', 'nbits': 256, 'radius': 8}"
-    assert str(re2) == "{'rep': 'fcfp', 'nbits': 256, 'radius': 8}"
-    assert re1.dim() == 256
-    assert a.shape == (1, 256)
+    dict_1, dict_2 = json.loads(str(re1)), json.loads(str(re2))
+    assert dict_1 == {'rep': 'ecfp', 'nbits': 512, 'radius': 8}
+    assert dict_2 == {'rep': 'fcfp', 'nbits': 256, 'radius': 12}
+    assert re1.dim() == 512
+    assert re2.dim() == 256
+    assert a.shape == (1, 512)
     assert b.shape == (1, 256)
 
 

@@ -83,8 +83,9 @@ class RepEngineBase:
             pbar = batches
 
         for batch in pbar:
-            self._preprocess_batch(batch)
-            out.extend(self._rep_batch(batch))
+            batch = self._preprocess_batch(batch)
+            rep = self._rep_batch(batch)
+            out.extend(rep)
 
         if 'average_pooling' in self.__dict__:
             if not self.__dict__['average_pooling']:
