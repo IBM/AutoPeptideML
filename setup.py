@@ -33,8 +33,8 @@ setup(
     description="AutoML system for building trustworthy peptide bioactivity predictors",
     entry_points={
         'console_scripts': [
-            'apml=autopeptideml.config:_main',
-            'autopeptideml-setup=autopeptideml.data.preprocess_db:main'
+            'apml=autopeptideml.main:_main',
+            'autopeptideml=autopeptideml.main._main'
         ],
     },
     install_requires=requirements,
