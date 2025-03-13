@@ -1,0 +1,1135 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Computational Pipeline for the Automatised Development of Peptide Bioactivity Prediction Models">
+      
+      
+      
+      
+      
+        <link rel="next" href="autopeptideml/">
+      
+      
+      <link rel="icon" href="assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.8">
+    
+    
+      
+        <title>Overview - AutoPeptideML</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.8608ea7d.min.css">
+      
+        
+        <link rel="stylesheet" href="assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="purple">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#contents" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="." title="AutoPeptideML" class="md-header__button md-logo" aria-label="AutoPeptideML" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            AutoPeptideML
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Overview
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="purple"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/IBM/AutoPeptideML" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    IBM/AutoPeptideML
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="." class="md-tabs__link">
+          
+  
+  Home
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="autopeptideml/" class="md-tabs__link">
+          
+  
+  Code reference
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="." title="AutoPeptideML" class="md-nav__button md-logo" aria-label="AutoPeptideML" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    AutoPeptideML
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/IBM/AutoPeptideML" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    IBM/AutoPeptideML
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            Home
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="." class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      Contents
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Installation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Installation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-python-package" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Python Package
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Python Package">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11from-pypi" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.1.From PyPI
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-directly-from-source" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.2. Directly from source
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-third-party-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Third-party dependencies
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#benchmark-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Benchmark data
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Documentation
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#license" class="md-nav__link">
+    <span class="md-ellipsis">
+      License
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#credits" class="md-nav__link">
+    <span class="md-ellipsis">
+      Credits
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="autopeptideml/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Code reference
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Code reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Code reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_1" id="__nav_2_1_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    AutoPeptideML
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1">
+            <span class="md-nav__icon md-icon"></span>
+            AutoPeptideML
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="autopeptideml/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    AutoPeptideML
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    RepresentationEngine
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            RepresentationEngine
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="representationengine/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    RepresentationEngine
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      Contents
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Installation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Installation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-python-package" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Python Package
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Python Package">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11from-pypi" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.1.From PyPI
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-directly-from-source" class="md-nav__link">
+    <span class="md-ellipsis">
+      1.2. Directly from source
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-third-party-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Third-party dependencies
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#benchmark-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Benchmark data
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Documentation
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#license" class="md-nav__link">
+    <span class="md-ellipsis">
+      License
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#credits" class="md-nav__link">
+    <span class="md-ellipsis">
+      Credits
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<div align="center">
+
+  <picture>
+    <source media="(prefers-color-scheme: light)" srcset="https://ibm.github.io/AutoPeptideML/imgs/APML_light.png" height="250x">
+    <img alt="logo" src="https://ibm.github.io/AutoPeptideML/imgs/APML_dark.png">
+  </picture>
+
+  <h1>AutoPeptideML</h1>
+
+  <p>
+    <strong>AutoML system for building trustworthy peptide bioactivity predictors</strong>
+  </p>
+
+  <p>    
+
+<a href="https://ibm.github.io/AutoPeptideML/"><img alt="Tutorials" src="https://img.shields.io/badge/docs-tutorials-green" /></a>
+<a href="https://github.com/IBM/AutoPeptideML/blob/main/LICENSE"><img alt="GitHub" src="https://img.shields.io/github/license/IBM/AutoPeptideML" /></a>
+<a href="https://pypi.org/project/autopeptideml/"><img src="https://img.shields.io/pypi/v/autopeptideml" /></a>
+<a href="https://static.pepy.tech/project/autopeptideml/"><img src="https://static.pepy.tech/badge/autopeptideml" /></a>
+<a target="_blank" href="https://colab.research.google.com/github/IBM/AutoPeptideML/blob/main/examples/AutoPeptideML_Collab.ipynb">
+  <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+</a>
+
+
+
+  </p>
+</div>
+
+<ul>
+<li><strong>Documentation:</strong>  <a href="https://ibm.github.io/AutoPeptideML/" target="_blank">https://ibm.github.io/AutoPeptideML</a></li>
+<li><strong>Source Code:</strong> <a href="https://github.com/IBM/AutoPeptideML" target="_blank">https://github.com/IBM/AutoPeptideML</a></li>
+<li><strong>Webserver:</strong> <a href="http://peptide.ucd.ie/AutoPeptideML" target="_blank">http://peptide.ucd.ie/AutoPeptideML</a></li>
+<li><strong>Google Collaboratory Notebook:</strong> <a href="https://colab.research.google.com/github/IBM/AutoPeptideML/blob/main/examples/AutoPeptideML_Collab.ipynb" target="_blank">AutoPeptideML_Collab.ipynb</a></li>
+<li><strong>Paper:</strong> <a href="https://doi.org/10.1093/bioinformatics/btae555" target="_blank">https://doi.org/10.1093/bioinformatics/btae555</a></li>
+<li><strong>Blog post:</strong> <a href="https://portal.valencelabs.com/blogs/post/autopeptideml-building-peptide-bioactivity-predictors-automatically-IZZKbJ3Un0qjo4i" target="_blank">Portal - AutoPeptideML Tutorial</a></li>
+<li><strong>Models and Paper SI</strong>: <a href="https://zenodo.org/records/14591403/files/AutoPeptideML_SI.tar.gz?download=1" target="_blank">Zenodo Repository</a></li>
+</ul>
+<p>AutoPeptideML allows researchers without prior knowledge of machine learning to build models that are:</p>
+<ul>
+<li><strong>Trustworthy:</strong> Robust evaluation following community guidelines for ML evaluation reporting in life sciences <a href="https://www.nature.com/articles/s41592-021-01205-4">DOME</a>.</li>
+<li><strong>Interpretable:</strong> Output contains a PDF summary of the model evaluation explaining how to interpret the results to understand how reliable the model is.</li>
+<li><strong>Reproducible:</strong> Output contains all necessary information for other researchers to reproduce the training and verify the results.</li>
+<li><strong>State-of-the-art:</strong> Models generated with this system are competitive with state-of-the-art handcrafted approaches.</li>
+</ul>
+<p>We recommend the use of the Google Collaboratory Notebook for users that want greater control of the model training process and the webserver for users that prefer ease of use.</p>
+<h2 id="contents">Contents<a class="headerlink" href="#contents" title="Permanent link">&para;</a></h2>
+<details open="open">
+<p><summary><b>Table of Contents</b></summary></p>
+<ul>
+<li><a href="../#installation">Intallation Guide</a></li>
+<li><a href="../#benchmark">Benchmark Data</a></li>
+<li><a href="../#documentation">Documentation</a></li>
+<li><a href="../#examples">Examples</a></li>
+<li><a href="../#license">License</a></li>
+<li><a href="../#acknowledgements">Acknowledgements</a>
+ </li>
+</ul>
+</details>
+<h2 id="installation">Installation <a name="installation"></a><a class="headerlink" href="#installation" title="Permanent link">&para;</a></h2>
+<p>Installing in a conda environment is recommended. For creating the environment, please run:</p>
+<div class="highlight"><pre><span></span><code>conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>autopeptideml<span class="w"> </span>python
+conda<span class="w"> </span>activate<span class="w"> </span>autopeptideml
+</code></pre></div>
+<h3 id="1-python-package">1. Python Package<a class="headerlink" href="#1-python-package" title="Permanent link">&para;</a></h3>
+<h4 id="11from-pypi">1.1.From PyPI<a class="headerlink" href="#11from-pypi" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>autopeptideml
+</code></pre></div>
+<h4 id="12-directly-from-source">1.2. Directly from source<a class="headerlink" href="#12-directly-from-source" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>git+https://github.com/IBM/AutoPeptideML
+</code></pre></div>
+<h3 id="2-third-party-dependencies">2. Third-party dependencies<a class="headerlink" href="#2-third-party-dependencies" title="Permanent link">&para;</a></h3>
+<ul>
+<li>MMSeqs2 <a href="https://github.com/steineggerlab/mmseqs2">https://github.com/steineggerlab/mmseqs2</a></li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="c1"># static build with AVX2 (fastest) (check using: cat /proc/cpuinfo | grep avx2)</span>
+wget<span class="w"> </span>https://mmseqs.com/latest/mmseqs-linux-avx2.tar.gz<span class="p">;</span><span class="w"> </span>tar<span class="w"> </span>xvfz<span class="w"> </span>mmseqs-linux-avx2.tar.gz<span class="p">;</span><span class="w"> </span><span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>/mmseqs/bin/:<span class="nv">$PATH</span>
+
+<span class="c1"># static build with SSE4.1  (check using: cat /proc/cpuinfo | grep sse4)</span>
+wget<span class="w"> </span>https://mmseqs.com/latest/mmseqs-linux-sse41.tar.gz<span class="p">;</span><span class="w"> </span>tar<span class="w"> </span>xvfz<span class="w"> </span>mmseqs-linux-sse41.tar.gz<span class="p">;</span><span class="w"> </span><span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>/mmseqs/bin/:<span class="nv">$PATH</span>
+
+<span class="c1"># static build with SSE2 (slowest, for very old systems)  (check using: cat /proc/cpuinfo | grep sse2)</span>
+wget<span class="w"> </span>https://mmseqs.com/latest/mmseqs-linux-sse2.tar.gz<span class="p">;</span><span class="w"> </span>tar<span class="w"> </span>xvfz<span class="w"> </span>mmseqs-linux-sse2.tar.gz<span class="p">;</span><span class="w"> </span><span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>/mmseqs/bin/:<span class="nv">$PATH</span>
+
+<span class="c1"># MacOS</span>
+brew<span class="w"> </span>install<span class="w"> </span>mmseqs2<span class="w">  </span>
+</code></pre></div>
+<p>To use Needleman-Wunch, either:</p>
+<p><div class="highlight"><pre><span></span><code>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>bioconda<span class="w"> </span>emboss
+</code></pre></div>
+  or</p>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>emboss
+</code></pre></div>
+<h2 id="benchmark-data">Benchmark data <a name="benchmark"></a><a class="headerlink" href="#benchmark-data" title="Permanent link">&para;</a></h2>
+<p>Data used to benchmark our approach has been selected from the benchmarks collected by <a href="https://academic.oup.com/bib/article-abstract/24/3/bbad135/7107929">Du et al, 2023</a>. A new set of benchmarks was constructed from the original set following the new data acquisition and dataset partitioning methods within AutoPeptideML. To download the datasets:</p>
+<ul>
+<li><strong>Original UniDL4BioPep Benchmarks:</strong> Please check the project <a href="https://github.com/dzjxzyd/UniDL4BioPep/tree/main">Github Repository</a>.</li>
+<li><strong>✅ New AutoPeptideML Benchmarks (Amended version):</strong> Can be downloaded from this <a href="https://drive.google.com/u/0/uc?id=1UmDu773CdkBFqkitK550uO6zoxhU1bUB&amp;export=download">link</a>. Please note that these are not exactly the same benchmarks as used in the paper, those are kept in the next line for reproducibility (see <a href="https://github.com/IBM/AutoPeptideML/issues/24">Issue #24</a> for more details).</li>
+<li><strong>⚠️ New AutoPeptideML Benchmarks (Paper version):</strong> Can be downloaded from this <a href="https://drive.google.com/u/0/uc?id=1UmDu773CdkBFqkitK550uO6zoxhU1bUB&amp;export=download">link</a>. This benchmarks have a small number of overlapping sequences between training and testing due to a bug described in <a href="https://github.com/IBM/AutoPeptideML/issues/24">Issue #24</a>. They are kept here for reproducibility.</li>
+</ul>
+<h2 id="documentation">Documentation <a name="documentation"></a><a class="headerlink" href="#documentation" title="Permanent link">&para;</a></h2>
+<details>
+<p><summary><b>1. Model builder options</summary></b><a name="builder"></a></p>
+<p><strong>Dataset construction</strong></p>
+<ul>
+<li><code>dataset</code>: File with positive peptides in <code>FASTA</code> or <code>CSV</code> file. It can also contain negative peptides in which case the files should contain the labels (0: negative or 1: positive) either in the header (<code>FASTA</code>) or in column <code>Y</code> (<code>CSV</code>).</li>
+<li><code>--balance</code>: If <code>True</code>, it balances the datasets by oversampling the underrepresented label.</li>
+<li><code>--autosearch</code>: If <code>True</code>, it searches for negative peptides.</li>
+<li><code>--autosearch_tags</code>: Comma separated list of tags that may overlap with positive activity that are going to be excluded from the negative peptides.</li>
+<li><code>--autosearch_proportion</code>: Negative:positive ration when automatically drawing negative controls from the bioactive peptides database (Default: 1.0).</li>
+</ul>
+<p><strong>Output</strong></p>
+<ul>
+<li><code>--outputdirdir</code>: Output directory (Default: <code>./apml_result/apml_result</code>).</li>
+</ul>
+<p><strong>Protein Language Model</strong></p>
+<ul>
+<li><code>--plm</code>: Protein Language Model for computing peptide representations. Available options: <code>esm2-8m</code>, <code>esm2-35m</code>, <code>esm2-150m</code>, <code>esm2-650m</code>, <code>esm2-3b</code>, <code>esm2-15b</code>, <code>esm1b</code>, <code>prot-t5-xxl</code>, <code>prot-t5-xl</code>, <code>protbert</code>, <code>prost-t5</code>. (Default: <code>esm2-8m</code>). Please note: Larger Models might not fit into GPU RAM, if it is necessary for your purposes, please create a new issue.</li>
+<li><code>--plm_batch_size</code>: Number of peptides for which to batch the PLM computation.(Default: 12).</li>
+</ul>
+<p><strong>Dataset Partitioning</strong></p>
+<ul>
+<li><code>--test_partition</code>: Whether to divide the dataset in train/test splits. (Default: <code>True</code>).</li>
+<li><code>--test_threshold</code>: Maximum sequence identity allowed between train and test. (Default: 0.3).</li>
+<li><code>--test_size</code>: Proportion of data to be assigned to evaluation set. (Default: 0.2).</li>
+<li><code>--test_alignment</code>: Alignment algorithm used for computing sequence identities. Available options: <code>peptides</code>, <code>needle</code>. (Default: <code>peptides</code>).</li>
+<li><code>--splits</code>: Path to directory with train and test splits. Expected contents: <code>train.csv</code> and <code>test.csv</code>.</li>
+<li><code>--val_partition</code>: Whether to divide dataset in train/validation folds.</li>
+<li><code>--val_method</code>: Method to use for creating train/validation folds. Options available: <code>random</code>, <code>graph-part</code>. (Default: <code>random</code>)</li>
+<li><code>--val_threshold</code>: Maximum sequence identity allowed between train and validation. (Default: 0.5).</li>
+<li><code>--val_alignment</code>:  Alignment algorithm used for computing sequence identities. Available options: <code>peptides</code> <code>needle</code>. (Default: <code>peptides</code>).</li>
+<li><code>--val_n_folds</code>: Number of folds (Default: 10).</li>
+<li><code>--folds</code>: Path to directory with train/validation folds. Expected contents: <code>train_{fold}.csv</code> and <code>valid_{fold}.csv</code>.</li>
+</ul>
+<p><strong>Model Selection and Hyperparameter Optimisation</strong></p>
+<ul>
+<li><code>--config</code>: Name of one of the pre-defined configuration files (see <code>autopeptideml/data/configs</code>) or path to a custom configuration file (see next section).</li>
+</ul>
+<p><strong>Other</strong></p>
+<ul>
+<li><code>--verbose</code>: Whether to display information about runtime (Default: True).</li>
+<li><code>--threads</code>: Number of threads to use for parallelization. (Default: Number of cores in the machine).</li>
+<li><code>--seed</code>: Seed for pseudorandom number generators. Controls stochastic processes. (Default: 42)</li>
+</ul>
+</details>
+<details>
+<p><summary><b>2. Predict</summary></b><a name="predict"></a></p>
+<ul>
+<li><code>dataset</code>: File with problem peptides in <code>FASTA</code> or <code>CSV</code> file.</li>
+<li><code>--ensemble</code>: Path to the a file containing a previous AutoPeptideML result.</li>
+<li><code>--outputdir</code>: Output directory (Default: <code>./apml_predictions</code>).</li>
+<li><code>--verbose</code>: Whether to display information about runtime (Default: True).</li>
+<li><code>--threads</code>: Number of threads to use for parallelization. (Default: Number of cores in the machine).</li>
+<li><code>--plm</code>: Protein Language Model for computing peptide representations. Must be the same as used to train the model. Available options: <code>esm2-8m</code>, <code>esm2-35m</code>, <code>esm2-150m</code>, <code>esm2-650m</code>, <code>esm2-3b</code>, <code>esm2-15b</code>, <code>esm1b</code>, <code>prot-t5-xxl</code>, <code>prot-t5-xl</code>, <code>protbert</code>, <code>prost-t5</code>. (Default: <code>esm2-8m</code>). Please note: Larger Models might not fit into GPU RAM, if it is necessary for your purposes, please create a new issue.</li>
+<li><code>--plm_batch_size</code>: Number of peptides for which to batch the PLM computation.(Default: 12).</li>
+</ul>
+</details>
+<details>
+<p><summary><b>3. Hyperparameter Optimisation and model selection</summary></b><a name="hpo"></a></p>
+<p>The experiment configuration is a file in <code>JSON</code> format describing the hyperparameter optimisation search space and the composition of the final ensemble. The first level of the file is a dictionary with a single key (<code>ensemble</code> or <code>model_selection</code> or <code>model_selection</code>) and a list of search spaces for the hyperparameter optimisation. For each model within the <code>ensemble</code> list, <code>n</code> different models will be trained one per cross-validation fold; in the case of <code>model_selection</code>, only one of the algorithms will comprise the final ensemble; in the case of <code>model_selection</code>, only one of the algorithms will comprise the final ensemble.</p>
+<p>Each experiment requires the following fields:</p>
+<ul>
+<li><code>model</code>: Defines the ML algorithm. Options: <code>KNearestNeighbours</code>, <code>SVM</code>, <code>RFC</code>, <code>XGBoost</code>, <code>LGBM</code>, <code>MLP</code>, and <code>UniDL4BioPep</code>. More options will be added in subsequent releases and they can be implemented upon request.</li>
+<li><code>trials</code>: Defines the number of iterations for the hyperparameter optimisation search.</li>
+<li><code>optimization_metric</code>: Defines the metric that should be used for directing the optimisation search. Always, the metric will be calculated as the average across the <code>n</code> cross-validation folds. For the metrics available all of the binary classification within the list in the <a href="https://scikit-learn.org/stable/modules/model_evaluation.html#classification-metrics">scikit-learn documentation</a> are supported (Default: Matthew's correlation coefficient, MCC).</li>
+<li><code>hyperparameter-space</code>: List of dictionaries that defines the hyperparameter search space proper. Each of the dictionaries within correspond to a different hyperparameter and may have the following fields:</li>
+<li><code>name</code>: It has to correspond with the corresponding hyperparameter in the model implementation. Most of the simpler ML models use the <code>scikit-learn</code> implementation, <code>LGBM</code> uses the Microsoft implementation (More information on <a href="https://github.com/microsoft/LightGBM">LGBM Repository</a>) and <code>UniDL4BioPep</code> uses the PyTorch implementation (More information on <a href="https://github.com/David-Dingle/UniDL4BioPep_ASL_PyTorch">UniDL4BioPep PyTorch Repository</a>), though for this model hyperparameter optimisation is not recommended.</li>
+<li><code>type</code>: Defines the type of hyperparameter. Options: <code>int</code>, <code>float</code>, or <code>categorical</code>. </li>
+<li><code>min</code> and <code>max</code>: Defines the lower and upper bounds of the search space for types <code>int</code> and <code>float</code>.</li>
+<li><code>log</code>: Boolean value that defines whether the search should be done in logarithmic space or not. Accelerates searches through vast spaces for example for learning rates (1e-7 to 1). It is not optional.</li>
+<li><code>value</code>: Defines the list of options available for a hyperparameter of type <code>categorical</code> for example types of kernel (<code>linear</code>, <code>rbf</code>, <code>sigmoid</code>) for a Support Vector Machine.</li>
+</ul>
+<p>There is an example available in the <a href="https://github.ibm.com/raulfd/AutoPeptideML/blob/main/autopeptideml/data/configs/default_config.json">default configuration file</a>.</p>
+</details>
+<details>
+<p><summary><b>4. API</summary></b><a name="api"></a></p>
+<p>Please check the <a href="https://ibm.github.io/AutoPeptideML/autopeptideml/">Code reference documentation</a></p>
+</details>
+<h2 id="examples">Examples <a name="examples"></a><a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>autopeptideml<span class="w"> </span>dataset.csv
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>autopeptideml<span class="w"> </span>dataset.csv<span class="w"> </span>--val_method<span class="w"> </span>graph-part<span class="w"> </span>--val_threshold<span class="w"> </span><span class="m">0</span>.3<span class="w"> </span>--val_alignment<span class="w"> </span>needle
+autopeptideml<span class="w"> </span>dataset.csv
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>autopeptideml<span class="w"> </span>dataset.csv<span class="w"> </span>--val_method<span class="w"> </span>graph-part<span class="w"> </span>--val_threshold<span class="w"> </span><span class="m">0</span>.3<span class="w"> </span>--val_alignment<span class="w"> </span>needle
+</code></pre></div>
+<p>For running predictions</p>
+<div class="highlight"><pre><span></span><code>autopeptideml-predict<span class="w"> </span>peptides.csv<span class="w"> </span>--ensemble<span class="w"> </span>AB_1/ensemble
+</code></pre></div>
+<h2 id="license">License <a name="license"></a><a class="headerlink" href="#license" title="Permanent link">&para;</a></h2>
+<p>AutoPeptideML is an open-source software licensed under the MIT Clause License. Check the details in the <a href="https://github.com/IBM/AutoPeptideML/blob/master/LICENSE">LICENSE</a> file.</p>
+<h2 id="credits">Credits <a name="acknowledgements"></a><a class="headerlink" href="#credits" title="Permanent link">&para;</a></h2>
+<p>Special thanks to <a href="https://www.linkedin.com/in/silvia-gonz%C3%A1lez-l%C3%B3pez-717558221/">Silvia González López</a> for designing the AutoPeptideML logo and to <a href="https://www.linkedin.com/in/marcosmartinezgalindo">Marcos Martínez Galindo</a> for his aid in setting up the AutoPeptideML webserver.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/IBM/AutoPeptideML" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M186.1 328.7c0 20.9-10.9 55.1-36.7 55.1s-36.7-34.2-36.7-55.1 10.9-55.1 36.7-55.1 36.7 34.2 36.7 55.1M480 278.2c0 31.9-3.2 65.7-17.5 95-37.9 76.6-142.1 74.8-216.7 74.8-75.8 0-186.2 2.7-225.6-74.8-14.6-29-20.2-63.1-20.2-95 0-41.9 13.9-81.5 41.5-113.6-5.2-15.8-7.7-32.4-7.7-48.8 0-21.5 4.9-32.3 14.6-51.8 45.3 0 74.3 9 108.8 36 29-6.9 58.8-10 88.7-10 27 0 54.2 2.9 80.4 9.2 34-26.7 63-35.2 107.8-35.2 9.8 19.5 14.6 30.3 14.6 51.8 0 16.4-2.6 32.7-7.7 48.2 27.5 32.4 39 72.3 39 114.2m-64.3 50.5c0-43.9-26.7-82.6-73.5-82.6-18.9 0-37 3.4-56 6-14.9 2.3-29.8 3.2-45.1 3.2-15.2 0-30.1-.9-45.1-3.2-18.7-2.6-37-6-56-6-46.8 0-73.5 38.7-73.5 82.6 0 87.8 80.4 101.3 150.4 101.3h48.2c70.3 0 150.6-13.4 150.6-101.3m-82.6-55.1c-25.8 0-36.7 34.2-36.7 55.1s10.9 55.1 36.7 55.1 36.7-34.2 36.7-55.1-10.9-55.1-36.7-55.1"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": ".", "features": ["content.code.annotate", "navigation.tabs", "navigation.top"], "search": "assets/javascripts/workers/search.f8cc74c7.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="assets/javascripts/bundle.c8b220af.min.js"></script>
+      
+    
+  </body>
+</html>
