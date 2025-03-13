@@ -34,7 +34,7 @@ setup(
     entry_points={
         'console_scripts': [
             'apml=autopeptideml.main:_main',
-            'autopeptideml=autopeptideml.main._main'
+            'autopeptideml=autopeptideml.main:_main'
         ],
     },
     install_requires=requirements,
