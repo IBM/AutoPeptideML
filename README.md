@@ -76,7 +76,7 @@ Check main [Hestia-GOOD repo](https://github.com/IBM/Hestia-GOOD) for more detai
 
 ## Benchmark data <a name="benchmark"></a>
 
-The benchmark data used is located in the [downstream_data]() folder. The partitions selected for each dataset are located in [partitiosn]() folder.
+The benchmark data used is located in the [downstream_data](https://github.com/IBM/AutoPeptideML/tree/peptide-rep-gen/downstream_data) folder. The partitions selected for each dataset are located in [partitiosn](https://github.com/IBM/AutoPeptideML/tree/peptide-rep-gen/partitions) folder.
 
 
 ## 2. Get representations
