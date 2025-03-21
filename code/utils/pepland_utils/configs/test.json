@@ -1,0 +1,33 @@
+{
+	"data": {
+		"path": "/mnt/data/xiuyuting/delaney-processed.csv",
+		"task": "regression",
+		"target_names": ["measured log solubility in mols per litre"],
+		"batch_size": 3,
+		"mask_rate": 0.1,
+		"mask_edge": false
+	},
+	"train": {
+		"loss_fn": "rmse",
+		"metric_fn": "rmse",
+		"warmup": 2,
+		"init_lr": 0.0001,
+		"max_lr": 0.001,
+		"final_lr": 1e-05,
+		"epochs": 50,
+		"num_fold": 5,
+		"save_path": "./ckpt/esol",
+		"device": "cuda:1"
+	},
+	"model": {
+		"atom_dim": 42,
+		"bond_dim": 14,
+		"pharm_dim": 194,
+		"reac_dim": 34,
+		"hid_dim": 300,
+		"depth": 3,
+		"act": "ReLU",
+		"num_task": 1
+	},
+	"seed": 2022
+}

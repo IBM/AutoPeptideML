@@ -1,0 +1,23 @@
+n_estimators:
+  type: int
+  min: 10
+  max: 5000
+  log: True
+
+min_samples_split:
+  type: int
+  min: 2
+  max: 100
+  log: False
+
+class_weight:
+  type: fixed-string
+  value: balanced
+
+ccp_alpha:
+  type: float
+  min: 1e-10
+  max: 1e-3
+  log: True
+
+

@@ -1,3 +1,0 @@
-# AutoPeptideML
-
-::: autopeptideml.autopeptideml.AutoPeptideML

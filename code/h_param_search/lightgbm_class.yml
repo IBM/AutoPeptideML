@@ -1,0 +1,31 @@
+n_estimators:
+  type: int
+  min: 10
+  max: 500
+  log: False
+
+class_weight:
+  type: fixed-string
+  value: balanced
+
+min_split_gain:
+  type: float
+  min: 1e-10
+  max: 1e-3
+  log: True
+
+reg_alpha:
+  type: float
+  min: 1e-10
+  max: 1e-3
+  log: True
+
+learning_rate:
+  type: float
+  min: 1e-7
+  max: 1e-1
+  log: True
+
+verbose:
+  type: fixed-int
+  value: -1

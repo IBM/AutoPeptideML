@@ -1,0 +1,31 @@
+{
+	"data": {
+		"path": "data_index/bbbp/",
+		"task": "classification",
+		"target_names": ["p_np"],
+		"batch_size": 64
+	},
+	"train": {
+		"loss_fn": "bce",
+		"metric_fn": "auc",
+		"warmup": 2,
+		"init_lr": 0.0001,
+		"max_lr": 0.001,
+		"final_lr": 1e-05,
+		"epochs": 50,
+		"num_fold": 5,
+		"save_path": "./ckpt/bbbp",
+		"device": "cuda"
+	},
+	"model": {
+		"atom_dim": 42,
+		"bond_dim": 14,
+		"pharm_dim": 194,
+		"reac_dim": 34,
+		"hid_dim": 300,
+		"depth": 3,
+		"act": "ReLU",
+		"num_task": 1
+	},
+	"seed": 2022
+}

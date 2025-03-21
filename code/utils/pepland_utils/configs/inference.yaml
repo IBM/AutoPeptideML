@@ -1,0 +1,9 @@
+mode:
+  ddp: false
+
+inference:
+  device_ids: [0]
+  data: './data/example.smi'
+  model_path: "./cpkt/model"
+  pool: avg # avg or max
+  atom_index: false #false or index
