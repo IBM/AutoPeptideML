@@ -33,7 +33,7 @@
 
 ## Introduction
 
-This branch of the AutoPeptideML project contains the code and data to reproduce the results from our analysis of the ability of peptide representation techniques to produce models able to generalise between canonical and non-canonical peptides. See [main branch](https://github.com/IBM/AutoPeptideML) for more details about the software.
+This branch of the AutoPeptideML project contains the code and data to reproduce the results from the [preprint]() "How to generalise machine learning models to both canonical and non-canonical peptides", where we studied the ability of peptide representation techniques to produce models able to generalise between canonical and non-canonical peptides  See [main branch](https://github.com/IBM/AutoPeptideML) for more details about the software.
 
 ## Contents
 
