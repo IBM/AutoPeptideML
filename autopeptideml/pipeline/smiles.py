@@ -45,6 +45,19 @@ class SequenceToSMILES(BaseElement):
         return rdm.MolToSmiles(rd_mol, canonical=True, isomericSmiles=True)
 
 
+class SmilesToSequence(BaseElement):
+    try:
+        from pepfunn.sequence import peptideFromSMILES
+    except ImportError:
+        raise ImportError("This class requires PepFuNN to be installed. Please try: `pip install git+https://github.com/novonordisk-research/pepfunn.git`")
+
+    name = 'smiles-to-sequence'
+    fun = peptideFromSMILES
+
+    def _single_call(self, mol):
+        return ''.join(self.fun(mol).split('-'))
+
+
 class FilterSMILES(BaseElement):
     """
     Class `FilterSMILES` filters molecular representations based on whether they are valid SMILES strings. 

@@ -1,6 +1,8 @@
+import pytest
+
 from autopeptideml.pipeline import Pipeline
 from autopeptideml.pipeline import (Pipeline, CanonicalCleaner, CanonicalFilter,
-                                    SequenceToSMILES, FilterSMILES)
+                                    SequenceToSMILES, FilterSMILES, SmilesToSequence)
 
 
 def test_canonical_filter():
@@ -8,6 +10,17 @@ def test_canonical_filter():
     pipe = Pipeline([CanonicalFilter()])
     seqs_out = pipe(seqs)
     assert seqs_out == ['AAACCTWF']
+
+
+@pytest.mark.parametrize("smiles", "seq_out",
+                         [
+                             ('C[C@H](N)C(=O)N[C@@H](CCCNC(=N)N)C(=O)N[C@H]', "AAACCTWSFB"),
+                             ('C[C@@H](O)[C@H](NC(=O)[C@H](CCCNC(=N)N)NC(=O)CN)C(=O)N[C@@H](Cc1c[nH]c2ccccc12)C(=O)N[C@@H](CO)C(=O)N[C@@H](Cc1ccccc1)C(=O)O', "AAACCTWF"),
+                         ])
+def to_sequence(smiles, seq_out):
+    pipe = Pipeline([SmilesToSequence()])
+    seq_pred = pipe(smiles)
+    assert seq_pred == seq_out
 
 
 def test_canonical_cleaner():
