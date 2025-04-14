@@ -100,12 +100,12 @@ class RepEngineFP(RepEngineBase):
 
         :raises NotImplementedError: If the specified `rep` type is not supported.
         """
-        if rep == 'ecfp' or 'morgan' in rep:
+        if 'ecfp' in rep or 'morgan' in rep:
             return rfp.GetMorganGenerator(radius=self.radius,
                                           includeChirality=True,
                                           fpSize=self.nbits,
                                           countSimulation='count' in rep)
-        elif rep == 'fcfp':
+        elif 'fcfp' in rep:
             invgen = rfp.GetMorganFeatureAtomInvGen()
             return rfp.GetMorganGenerator(radius=self.radius,
                                           fpSize=self.nbits,
