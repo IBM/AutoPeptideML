@@ -83,6 +83,30 @@ HP_SPACES = {
             "max": 1000,
             "log": False
         },
+        "num_leaves": {
+            "type": "int",
+            "min": 8,
+            "max": 1024,
+            "log": False
+        },
+        "max_depth": {
+            "type": "int",
+            "min": 3,
+            "max": 10,
+            "log": False
+        },
+        "subsample": {
+            "type": "float",
+            "min": 0.5,
+            "max": 1.0,
+            "log": False
+        },
+        "colsample_bytree": {
+            "type": "float",
+            "min": 0,
+            "max": 1.0,
+            "log": False
+        },
         "min_split_gain": {
             "type": "float",
             "min": 1e-10,
@@ -204,13 +228,25 @@ SEQUENCE_PIPELINE = {
     "verbose": False,
     "elements": [
         {
-            "clean-seqs": {
-                "name": "clean-seqs",
+            "clean-seqs-pipe": {
+                "name": "clean-seqs-pipe",
                 "aggregate": False,
                 "verbose": False,
                 "elements": [
                     {"filter-smiles": {"keep_smiles": False}},
-                    {"canonical-cleaner": {"substitution": "G"}},
+                    {"canonical-cleaner": {"substitution": "X"}},
+                ]
+            }
+        },
+        {
+            "smiles-to-seqs-pipe": {
+                "name": "smiles-to-seqs-pipe",
+                "aggregate": False,
+                "verbose": False,
+                "elements": [
+                    {"filter-smiles": {"keep_smiles": True}},
+                    {"smiles-to-sequences": {}},
+                    {"canonical-cleaner": {"substitution": "X"}}
                 ]
             }
         }
@@ -244,13 +280,32 @@ MOL_REPS = {
         "radius": 8,
         'fp': 'ecfp'
     },
-    "ecfp-8": {
-        "engine": "fp",
-        "nbits": 2048,
-        "fp": 'ecfp',
-        "radius": 4
-    }
+
 }
+MOL_REPS.update(
+    {f'ecfp-{int(radius*2)}': {
+        'engine': "fp",
+        'nbits': 2048,
+        'radius': radius,
+        "fp": "ecfp"
+    } for radius in range(1, 10, 1)}
+)
+MOL_REPS.update(
+    {f'fcfp-{int(radius*2)}': {
+        'engine': "fp",
+        'nbits': 2048,
+        'radius': radius,
+        "fp": "fcfp"
+    } for radius in range(1, 10, 1)}
+)
+MOL_REPS.update(
+    {f'ecfp-counts-{int(radius*2)}': {
+        'engine': "fp",
+        'nbits': 2048,
+        'radius': radius,
+        "fp": "ecfp-count"
+    } for radius in range(1, 10, 1)}
+)
 SEQ_REPS = {
     "esm2-8m": {
         'engine': 'lm',

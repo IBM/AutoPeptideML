@@ -103,13 +103,15 @@ class RepEngineFP(RepEngineBase):
         if rep == 'ecfp' or 'morgan' in rep:
             return rfp.GetMorganGenerator(radius=self.radius,
                                           includeChirality=True,
-                                          fpSize=self.nbits)
+                                          fpSize=self.nbits,
+                                          countSimulation='count' in rep)
         elif rep == 'fcfp':
             invgen = rfp.GetMorganFeatureAtomInvGen()
             return rfp.GetMorganGenerator(radius=self.radius,
                                           fpSize=self.nbits,
                                           includeChirality=True,
-                                          atomInvariantsGenerator=invgen)
+                                          atomInvariantsGenerator=invgen,
+                                          countSimulation='count' in rep)
         else:
             raise NotImplementedError(
                 f'Representation: {rep} is not currently implemented.',

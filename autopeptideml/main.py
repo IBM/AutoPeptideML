@@ -28,11 +28,11 @@ def build_model(config_path: Optional[str] = None):
         None
     """
     if config_path is not None:
-      config = yaml.safe_load(open(config_path))
-      mssg = f"| AutoPeptideML v.{__version__} |"
-      print("-"*(len(mssg)))
-      print(mssg)
-      print("-"*(len(mssg)))
+        config = yaml.safe_load(open(config_path))
+        mssg = f"| AutoPeptideML v.{__version__} |"
+        print("-"*(len(mssg)))
+        print(mssg)
+        print("-"*(len(mssg)))
 
     else:
         config_path = prepare_config()

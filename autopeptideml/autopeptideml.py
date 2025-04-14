@@ -144,6 +144,12 @@ class AutoPeptideML:
                     config = config['filter-smiles']
                     config = {} if config is None else config
                     item = FilterSMILES(**config)
+                
+                elif 'smiles-to-sequence' in config:
+                    from .pipeline.smiles import SmilesToSequence
+                    config = config['smiles-to-sequence']
+                    config = {} if config is None else config
+                    item = SmilesToSequence(**config)
 
                 elif 'sequence-to-smiles' in config:
                     from .pipeline.smiles import SequenceToSMILES
@@ -160,8 +166,13 @@ class AutoPeptideML:
                     config = config['canonical-filter']
                     config = {} if config is None else config
                     item = CanonicalFilter(**config)
+                else:
+                    item = None
 
-            elements.append(item)
+            if item is not None:
+                elements.append(item)
+            else:
+                print(f"Warning - Element : {config} is not implemented.")
         return Pipeline(name=pipe_config['name'], elements=elements,
                         aggregate=pipe_config['aggregate'])
 
@@ -345,7 +356,7 @@ class AutoPeptideML:
         return df
 
     def save_experiment(self, model_backend: str = 'onnx', save_reps: bool = False,
-                        save_test: bool = True):
+                        save_test: bool = True, save_all_models: bool = True):
         config_path = osp.join(self.outputdir, 'config.yml')
         parts_path = osp.join(self.outputdir, 'parts.pckl')
         model_info = osp.join(self.outputdir, 'model_info')
@@ -357,7 +368,8 @@ class AutoPeptideML:
         os.makedirs(ensemble_path, exist_ok=True)
         os.makedirs(reps_dir, exist_ok=True)
 
-        self.save_models(ensemble_path, model_backend)
+        self.save_models(ensemble_path, model_backend,
+                         save_all=save_all_models)
         self.save_database()
         to_save = copy.deepcopy(self.models)
 
@@ -383,7 +395,8 @@ class AutoPeptideML:
     def save_models(
         self,
         ensemble_path: str,
-        backend: str = 'onnx'
+        backend: str = 'onnx',
+        save_all: bool = True
     ):
         if backend == 'joblib':
             try:
@@ -407,6 +420,9 @@ class AutoPeptideML:
         else:
             raise NotImplementedError(f"Backend: {backend} not implemented.",
                                       "Please try: `onnx` or `joblib`.")
+        if not save_all:
+            self.models = {k: v for k, v in self.models.items() if k == 'random'}
+
         for th, model in self.models.items():
             model['save_path'] = []
             model['task'] = []

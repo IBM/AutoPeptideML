@@ -313,9 +313,12 @@ class RepEngineLM(RepEngineBase):
                 final = len(batch[idx])
 
             if self.average_pooling:
-                output.append(embd_rpr[idx, initial:final].mean(0).detach().cpu().numpy())
+                output.append(embd_rpr[idx, initial:final].mean(0).float().detach().cpu().numpy())
             elif self.cls_token:
-                output.append(embd_rpr[idx, 0].detach().cpu().numpy())
+                output.append(embd_rpr[idx, 0].float().detach().cpu().numpy())
             else:
                 output.append(embd_rpr[idx, initial:final].detach().cpu().numpy())
+
+            if autocast:
+                output[-1] = output[-1].astype(np.float16)
         return output
