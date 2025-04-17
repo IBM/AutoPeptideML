@@ -304,7 +304,6 @@ class AutoPeptideML:
     def run_hpo(self):
         if self.train is None:
             self.get_train()
-        print("Calculating representations")
         self.get_reps()
         x = self.x
         y = self.db.df[self.db.label_field].to_numpy()

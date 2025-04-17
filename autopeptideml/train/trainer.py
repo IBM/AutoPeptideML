@@ -2,7 +2,6 @@ import copy
 import itertools as it
 import json
 import operator
-import yaml
 import warnings
 
 import numpy as np
@@ -342,8 +341,8 @@ class OptunaTrainer(BaseTrainer):
                 arch = self.models[h_m['name']]
                 arch = arch(**h_m['variables'])
                 train_x, train_y = x[h_m['representation']][train_idx], y[train_idx]
-
-                arch.fit(train_x, train_y)
+                with warnings.catch_warnings():
+                    arch.fit(train_x, train_y)
                 ensemble['models'].append(arch)
                 ensemble['reps'].append(h_m['representation'])
 

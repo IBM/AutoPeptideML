@@ -126,7 +126,7 @@ HP_SPACES = {
             "log": True
         },
         "verbose": {
-            "type": "fixed-int",
+            "type": "fixed",
             "value": -1
         }
     },
@@ -156,7 +156,7 @@ HP_SPACES = {
             "log": True
         },
         "verbose": {
-            "type": "fixed-int",
+            "type": "fixed",
             "value": -1
         }
     },
