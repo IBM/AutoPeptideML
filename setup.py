@@ -12,13 +12,18 @@ readme = (this_directory / "README.md").read_text()
 requirements = [
     'optuna',
     'scikit-learn',
-    'scikit-plot',
+    'typer',
+    'mljar-scikit-plot',
     'tokenizers',
     'torch',
     'transformers',
     'lightgbm',
     'xgboost',
     'mdpdf',
+    'hestia-good'
+    'onnxmltools',
+    'skl2onnx',
+    'onnxruntime',
     'hestia-good'
 ]
 
