@@ -20,11 +20,10 @@ requirements = [
     'lightgbm',
     'xgboost',
     'mdpdf',
-    'hestia-good'
+    'hestia-good',
     'onnxmltools',
     'skl2onnx',
     'onnxruntime',
-    'hestia-good'
 ]
 
 test_requirements = requirements
