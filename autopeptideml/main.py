@@ -71,7 +71,7 @@ def predict(experiment_dir: str, features_path: str, feature_field: str,
     apml = AutoPeptideML(config)
     df = pd.read_csv(features_path)
     results_df = apml.predict(
-        df[feature_field],
+        df, feature_field=feature_field,
         experiment_dir=experiment_dir, backend='onnx'
     )
     results_df.to_csv(output_path, index=False, float_format="%.3g")

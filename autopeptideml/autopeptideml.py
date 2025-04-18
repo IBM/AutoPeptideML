@@ -462,8 +462,10 @@ class AutoPeptideML:
             path = osp.join(rep_dir, f'{rep.name}.pckl')
             self.x[name].dump(path)
 
-    def predict(self, features: List[str], experiment_dir: str,
+    def predict(self, df: pd.DataFrame, feature_field: str,
+                experiment_dir: str,
                 backend: str = 'onnx') -> np.ndarray:
+        features = df[feature_field]
         if backend == 'joblib':
             try:
                 import joblib
@@ -499,8 +501,9 @@ class AutoPeptideML:
         self.reps = self._load_representation(self.rep_config)
         x = self._get_reps(None, db)
 
-        output = {}
         for th, model in ensemble_config.items():
+            if th != 'random':
+                continue
             model_paths = [path for path in model['save_path']]
             reps = [rep for rep in model['reps']]
             task = [t for t in model['task']]
@@ -512,16 +515,9 @@ class AutoPeptideML:
                     ))
                 else:
                     raise NotImplementedError()
-            preds = np.stack(preds, axis=1)
-            if len(ensemble_config) > 1:
-                output.update({
-                    f'{th}_score': preds.mean(1),
-                    f'{th}_std': preds.std(1)
-                })
-            else:
-                output.update({'score': preds.mean(1),
-                               'std': preds.std(1)})
-        df = pd.DataFrame(output)
+        preds = np.stack(preds, axis=1)
+        df['score'] = preds.mean(1)
+        df['std'] = preds.std(1)
         if len(ensemble_config) == 1:
             df.sort_values("score", ignore_index=True, ascending=False,
                            inplace=True)

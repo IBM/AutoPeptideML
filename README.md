@@ -30,9 +30,10 @@
 - **Source Code:** <a href="https://github.com/IBM/AutoPeptideML" target="_blank">https://github.com/IBM/AutoPeptideML</a>
 - **Webserver:** <a href="http://peptide.ucd.ie/AutoPeptideML" target="_blank">http://peptide.ucd.ie/AutoPeptideML</a>
 - **Google Collaboratory Notebook:** <a href="https://colab.research.google.com/github/IBM/AutoPeptideML/blob/main/examples/AutoPeptideML_Collab.ipynb" target="_blank">AutoPeptideML_Collab.ipynb</a>
-- **Paper:** <a href="https://doi.org/10.1093/bioinformatics/btae555" target="_blank">https://doi.org/10.1093/bioinformatics/btae555</a>
-- **Blog post:** <a href="https://portal.valencelabs.com/blogs/post/autopeptideml-building-peptide-bioactivity-predictors-automatically-IZZKbJ3Un0qjo4i" target="_blank">Portal - AutoPeptideML Tutorial</a>
-- **Models and Paper SI**: <a href="https://zenodo.org/records/13363975/files/AutoPeptideML_SI.tar.gz?download=1" target="_blank">Zenodo Repository</a>
+- **Blog post:** <a href="https://portal.valencelabs.com/blogs/post/autopeptideml-building-peptide-bioactivity-predictors-automatically-IZZKbJ3Un0qjo4i" target="_blank">Portal - AutoPeptideML v. 1.0 Tutorial</a>
+- **Papers:** 
+  - AutoPeptideML (v. 1.0): <a href="https://doi.org/10.1093/bioinformatics/btae555" target="_blank">https://doi.org/10.1093/bioinformatics/btae555</a>
+  - Peptide Generalization from canonical to non-canonical: [https://doi.org/10.26434/chemrxiv-2025-ggp8n](https://doi.org/10.26434/chemrxiv-2025-ggp8n)
 
 AutoPeptideML allows researchers without prior knowledge of machine learning to build models that are:
 
@@ -47,13 +48,73 @@ We recommend the use of the Google Collaboratory Notebook for users that want gr
 
 <details open markdown="1"><summary><b>Table of Contents</b></summary>
 
-- [Intallation Guide](#installation)
+- [Model builder](#helper)
+- [Prediction](#prediction)
 - [Benchmark Data](#benchmark)
+- [Intallation Guide](#installation)
 - [Documentation](#documentation)
-- [Examples](#examples)
+- [Release History](#releases)
 - [License](#license)
 - [Acknowledgements](#acknowledgements)
  </details>
+
+
+## Model builder <a name="helper"></a>
+
+In order to build a new model, AutoPeptideML (v.2.0), introduces a new utility to automatically prepare an experiment configuration file, to i) improve the reproducibility of the pipeline and ii) to keep a user-friendly interface despite the much increased flexibility.
+
+```bash
+autopeptideml prepare-config
+```
+This launches an interactive CLI that walks you through:
+
+- Choosing a modeling task (classification or regression)
+- Selecting input modality (macromolecules or sequences)
+- Loading and parsing datasets (csv, tsv, or fasta)
+- Defining evaluation strategy
+- Picking models and representations
+- Setting hyperparameter search strategy and training parameters
+
+
+You’ll be prompted to answer various questions like:
+
+```
+- What is the modelling problem you're facing? (Classification or Regression)
+
+- How do you want to define your peptides? (Macromolecules or Sequences)
+
+- What models would you like to consider? (knn, adaboost, rf, etc.)
+```
+
+And so on. The final config is written to:
+
+```
+<outputdir>/config.yml
+```
+
+This config file allows for easy reproducibility of the results, so that anyone can repeat the training processes. You can check the configuration file and make any changes you deem necessary. Finally, you can build the model by simply running:
+
+```
+autopeptideml build-model --config-path <outputdir>/config.yml
+```
+
+## Prediction <a name="prediction"></a>
+
+In order to use a model that has already built you can run:
+
+```bash
+autopeptideml predict <model_outputdir> <features_path> <feature_field> --output-path <my_predictions_path.csv>
+```
+
+Where `<features_path>` is the path to a `CSV` file with a column `features_field` that contains the peptide sequences/SMILES. The output file `<my_predictions_path>` will contain the original data with two additional columns `score` (which are the predictions) and `std` which is the standard deviation between the predictions of the models in the ensemble, which can be used as a measure of the uncertainty of the prediction.
+
+## Benchmark data <a name="benchmark"></a>
+
+Data used to benchmark our approach has been selected from the benchmarks collected by [Du et al, 2023](https://academic.oup.com/bib/article-abstract/24/3/bbad135/7107929). A new set of benchmarks was constructed from the original set following the new data acquisition and dataset partitioning methods within AutoPeptideML. To download the datasets:
+
+- **Original UniDL4BioPep Benchmarks:** Please check the project [Github Repository](https://github.com/dzjxzyd/UniDL4BioPep/tree/main).
+- **⚠️ New AutoPeptideML Benchmarks (Amended version):** Can be downloaded from this [link](https://drive.google.com/u/0/uc?id=1UmDu773CdkBFqkitK550uO6zoxhU1bUB&export=download). Please note that these are not exactly the same benchmarks as used in the paper, those are kept in the next line for reproducibility (see [Issue #24](https://github.com/IBM/AutoPeptideML/issues/24) for more details).
+- **PeptideGeneralizationBenchmarks:** Benchmarks evaluating how peptide representation methods generalize from canonical (peptides composed of the 20 standard amino acids) to non-canonical (peptides with non-standard amino acids or other chemical modifications). Check out the [paper pre-print](https://chemrxiv.org/engage/chemrxiv/article-details/67d2f3ae81d2151a023d64f8). They have their own dedicated repository: [PeptideGeneralizationBenchmarks Github repository](https://github.com/IBM/PeptideGeneralizationBenchmarks).
 
 ## Installation <a name="installation"></a>
 
@@ -81,7 +142,7 @@ pip install git+https://github.com/IBM/AutoPeptideML
 
 ### 2. Third-party dependencies
 
-  - MMSeqs2 [https://github.com/steineggerlab/mmseqs2](https://github.com/steineggerlab/mmseqs2)
+To use MMSeqs2 [https://github.com/steineggerlab/mmseqs2](https://github.com/steineggerlab/mmseqs2)
 
   ```bash
   # static build with AVX2 (fastest) (check using: cat /proc/cpuinfo | grep avx2)
@@ -108,122 +169,228 @@ pip install git+https://github.com/IBM/AutoPeptideML
   sudo apt install emboss
   ```
 
-## Benchmark data <a name="benchmark"></a>
+To use ECFP fingerprints:
 
-Data used to benchmark our approach has been selected from the benchmarks collected by [Du et al, 2023](https://academic.oup.com/bib/article-abstract/24/3/bbad135/7107929). A new set of benchmarks was constructed from the original set following the new data acquisition and dataset partitioning methods within AutoPeptideML. To download the datasets:
+```bash
+pip install rdkit
+```
 
-- **Original UniDL4BioPep Benchmarks:** Please check the project [Github Repository](https://github.com/dzjxzyd/UniDL4BioPep/tree/main).
-- **⚠️ New AutoPeptideML Benchmarks (Amended version):** Can be downloaded from this [link](https://drive.google.com/u/0/uc?id=1UmDu773CdkBFqkitK550uO6zoxhU1bUB&export=download). Please note that these are not exactly the same benchmarks as used in the paper, those are kept in the next line for reproducibility (see [Issue #24](https://github.com/IBM/AutoPeptideML/issues/24) for more details).
-- **⚠️ New AutoPeptideML Benchmarks (Paper version):** Can be downloaded from this [link](https://drive.google.com/u/0/uc?id=1UmDu773CdkBFqkitK550uO6zoxhU1bUB&export=download). This benchmarks have a small number of overlapping sequences between training and testing due to a bug described in [Issue #24](https://github.com/IBM/AutoPeptideML/issues/24). They are kept here for reproducibility.
+To use MAPc fingeprints:
+
+```bash
+pip install mapchiral
+```
+
+To use PepFuNN fingeprints:
+
+```bash
+pip install git+https://github.com/novonordisk-research/pepfunn
+```
 
 ## Documentation <a name="documentation"></a>
 
-<details markdown="1"><summary><b>1. Model builder options</summary></b><a name="builder"></a>
+### Configuration file
 
-**Dataset construction**
+#### Top-level structure
 
-- `dataset`: File with positive peptides in `FASTA` or `CSV` file. It can also contain negative peptides in which case the files should contain the labels (0: negative or 1: positive) either in the header (`FASTA`) or in column `Y` (`CSV`).
-- `--balance`: If `True`, it balances the datasets by oversampling the underrepresented label.
--  `--autosearch`: If `True`, it searches for negative peptides.
--  `--autosearch_tags`: Comma separated list of tags that may overlap with positive activity that are going to be excluded from the negative peptides.
--  `--autosearch_proportion`: Negative:positive ration when automatically drawing negative controls from the bioactive peptides database (Default: 1.0).
+```yaml
+pipeline: {...}
+databases: {...}
+test: {...}
+val: {...}
+train: {...}
+representation: {...}
+outputdir: "path/to/experiment_results"
+```
+
+#### `pipeline`
+Defines the preprocessing pipeline depending on the modality (`mol` or `seqs`). It includes data cleaning and transformations, such as:
+
+- `filter-smiles`
+- `canonical-cleaner`
+- `sequence-to-smiles`
+- `smiles-to-sequences`
+
+The name of a pipeline object has to include the word `pipe`. Pipelines can be elements within a pipeline. Here, is an example. Aggregate will combine the output from the different elements. In this case, the two elements process SMILES and sequences independently and then combine them into a single datastream.
 
 
-**Output**
+```yaml
+pipeline:
+  name: "macromolecules_pipe"
+  aggregate: true
+  verbose: false
+  elements:
+    - pipe-smiles-input: {...}
+    - pipe-seq-input: {...}
 
-- `--outputdirdir`: Output directory (Default: `./apml_result/apml_result`).
+```
 
-**Protein Language Model**
+### `databases`
 
-- `--plm`: Protein Language Model for computing peptide representations. Available options: `esm2-8m`, `esm2-35m`, `esm2-150m`, `esm2-650m`, `esm2-3b`, `esm2-15b`, `esm1b`, `prot-t5-xxl`, `prot-t5-xl`, `protbert`, `prost-t5`. (Default: `esm2-8m`). Please note: Larger Models might not fit into GPU RAM, if it is necessary for your purposes, please create a new issue.
-- `--plm_batch_size`: Number of peptides for which to batch the PLM computation.(Default: 12).
+Defines dataset paths and how to interpret them.
 
-**Dataset Partitioning**
+**Required:**
+- `path`: Path to main dataset.
+- `feat_fields`: Column name with SMILES or sequences.
+- `label_field`: Column with classification/regression labels.
+- `verbose`: Logging flag.
 
-- `--test_partition`: Whether to divide the dataset in train/test splits. (Default: `True`).
-- `--test_threshold`: Maximum sequence identity allowed between train and test. (Default: 0.3).
-- `--test_size`: Proportion of data to be assigned to evaluation set. (Default: 0.2).
-- `--test_alignment`: Alignment algorithm used for computing sequence identities. Available options: `peptides`, `needle`. (Default: `peptides`).
-- `--splits`: Path to directory with train and test splits. Expected contents: `train.csv` and `test.csv`.
-- `--val_partition`: Whether to divide dataset in train/validation folds.
-- `--val_method`: Method to use for creating train/validation folds. Options available: `random`, `graph-part`. (Default: `random`)
-- `--val_threshold`: Maximum sequence identity allowed between train and validation. (Default: 0.5).
-- `--val_alignment`:  Alignment algorithm used for computing sequence identities. Available options: `peptides` `needle`. (Default: `peptides`).
-- `--val_n_folds`: Number of folds (Default: 10).
-- `--folds`: Path to directory with train/validation folds. Expected contents: `train_{fold}.csv` and `valid_{fold}.csv`.
+**Optional:**
+- `neg_database`: If using negative sampling.
+- `path`: Path to negative dataset.
+- `feat_fields`: Feature column.
+- `columns_to_exclude`: Bioactivity columns to ignore.
 
-**Model Selection and Hyperparameter Optimisation**
+```yaml
+databases:
+  dataset:
+    path: "data/main.csv"
+    feat_fields: "sequence"
+    label_field: "activity"
+    verbose: false
+  neg_database:
+    path: "data/negatives.csv"
+    feat_fields: "sequence"
+    columns_to_exclude: ["to_exclude"]
+    verbose: false
+```
 
-- `--config`: Name of one of the pre-defined configuration files (see `autopeptideml/data/configs`) or path to a custom configuration file (see next section).
+### `test`
 
-**Other**
+Defines evaluation and similarity filtering settings.
 
-- `--verbose`: Whether to display information about runtime (Default: True).
-- `--threads`: Number of threads to use for parallelization. (Default: Number of cores in the machine).
-- `--seed`: Seed for pseudorandom number generators. Controls stochastic processes. (Default: 42)
+- min_threshold: Identity threshold for filtering.
+- sim_arguments: Similarity computation details.
 
-</details>
+For sequences:
 
-<details markdown="1"><summary><b>2. Predict</summary></b><a name="predict"></a>
+- `alignment_algorithm`: `mmseqs`, `mmseqs+prefilter`, `needle`
+- `denominator`: How identity is normalized: `longest`, `shortest`, `n_aligned`
+- `prefilter`: Whether to use a prefilter.
+- `field_name`: Name of column with the peptide sequences/SMILES
+- `verbose`: Logging flag.
 
-- `dataset`: File with problem peptides in `FASTA` or `CSV` file.
-- `--ensemble`: Path to the a file containing a previous AutoPeptideML result.
-- `--outputdir`: Output directory (Default: `./apml_predictions`).
-- `--verbose`: Whether to display information about runtime (Default: True).
-- `--threads`: Number of threads to use for parallelization. (Default: Number of cores in the machine).
-- `--plm`: Protein Language Model for computing peptide representations. Must be the same as used to train the model. Available options: `esm2-8m`, `esm2-35m`, `esm2-150m`, `esm2-650m`, `esm2-3b`, `esm2-15b`, `esm1b`, `prot-t5-xxl`, `prot-t5-xl`, `protbert`, `prost-t5`. (Default: `esm2-8m`). Please note: Larger Models might not fit into GPU RAM, if it is necessary for your purposes, please create a new issue.
-- `--plm_batch_size`: Number of peptides for which to batch the PLM computation.(Default: 12).
+For molecules:
 
-</details>
+- `sim_function`: e.g., tanimoto, jaccard
+- `radius`: Radius to define the substructures when computing the fingerprint
+- `bits`: Size of the fingerprint, greater gives more resolution but demands more computational resources.
+- `partitions`: `min`, `all`, `<threshold>`
+- `algorithm`: `ccpart`, `ccpart_random`, `graph_part`
+- `threshold_step`: Step size for threshold evaluation.
+- `filter`: Minimum proportion of data in the test set that is acceptable (test set proportion = 20%, `filter=0.185`, does not consider test sets with less than 18.5%)
+- `verbose`: Logging level.
 
-<details markdown="1"><summary><b>3. Hyperparameter Optimisation and model selection</summary></b><a name="hpo"></a>
+Example:
 
-The experiment configuration is a file in `JSON` format describing the hyperparameter optimisation search space and the composition of the final ensemble. The first level of the file is a dictionary with a single key (`ensemble` or `model_selection` or `model_selection`) and a list of search spaces for the hyperparameter optimisation. For each model within the `ensemble` list, `n` different models will be trained one per cross-validation fold; in the case of `model_selection`, only one of the algorithms will comprise the final ensemble; in the case of `model_selection`, only one of the algorithms will comprise the final ensemble.
+```yaml
+test:
+  min_threshold: 0.1
+  sim_arguments:
+    data_type: "sequence"
+    alignment_algorithm: "mmseqs"
+    denominator: "shortest"
+    prefilter: true
+    min_threshold: 0.1
+    field_name: "sequence"
+    verbose: 2
+  partitions: "all"
+  algorithm: "ccpart"
+  threshold_step: 0.1
+  filter: 0.185
+  verbose: 2
+```
 
-Each experiment requires the following fields:
+### `val`
 
-- `model`: Defines the ML algorithm. Options: `KNearestNeighbours`, `SVM`, `RFC`, `XGBoost`, `LGBM`, `MLP`, and `UniDL4BioPep`. More options will be added in subsequent releases and they can be implemented upon request.
-- `trials`: Defines the number of iterations for the hyperparameter optimisation search.
-- `optimization_metric`: Defines the metric that should be used for directing the optimisation search. Always, the metric will be calculated as the average across the `n` cross-validation folds. For the metrics available all of the binary classification within the list in the [scikit-learn documentation](https://scikit-learn.org/stable/modules/model_evaluation.html#classification-metrics) are supported (Default: Matthew's correlation coefficient, MCC).
-- `hyperparameter-space`: List of dictionaries that defines the hyperparameter search space proper. Each of the dictionaries within correspond to a different hyperparameter and may have the following fields:
-   - `name`: It has to correspond with the corresponding hyperparameter in the model implementation. Most of the simpler ML models use the `scikit-learn` implementation, `LGBM` uses the Microsoft implementation (More information on [LGBM Repository](https://github.com/microsoft/LightGBM)) and `UniDL4BioPep` uses the PyTorch implementation (More information on [UniDL4BioPep PyTorch Repository](https://github.com/David-Dingle/UniDL4BioPep_ASL_PyTorch)), though for this model hyperparameter optimisation is not recommended.
-   - `type`: Defines the type of hyperparameter. Options: `int`, `float`, or `categorical`. 
-   - `min` and `max`: Defines the lower and upper bounds of the search space for types `int` and `float`.
-   - `log`: Boolean value that defines whether the search should be done in logarithmic space or not. Accelerates searches through vast spaces for example for learning rates (1e-7 to 1). It is not optional.
-   - `value`: Defines the list of options available for a hyperparameter of type `categorical` for example types of kernel (`linear`, `rbf`, `sigmoid`) for a Support Vector Machine.
+Cross-validation strategy:
 
-There is an example available in the [default configuration file](https://github.ibm.com/raulfd/AutoPeptideML/blob/main/autopeptideml/data/configs/default_config.json).
+- `type`: `kfold` or `single`
+- `k`: Number of folds.
+- `random_state`: Seed for reproducibility.
 
-</details>
+### `train`
+Training configuration.
 
-<details markdown="1"><summary><b>4. API</summary></b><a name="api"></a>
+Required:
+
+- `task`: class or reg
+- `optim_strategy`: Optimization strategy.
+- `trainer`: grid or optuna
+- `n_steps`: Number of trials (Optuna only).
+- `direction`: maximize or minimize
+- `metric`: mcc or mse
+- `partition`: Partitioning type.
+- `n_jobs`: Parallel jobs.
+- `patience`: Early stopping patience.
+- `hspace`: Search space.
+- `representations`: List of representations to try.
+- `models`:
+- `type`: select or ensemble
+- `elements`: model names and their hyperparameter space.
+
+Example: 
+
+```yaml
+train:
+  task: "class"
+  optim_strategy:
+    trainer: "optuna"
+    n_steps: 100
+    direction: "maximize"
+    task: "class"
+    metric: "mcc"
+    partition: "random"
+    n_jobs: 8
+    patience: 20
+  hspace:
+    representations: ["chemberta-2", "ecfp-4"]
+    models:
+      type: "select"
+      elements:
+        knn:
+          n_neighbors:
+            type: int
+            min: 1
+            max: 20
+            log: false
+          weights:
+            type: categorical
+            values: ["uniform", "distance"]
+```
+
+
+### `representation`
+Specifies molecular or sequence representations.
+
+Each element includes:
+
+- `engine`: `lm` (language model) or `fp` (fingerprint)
+- `model`: Model name (e.g., chemberta-2, esm2-150m)
+- `device`: `cpu`, `gpu`, or `mps`
+- `batch_size`: Size per batch
+- `average_pooling`: Whether to average token representations (only for `lm`)
+
+```yaml
+representation:
+  verbose: true
+  elements:
+    - chemberta-2:
+        engine: "lm"
+        model: "chemberta-2"
+        device: "gpu"
+        batch_size: 32
+        average_pooling: true
+    - ecfp-4:
+        engine: "fp"
+        fp: "ecfp"
+        radius: 2
+        nbits: 2048
+```
+
+### More details about API
 
 Please check the [Code reference documentation](https://ibm.github.io/AutoPeptideML/autopeptideml/)
-
-</details>
-
-
-## Examples <a name="examples"></a>
-
-```bash
-autopeptideml dataset.csv
-```
-
-```bash
-autopeptideml dataset.csv --val_method graph-part --val_threshold 0.3 --val_alignment needle
-autopeptideml dataset.csv
-```
-
-```bash
-autopeptideml dataset.csv --val_method graph-part --val_threshold 0.3 --val_alignment needle
-```
-
-For running predictions
-
-```bash
-
-autopeptideml-predict peptides.csv --ensemble AB_1/ensemble
-```
 
 
 
