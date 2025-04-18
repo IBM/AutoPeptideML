@@ -58,7 +58,7 @@ plugins:
           show_source: false
           docstring_style: sphinx
           docstring_options:
-            ignore_init_summary: yes
+            # ignore_init_summary: yes
           merge_init_into_class: yes
           show_submodules: yes
 - markdownextradata:
