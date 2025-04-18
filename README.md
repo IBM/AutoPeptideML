@@ -42,7 +42,7 @@ AutoPeptideML allows researchers without prior knowledge of machine learning to 
 - **Reproducible:** Output contains all necessary information for other researchers to reproduce the training and verify the results.
 - **State-of-the-art:** Models generated with this system are competitive with state-of-the-art handcrafted approaches.
 
-We recommend the use of the Google Collaboratory Notebook for users that want greater control of the model training process and the webserver for users that prefer ease of use.
+To use version 1.0, which may be necessary for retrocompatibility with previously built models, please defer to the branch: [AutoPeptideML v.1.0.6](https://github.com/IBM/AutoPeptideML/tree/apml-1.0.6)
 
 ## Contents
 
@@ -53,7 +53,6 @@ We recommend the use of the Google Collaboratory Notebook for users that want gr
 - [Benchmark Data](#benchmark)
 - [Intallation Guide](#installation)
 - [Documentation](#documentation)
-- [Release History](#releases)
 - [License](#license)
 - [Acknowledgements](#acknowledgements)
  </details>
@@ -185,6 +184,12 @@ To use PepFuNN fingeprints:
 
 ```bash
 pip install git+https://github.com/novonordisk-research/pepfunn
+```
+
+To use PeptideCLM:
+
+```bash
+pip install smilesPE
 ```
 
 ## Documentation <a name="documentation"></a>
