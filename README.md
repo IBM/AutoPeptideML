@@ -32,8 +32,8 @@
 - **Google Collaboratory Notebook:** <a href="https://colab.research.google.com/github/IBM/AutoPeptideML/blob/main/examples/AutoPeptideML_Collab.ipynb" target="_blank">AutoPeptideML_Collab.ipynb</a>
 - **Blog post:** <a href="https://portal.valencelabs.com/blogs/post/autopeptideml-building-peptide-bioactivity-predictors-automatically-IZZKbJ3Un0qjo4i" target="_blank">Portal - AutoPeptideML v. 1.0 Tutorial</a>
 - **Papers:** 
-  - AutoPeptideML (v. 1.0): <a href="https://doi.org/10.1093/bioinformatics/btae555" target="_blank">https://doi.org/10.1093/bioinformatics/btae555</a>
-  - Peptide Generalization from canonical to non-canonical: [https://doi.org/10.26434/chemrxiv-2025-ggp8n](https://doi.org/10.26434/chemrxiv-2025-ggp8n)
+  - [AutoPeptideML (v. 1.0)](https://doi.org/10.1093/bioinformatics/btae555)
+  - [Peptide Generalization from canonical to non-canonical peptides](https://doi.org/10.26434/chemrxiv-2025-ggp8n)
 
 AutoPeptideML allows researchers without prior knowledge of machine learning to build models that are:
 
