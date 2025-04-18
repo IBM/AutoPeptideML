@@ -20,17 +20,14 @@ requirements = [
     'lightgbm',
     'xgboost',
     'mdpdf',
+    'hestia-good',
     'onnxmltools',
     'skl2onnx',
     'onnxruntime',
-    'hestia-good'
 ]
 
 test_requirements = requirements
-files = [f'autopeptideml/data/peptipedia/{file}' for file in
-         os.listdir('autopeptideml/data/peptipedia')]
-files.append('autopeptideml/data/bioactivities.txt')
-files.append('autopeptideml/data/readme_ex.md')
+files = ['autopeptideml/data/readme_ex.md']
 setup(
     author="Raul Fernandez-Diaz",
     author_email='raulfd@ibm.com',
@@ -40,11 +37,8 @@ setup(
     description="AutoML system for building trustworthy peptide bioactivity predictors",
     entry_points={
         'console_scripts': [
-            'apml=autopeptideml.main:_build_model',
-            'apml-predict=autopeptideml.main:_predict',
-            'autopeptideml=autopeptideml.main:_build_model',
-            'autopeptideml-predict=autopeptideml.main:_predict',
-            'autopeptideml-setup=autopeptideml.data.preprocess_db:main'
+            'apml=autopeptideml.main:_main',
+            'autopeptideml=autopeptideml.main:_main'
         ],
     },
     install_requires=requirements,
@@ -57,6 +51,6 @@ setup(
     name='autopeptideml',
     packages=find_packages(exclude=['examples']),
     url='https://ibm.github.io/AutoPeptideML/',
-    version='1.0.6',
+    version='2.0.0',
     zip_safe=False,
 )
