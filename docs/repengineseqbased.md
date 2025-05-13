@@ -1,4 +1,4 @@
-# RepEngineSeqBased
+# RepEngineOneHotEncoding
 
 ::: autopeptideml.reps.engine.RepEngineOneHotEncoding
 
