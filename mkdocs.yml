@@ -1,15 +1,17 @@
-site_name: AutoPeptideML
+esite_name: AutoPeptideML
 site_description: Computational Pipeline for the Automatised Development of Peptide Bioactivity Prediction Models
 watch: [autopeptideml]
 
 nav:
 - Home:
   - Overview: index.md
-  - Code reference: autopeptideml/
+  - Code reference:
+    - AutoPeptideML: /autopeptideml
+    - RepresentationEngines: /repengines
 - Code reference:
   - AutoPeptideML:
       - autopeptideml.md
-  - RepresentationEngine:
+  - RepresentationEngines:
       - representationengine.md
 markdown_extensions:
   - attr_list
