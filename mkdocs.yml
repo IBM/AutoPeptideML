@@ -5,7 +5,7 @@ watch: [autopeptideml]
 nav:
 - Home:
   - Overview: index.md
-  - Code reference: ref/
+  - Code reference: autopeptideml/
 - Code reference:
   - AutoPeptideML:
       - autopeptideml.md
