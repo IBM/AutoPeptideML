@@ -5,14 +5,18 @@ watch: [autopeptideml]
 nav:
 - Home:
   - Overview: index.md
-  - Code reference:
-    - AutoPeptideML: ./autopeptideml
-    - RepresentationEngines: ./repengines
+  - Code reference: ./references
 - Code reference:
   - AutoPeptideML:
       - autopeptideml.md
-  - RepresentationEngines:
-      - representationengine.md
+  - RepEngineBase:
+      - repenginebase.md
+  - RepEngineFP:
+      - repenginefp.md
+  - RepEngineLM:
+      - repenginelm.md
+  - RepEngineSeqBased:
+      - repengineseqbased.md
 markdown_extensions:
   - attr_list
 theme:
