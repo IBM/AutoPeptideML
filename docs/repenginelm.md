@@ -1,4 +1,4 @@
 # RepEngineLM
 
-::: autopeptideml.reps.engine.RepEngineLM
+::: autopeptideml.reps.lms.RepEngineLM
 
