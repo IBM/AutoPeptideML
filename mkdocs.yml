@@ -6,8 +6,8 @@ nav:
 - Home:
   - Overview: index.md
   - Code reference:
-    - AutoPeptideML: /autopeptideml
-    - RepresentationEngines: /repengines
+    - AutoPeptideML: ./autopeptideml
+    - RepresentationEngines: ./repengines
 - Code reference:
   - AutoPeptideML:
       - autopeptideml.md
