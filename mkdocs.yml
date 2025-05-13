@@ -1,4 +1,4 @@
-esite_name: AutoPeptideML
+site_name: AutoPeptideML
 site_description: Computational Pipeline for the Automatised Development of Peptide Bioactivity Prediction Models
 watch: [autopeptideml]
 
