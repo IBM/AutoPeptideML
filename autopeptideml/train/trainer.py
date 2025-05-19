@@ -349,8 +349,12 @@ class OptunaTrainer(BaseTrainer):
             preds = np.zeros(valid_y.shape)
             for arch, rep in zip(ensemble['models'], ensemble['reps']):
                 valid_x = x[rep][valid_idx]
-                preds += (arch.predict_proba(valid_x)[:, 1] /
-                          len(ensemble['models']))
+                try:
+                    preds += (arch.predict_proba(valid_x)[:, 1] /
+                              len(ensemble['models']))
+                except AttributeError:
+                    preds += (arch.predict(valid_x)[:, 1] /
+                              len(ensemble['models']))
 
             result = evaluate(preds, valid_y, self.optim_strategy['task'])
             results.append(result)
