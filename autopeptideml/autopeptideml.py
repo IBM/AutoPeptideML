@@ -8,6 +8,7 @@ from typing import *
 import pandas as pd
 import numpy as np
 from hestia import HestiaGenerator, SimArguments
+from hestia.utils import _discretizer
 import typer
 
 from .pipeline import Pipeline, CanonicalCleaner, CanonicalFilter
@@ -267,7 +268,7 @@ class AutoPeptideML:
             from sklearn.model_selection import StratifiedKFold
             kf = StratifiedKFold(n_splits=val_config['k'], shuffle=True,
                                  random_state=val_config['random_state'])
-            folds = [fold for fold in kf.split(part['train'], y[part['train']])]
+            folds = [fold for fold in kf.split(part['train'], _discretizer(y[part['train']]))]
 
         elif val_config['type'] == 'single':
             from sklearn.model_selection import train_test_split
