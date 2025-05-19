@@ -71,9 +71,6 @@ def choose_hps(variable, trial, hspace, model, key):
     elif variable['type'] == 'fixed':
         hspace[key] = variable['value']
 
-    if key.lower() in PROBABILITY:
-        hspace['probability'] = True
-
     return hspace
 
 
@@ -475,9 +472,7 @@ class GridTrainer(BaseTrainer):
 
         :rtype: dict
             :return: A list of dictionaries representing all possible hyperparameter configurations.
-    
         """
-        PROBABILITY = ['svm']
         full_hspace = []
         for m_key, model in self.hpspace['models']['elements'].items():
             hspace = {}
@@ -519,6 +514,8 @@ class GridTrainer(BaseTrainer):
 
                 if key.lower() in PROBABILITY:
                     hspace['probability'] = [True]
+                if key.lower() in PROBABILITY and self.optim_strategy['task'] == 'reg':
+                    del hspace['probability']
 
             full_hspace.append(
                 {'name': m_key, 'variables': hspace,
