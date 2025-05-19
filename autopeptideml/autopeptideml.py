@@ -344,8 +344,12 @@ class AutoPeptideML:
             ensemble = models[th]
             for arch, rep in zip(ensemble['models'], ensemble['reps']):
                 test_x = x[rep][part['test']]
-                preds += (arch.predict_proba(test_x)[:, 1] /
-                          len(ensemble['models']))
+                try:
+                    preds += (arch.predict_proba(test_x)[:, 1] /
+                              len(ensemble['models']))
+                except AttributeError:
+                    preds += (arch.predict(test_x)[:] /
+                              len(ensemble['models']))
             result = evaluate(preds, test_y, self.train.optim_strategy['task'])
             result['threshold'] = th
             results.append(result)
