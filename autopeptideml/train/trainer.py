@@ -71,9 +71,6 @@ def choose_hps(variable, trial, hspace, model, key):
     elif variable['type'] == 'fixed':
         hspace[key] = variable['value']
 
-    if key.lower() in PROBABILITY:
-        hspace['probability'] = True
-
     return hspace
 
 
@@ -339,6 +336,9 @@ class OptunaTrainer(BaseTrainer):
 
             for h_m in hspace:
                 arch = self.models[h_m['name']]
+                if self.optim_strategy['task'] == 'reg' and h_m['name'] == 'svm':
+                    if 'probability' in h_m['variables']:
+                        del h_m['variables']['probability']
                 arch = arch(**h_m['variables'])
                 train_x, train_y = x[h_m['representation']][train_idx], y[train_idx]
                 with warnings.catch_warnings():
@@ -350,8 +350,12 @@ class OptunaTrainer(BaseTrainer):
             preds = np.zeros(valid_y.shape)
             for arch, rep in zip(ensemble['models'], ensemble['reps']):
                 valid_x = x[rep][valid_idx]
-                preds += (arch.predict_proba(valid_x)[:, 1] /
-                          len(ensemble['models']))
+                try:
+                    preds += (arch.predict_proba(valid_x)[:, 1] /
+                              len(ensemble['models']))
+                except AttributeError:
+                    preds += (arch.predict(valid_x)[:] /
+                              len(ensemble['models']))
 
             result = evaluate(preds, valid_y, self.optim_strategy['task'])
             results.append(result)
@@ -475,9 +479,7 @@ class GridTrainer(BaseTrainer):
 
         :rtype: dict
             :return: A list of dictionaries representing all possible hyperparameter configurations.
-    
         """
-        PROBABILITY = ['svm']
         full_hspace = []
         for m_key, model in self.hpspace['models']['elements'].items():
             hspace = {}
@@ -519,6 +521,8 @@ class GridTrainer(BaseTrainer):
 
                 if key.lower() in PROBABILITY:
                     hspace['probability'] = [True]
+                if key.lower() in PROBABILITY and self.optim_strategy['task'] == 'reg':
+                    del hspace['probability']
 
             full_hspace.append(
                 {'name': m_key, 'variables': hspace,

@@ -462,7 +462,7 @@ def config_helper() -> dict:
     config['test'] = {'min_threshold': 0.1}
 
     if modality == 'seqs':
-        sim_functions = ['mmseqs', 'mmseqs+prefilter', 'needle']
+        sim_functions = ['needle (recommended)', 'mmseqs', 'mmseqs+prefilter (for huge datasets)']
         denominators = ['shortest', 'longest', 'n_aligned']
         sim_function = Prompt().select(
             "What alignment algorithm would you like to use?",

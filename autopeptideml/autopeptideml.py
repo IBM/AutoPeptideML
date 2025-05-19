@@ -8,6 +8,7 @@ from typing import *
 import pandas as pd
 import numpy as np
 from hestia import HestiaGenerator, SimArguments
+from hestia.utils import _discretizer
 import typer
 
 from .pipeline import Pipeline, CanonicalCleaner, CanonicalFilter
@@ -235,6 +236,7 @@ class AutoPeptideML:
             hdg = HestiaGenerator(self.db.df, verbose=test_config['verbose'])
             hdg.from_precalculated(parts_path)
         else:
+            test_config['sim_arguments']['field_name'] = self.db.feat_fields[0]
             sim_args = SimArguments(**test_config['sim_arguments'])
             hdg = HestiaGenerator(self.db.df, verbose=test_config['verbose'])
             hdg.calculate_partitions(sim_args, label_name=self.db.label_field,
@@ -267,7 +269,7 @@ class AutoPeptideML:
             from sklearn.model_selection import StratifiedKFold
             kf = StratifiedKFold(n_splits=val_config['k'], shuffle=True,
                                  random_state=val_config['random_state'])
-            folds = [fold for fold in kf.split(part['train'], y[part['train']])]
+            folds = [fold for fold in kf.split(part['train'], _discretizer(y[part['train']]))]
 
         elif val_config['type'] == 'single':
             from sklearn.model_selection import train_test_split
@@ -343,8 +345,12 @@ class AutoPeptideML:
             ensemble = models[th]
             for arch, rep in zip(ensemble['models'], ensemble['reps']):
                 test_x = x[rep][part['test']]
-                preds += (arch.predict_proba(test_x)[:, 1] /
-                          len(ensemble['models']))
+                try:
+                    preds += (arch.predict_proba(test_x)[:, 1] /
+                              len(ensemble['models']))
+                except AttributeError:
+                    preds += (arch.predict(test_x)[:] /
+                              len(ensemble['models']))
             result = evaluate(preds, test_y, self.train.optim_strategy['task'])
             result['threshold'] = th
             results.append(result)
@@ -532,13 +538,17 @@ class AutoPeptideML:
         import onnxruntime as rt
         sess = rt.InferenceSession(path, providers=['CPUExecutionProvider'])
         input_name = sess.get_inputs()[0].name
-        label_name = sess.get_outputs()[1].name
+        try:
+            label_name = sess.get_outputs()[1].name
+        except IndexError:
+            label_name = sess.get_outputs()[0].name
+
         pred_onx = sess.run([label_name], {input_name: X.astype(np.float32)})[0]
 
         if task == 'class':
             preds = np.array([i[1] for i in pred_onx])
         elif task == 'reg':
-            preds = np.array([i[1] for i in pred_onx])
+            preds = np.array([i[0] for i in pred_onx])
         else:
             preds = np.stack([i[l] for i in pred_onx
                              for l in range(len(i.keys()))])
