@@ -236,7 +236,7 @@ class AutoPeptideML:
             hdg = HestiaGenerator(self.db.df, verbose=test_config['verbose'])
             hdg.from_precalculated(parts_path)
         else:
-            test_config['sim_arguments']['field_name'] = self.db.feat_fields
+            test_config['sim_arguments']['field_name'] = self.db.feat_fields[0]
             sim_args = SimArguments(**test_config['sim_arguments'])
             hdg = HestiaGenerator(self.db.df, verbose=test_config['verbose'])
             hdg.calculate_partitions(sim_args, label_name=self.db.label_field,
