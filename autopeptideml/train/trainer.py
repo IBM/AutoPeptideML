@@ -353,7 +353,7 @@ class OptunaTrainer(BaseTrainer):
                     preds += (arch.predict_proba(valid_x)[:, 1] /
                               len(ensemble['models']))
                 except AttributeError:
-                    preds += (arch.predict(valid_x)[:, 1] /
+                    preds += (arch.predict(valid_x)[:] /
                               len(ensemble['models']))
 
             result = evaluate(preds, valid_y, self.optim_strategy['task'])
