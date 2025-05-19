@@ -537,13 +537,17 @@ class AutoPeptideML:
         import onnxruntime as rt
         sess = rt.InferenceSession(path, providers=['CPUExecutionProvider'])
         input_name = sess.get_inputs()[0].name
-        label_name = sess.get_outputs()[1].name
+        try:
+            label_name = sess.get_outputs()[1].name
+        except IndexError:
+            label_name = sess.get_outputs()[0].name
+
         pred_onx = sess.run([label_name], {input_name: X.astype(np.float32)})[0]
 
         if task == 'class':
             preds = np.array([i[1] for i in pred_onx])
         elif task == 'reg':
-            preds = np.array([i[1] for i in pred_onx])
+            preds = np.array([i[0] for i in pred_onx])
         else:
             preds = np.stack([i[l] for i in pred_onx
                              for l in range(len(i.keys()))])
