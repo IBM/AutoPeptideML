@@ -337,7 +337,8 @@ class OptunaTrainer(BaseTrainer):
             for h_m in hspace:
                 arch = self.models[h_m['name']]
                 if self.optim_strategy['task'] == 'reg' and h_m['name'] == 'svm':
-                    del h_m['variables']['probability']
+                    if 'probability' in h_m['variables']:
+                        del h_m['variables']['probability']
                 arch = arch(**h_m['variables'])
                 train_x, train_y = x[h_m['representation']][train_idx], y[train_idx]
                 with warnings.catch_warnings():
