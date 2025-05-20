@@ -569,7 +569,7 @@ def config_helper() -> dict:
         'n_steps': int(n_steps) if hp_search == 'optuna' else None,
         'direction': "maximize" if task == 'class' else 'minimize',
         'task': task,
-        'metric': 'mse' if task == 'reg' else 'mcc',
+        'metric': 'pcc' if task == 'reg' else 'mcc',
         'partition': 'random',
         'n_jobs': int(n_jobs),
         'patience': int(patience)
