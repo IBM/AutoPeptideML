@@ -43,15 +43,15 @@ REGRESSION_METRICS = {
 
 def evaluate(preds, truth, pred_task) -> Dict[str, float]:
     result = {}
-    preds = preds > 0.5
     if pred_task == 'reg':
         metrics = REGRESSION_METRICS
     else:
+        preds = preds > 0.5
         metrics = CLASSIFICATION_METRICS
 
     for key, value in metrics.items():
         try:
             result[key] = value(preds, truth)
-        except ValueError:
+        except ValueError as e:
             result[key] = np.nan
     return result
