@@ -567,7 +567,7 @@ def config_helper() -> dict:
     config['train']['optim_strategy'] = {
         'trainer': hp_search,
         'n_steps': int(n_steps) if hp_search == 'optuna' else None,
-        'direction': "maximize" if task == 'class' else 'minimize',
+        'direction': "maximize",
         'task': task,
         'metric': 'pcc' if task == 'reg' else 'mcc',
         'partition': 'random',
