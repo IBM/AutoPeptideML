@@ -546,7 +546,7 @@ def config_helper() -> dict:
                              options=list(MOL_REPS.keys()) if modality == 'mol'
                              else list(SEQ_REPS.keys()), min_selections=1)
     acc = Prompt().select("Which accelerator would you like to use to compute the representations?",
-                          options=['cpu', "gpu", "mps"])
+                          options=['cpu', "cuda", "mps"])
     hp_search = hp_search if hp_search != 'bayesian' else 'optuna'
     if hp_search == 'optuna':
         n_steps = Prompt().input(
