@@ -483,9 +483,8 @@ class GridTrainer(BaseTrainer):
         full_hspace = []
         for m_key, model in self.hpspace['models']['elements'].items():
             hspace = {}
-            for variable in model:
-                key = list(variable.keys())[0]
-                variable = variable[key]
+            for key in model:
+                variable = model[key]
 
                 if variable['type'] == 'int':
                     min, max = variable['min'], variable['max']
