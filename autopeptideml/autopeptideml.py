@@ -415,6 +415,7 @@ class AutoPeptideML:
             try:
                 import onnxmltools as onxt
                 from skl2onnx.common.data_types import FloatTensorType
+                from onnxmltools.convert.common import data_types
                 from skl2onnx import to_onnx
                 import logging
             except ImportError:
@@ -443,6 +444,7 @@ class AutoPeptideML:
                             initial_types=[('float_input', variable_type)]
                         )
                     elif 'XGB' in str(clf):
+                        variable_type = data_types.FloatTensorType
                         clf_onx = onxt.convert_xgboost(
                             clf,
                             initial_types=[('float_input', variable_type)]

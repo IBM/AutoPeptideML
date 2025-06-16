@@ -438,15 +438,53 @@ def config_helper() -> dict:
                 "What is the path to the dataset with your data",
                 validate=lambda x: osp.exists(x)
             )
-            neg_feat_field, columns_to_exclude = define_dataset(
-                neg_path, task, modality, neg=True
+
+        elif neg_db == "DB of bioactive canonical peptides":
+            neg_path = osp.join(
+                osp.dirname(__file__), 'data', 'apml-peptipedia2.csv'
             )
-            neg_db = {
-                'path': neg_path,
-                'feat_fields': neg_feat_field,
-                'columns_to_exclude': columns_to_exclude,
-                "verbose": False
+            if not osp.isdir(osp.dirname(neg_path)):
+                os.makedirs(osp.dirname(neg_path), exist_ok=True)
+            if not osp.exists(neg_path):
+                import gdown
+                print("Downloading negative database...")
+                FILE_ID = "189VtkbQ2bVpQlAe2UMBSzt_O4F7EyBWl"
+                gdown.download(id=FILE_ID, output=neg_path, quiet=True)
+        elif neg_db == 'DB of bioactive non-canonical peptides':
+            neg_path = osp.join(
+                osp.dirname(__file__), 'data', 'Gonzalez_2023_NC_PeptideDB.csv'
+            )
+            if not osp.isdir(osp.dirname(neg_path)):
+                os.makedirs(osp.dirname(neg_path), exist_ok=True)
+            if not osp.exists(neg_path):
+                import gdown
+                print("Downloading negative database...")
+                FILE_ID = "1U4RXDNx_aijVDJ1oTaRKjo78Yakd3Mg4"
+                gdown.download(id=FILE_ID, output=neg_path, quiet=True)
+
+        elif neg_db == "DB of both bioactive and non-bioactive peptides":
+            neg_path = osp.join(
+                osp.dirname(__file__), 'data', 'apml-pep2+gonzalez.csv'
+            )
+            if not osp.isdir(osp.dirname(neg_path)):
+                os.makedirs(osp.dirname(neg_path), exist_ok=True)
+            if not osp.exists(neg_path):
+                import gdown
+                print("Downloading negative database...")
+                FILE_ID = "189VtkbQ2bVpQlAe2UMBSzt_O4F7EyBWl"
+                # url = f'https://drive.usercontent.google.com/uc?id={FILE_ID}'
+                gdown.download(id=FILE_ID, output=neg_path, quiet=False)
+
+        neg_feat_field, columns_to_exclude = define_dataset(
+            neg_path, task, modality, neg=True
+        )
+        neg_db = {
+            'path': neg_path,
+            'feat_fields': neg_feat_field,
+            'columns_to_exclude': columns_to_exclude,
+            "verbose": False
             }
+
     config['databases'] = {
         'dataset': {
             'path': dataset,
@@ -572,7 +610,7 @@ def config_helper() -> dict:
         'metric': 'pcc' if task == 'reg' else 'mcc',
         'partition': 'random',
         'n_jobs': int(n_jobs),
-        'patience': int(patience)
+        'patience': int(patience) if hp_search == 'optuna' else None
     }
     config['train']['hspace'] = {'representations': reps}
     config['train']['hspace']['models'] = {
@@ -597,8 +635,7 @@ def config_helper() -> dict:
         validate=lambda x: not osp.isdir(x)
     )
     config['outputdir'] = path
-    os.makedirs(path, exist_ok=True)
     path = osp.join(path, 'config.yml')
-
+    os.makedirs(path, exist_ok=True)
     yaml.safe_dump(config, open(path, 'w'), indent=2)
     return path

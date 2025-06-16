@@ -24,6 +24,8 @@ requirements = [
     'onnxmltools',
     'skl2onnx',
     'onnxruntime',
+    'rdkit',
+    # 'pepfunn @ git+https://github.com/novonordisk-research/pepfunn.git'
 ]
 
 test_requirements = requirements

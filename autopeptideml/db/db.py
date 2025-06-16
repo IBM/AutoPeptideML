@@ -1,3 +1,6 @@
+import os
+import os.path as osp
+
 from typing import *
 
 import pandas as pd
@@ -7,6 +10,13 @@ from ..pipeline import Pipeline
 from ..pipeline.smiles import is_smiles
 
 from tqdm import tqdm
+
+
+DBS = {
+    'apml-peptipedia2.csv': 'https://drive.usercontent.google.com/uc?id=189VtkbQ2bVpQlAe2UMBSzt_O4F7EyBWl',
+    'Gonzalez_2023_NC_PeptideDB.csv':  'https://drive.usercontent.google.com/uc?id=1U4RXDNx_aijVDJ1oTaRKjo78Yakd3Mg4',
+    'apml-pep2+Gonzalez.csv': ''
+}
 
 
 class Database:
@@ -54,6 +64,15 @@ class Database:
 
         """
         if path is not None:
+            if not osp.exists(path) and osp.basename(path) in DBS:
+                url = DBS[osp.basename(path)]
+                if not osp.isdir(osp.dirname(path)):
+                    os.makedirs(osp.dirname(path), exist_ok=True)
+
+                print("Downloading negative database...")
+                import gdown
+                gdown.download(url, path, quiet=True)
+
             self.df = pd.read_csv(path)
         else:
             self.df = df
