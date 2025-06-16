@@ -635,8 +635,7 @@ def config_helper() -> dict:
         validate=lambda x: not osp.isdir(x)
     )
     config['outputdir'] = path
-    os.makedirs(path, exist_ok=True)
     path = osp.join(path, 'config.yml')
-
+    os.makedirs(path, exist_ok=True)
     yaml.safe_dump(config, open(path, 'w'), indent=2)
     return path
