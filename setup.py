@@ -30,7 +30,7 @@ requirements = [
 test_requirements = requirements
 files = [
     'autopeptideml/data/readme_ex.md',
-    'autopeptideml/data/chembl_monomers_library.xml'
+    'autopeptideml/data/chembl_monomer_library.xml'
 ]
 setup(
     author="Raul Fernandez-Diaz",
