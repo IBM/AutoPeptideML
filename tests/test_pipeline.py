@@ -14,6 +14,7 @@ def test_canonical_filter():
 
 @pytest.mark.parametrize("smiles", "seq_out",
                          [
+                             ('NCC(=O)SCCCC[C@H]C(=O)N(CC(=O)O)c1ccccc1', 'XG'),
                              ('C[C@H](N)C(=O)N[C@@H](CCCNC(=N)N)C(=O)N[C@H]', "AAACCTWSFB"),
                              ('C[C@@H](O)[C@H](NC(=O)[C@H](CCCNC(=N)N)NC(=O)CN)C(=O)N[C@@H](Cc1c[nH]c2ccccc12)C(=O)N[C@@H](CO)C(=O)N[C@@H](Cc1ccccc1)C(=O)O', "AAACCTWF"),
                          ])
