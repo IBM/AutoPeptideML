@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 """The setup script."""
-import os
 from setuptools import setup, find_packages
 from pathlib import Path
 
@@ -29,7 +28,10 @@ requirements = [
 ]
 
 test_requirements = requirements
-files = ['autopeptideml/data/readme_ex.md']
+files = [
+    'autopeptideml/data/readme_ex.md',
+    'autopeptideml/data/chembl_monomers_library.xml'
+]
 setup(
     author="Raul Fernandez-Diaz",
     author_email='raulfd@ibm.com',
@@ -53,6 +55,6 @@ setup(
     name='autopeptideml',
     packages=find_packages(exclude=['examples']),
     url='https://ibm.github.io/AutoPeptideML/',
-    version='2.0.0',
+    version='2.0.2',
     zip_safe=False,
 )
