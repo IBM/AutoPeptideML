@@ -9,8 +9,14 @@ nav:
 - Code reference:
   - AutoPeptideML:
       - autopeptideml.md
-  - RepresentationEngine:
-      - representationengine.md
+  - RepEngineBase:
+      - repenginebase.md
+  - RepEngineFP:
+      - repenginefp.md
+  - RepEngineLM:
+      - repenginelm.md
+  - RepEngineSeqBased:
+      - repengineseqbased.md
 markdown_extensions:
   - attr_list
 theme:
