@@ -32,8 +32,8 @@
 - **Google Collaboratory Notebook:** <a href="https://colab.research.google.com/github/IBM/AutoPeptideML/blob/main/examples/AutoPeptideML_Collab.ipynb" target="_blank">AutoPeptideML_Collab.ipynb</a>
 - **Blog post:** <a href="https://portal.valencelabs.com/blogs/post/autopeptideml-building-peptide-bioactivity-predictors-automatically-IZZKbJ3Un0qjo4i" target="_blank">Portal - AutoPeptideML v. 1.0 Tutorial</a>
 - **Papers:** 
-  - AutoPeptideML (v. 1.0): <a href="https://doi.org/10.1093/bioinformatics/btae555" target="_blank">https://doi.org/10.1093/bioinformatics/btae555</a>
-  - Peptide Generalization from canonical to non-canonical: [https://doi.org/10.26434/chemrxiv-2025-ggp8n](https://doi.org/10.26434/chemrxiv-2025-ggp8n)
+  - [AutoPeptideML (v. 1.0)](https://doi.org/10.1093/bioinformatics/btae555)
+  - [ML Generalization from canonical to non-canonical peptides](https://doi.org/10.26434/chemrxiv-2025-ggp8n)
 
 AutoPeptideML allows researchers without prior knowledge of machine learning to build models that are:
 
@@ -112,7 +112,7 @@ Where `<features_path>` is the path to a `CSV` file with a column `features_fiel
 Data used to benchmark our approach has been selected from the benchmarks collected by [Du et al, 2023](https://academic.oup.com/bib/article-abstract/24/3/bbad135/7107929). A new set of benchmarks was constructed from the original set following the new data acquisition and dataset partitioning methods within AutoPeptideML. To download the datasets:
 
 - **Original UniDL4BioPep Benchmarks:** Please check the project [Github Repository](https://github.com/dzjxzyd/UniDL4BioPep/tree/main).
-- **⚠️ New AutoPeptideML Benchmarks (Amended version):** Can be downloaded from this [link](https://drive.google.com/u/0/uc?id=1UmDu773CdkBFqkitK550uO6zoxhU1bUB&export=download). Please note that these are not exactly the same benchmarks as used in the paper, those are kept in the next line for reproducibility (see [Issue #24](https://github.com/IBM/AutoPeptideML/issues/24) for more details).
+- **⚠️ New AutoPeptideML Benchmarks (Amended version):** Can be downloaded from this [link](https://drive.google.com/u/0/uc?id=1UmDu773CdkBFqkitK550uO6zoxhU1bUB&export=download). Please note that these are not exactly the same benchmarks as used in the paper (see [Issue #24](https://github.com/IBM/AutoPeptideML/issues/24) for more details).
 - **PeptideGeneralizationBenchmarks:** Benchmarks evaluating how peptide representation methods generalize from canonical (peptides composed of the 20 standard amino acids) to non-canonical (peptides with non-standard amino acids or other chemical modifications). Check out the [paper pre-print](https://chemrxiv.org/engage/chemrxiv/article-details/67d2f3ae81d2151a023d64f8). They have their own dedicated repository: [PeptideGeneralizationBenchmarks Github repository](https://github.com/IBM/PeptideGeneralizationBenchmarks).
 
 ## Installation <a name="installation"></a>
