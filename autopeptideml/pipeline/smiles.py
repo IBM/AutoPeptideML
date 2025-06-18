@@ -316,7 +316,6 @@ def break_into_monomers(smiles: str) -> List[str]:
             if smiles_similarity > max_sim:
                 max_sim = smiles_similarity
                 best_aa = aa
-            print(best_aa)
 
         final_pep.append(best_aa)
     return final_pep
