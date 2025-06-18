@@ -16,9 +16,9 @@ def test_canonical_filter():
 @pytest.mark.parametrize(
     "smiles, seq_out",
     [
-        ('NCC(=O)SCCCC[C@H]C(=O)N(CC(=O)O)c1ccccc1', 'XG'),
-        ('C[C@H](N)C(=O)N[C@@H](CCCNC(=N)N)C(=O)N[C@H]', "AAACCTWSFB"),
-        ('C[C@@H](O)[C@H](NC(=O)[C@H](CCCNC(=N)N)NC(=O)CN)C(=O)N[C@@H](Cc1c[nH]c2ccccc12)C(=O)N[C@@H](CO)C(=O)N[C@@H](Cc1ccccc1)C(=O)O', "AAACCTWF"),
+        ('c1ccc(C)cc1C[C@H](N)C(=O)N1CCC[C@H]1C(=O)O[C@@H]C(=O)O[C@H](O)C', 'FP'),
+        ('N[C@@H](C)C(=O)N[C@@H](CS)C(=O)N[C@@H](C(O)C)C(=O)O', "ACT"),
+        ('C(c1cccc(C)c1)[C@H](N)C(=O)N[C@H](C(=O)O)c1c2ccccc2[nH]c1(Br)', "FW"),
     ]
 )
 def test_to_sequence(smiles, seq_out):
@@ -30,13 +30,12 @@ def test_to_sequence(smiles, seq_out):
 @pytest.mark.parametrize(
     "smiles, seq_out",
     [
-        ('CC(=O)SCCCC[C@H](N)C(=O)N(CC=O)c1ccccc1', 'X2484-X414'),
-        ('C[C@H](N)C(=O)N[C@@H](CCCNC(=N)N)C(=O)N[C@H]', "A-A-A-C-C-T-W-S-F-B"),
-        ('C[C@@H](O)[C@H](NC(=O)[C@H](CCCNC(=N)N)NC(=O)CN)C(=O)N[C@@H](Cc1c[nH]c2ccccc12)C(=O)N[C@@H](CO)C(=O)N[C@@H](Cc1ccccc1)C(=O)O', "A-A-A-C-C-T-W-F"),
+        ('N[C@@H](C)C(=O)N[C@@H](CS)C(=O)N[C@@H](C(O)C)C(=O)O', "A-C-T"),
+        ('C(c1cccc(C)c1)[C@H](N)C(=O)N[C@H](C(=O)O)c1c2ccccc2[nH]c1(Br)', "X1186-X1772"),
     ]
 )
 def test_to_biln(smiles, seq_out):
-    pipe = Pipeline([SmilesToBILN])
+    pipe = Pipeline([SmilesToBILN()])
     seq_pred = pipe(smiles)
     assert seq_pred == seq_out
 
