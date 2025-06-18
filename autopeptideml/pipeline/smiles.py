@@ -297,14 +297,12 @@ def break_into_monomers(smiles: str) -> List[str]:
     # Fragment the molecule at peptide bonds
     frags = rdops.FragmentOnBonds(mol, bond_indices, addDummies=True)
     frag_mols = Chem.GetMolFrags(frags, asMols=True, sanitizeFrags=True)
-    for idx, frag in enumerate(frag_mols):
+    for frag in frag_mols:
         max_sim, best_aa = 0, 'X'
 
         mol1 = add_dummy_atoms(frag)
         fp1 = fpgen.GetFingerprint(mol1)
-        print("--")
-        print(Chem.MolToSmiles(mol1))
-        print("--")
+
         for aa, monomer in AA_DICT.items():
             smiles2, _ = monomer
             smiles2 = smiles2.split(' ')[0]
@@ -314,10 +312,8 @@ def break_into_monomers(smiles: str) -> List[str]:
             smiles_similarity = DataStructs.TanimotoSimilarity(fp1, fp2)
 
             if smiles_similarity > max_sim:
-                print(AA_DICT[aa][0].split(' '), aa, AA_DICT[aa][1], smiles_similarity)
-
                 max_sim = smiles_similarity
                 best_aa = aa
-        print()
+
         final_pep.append(best_aa)
     return final_pep
