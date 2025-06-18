@@ -32,6 +32,7 @@ def test_to_sequence(smiles, seq_out):
     [
         ('N[C@@H](C)C(=O)N[C@@H](CS)C(=O)N[C@@H](C(O)C)C(=O)O', "A-C-T"),
         ('C(c1cccc(C)c1)[C@H](N)C(=O)N[C@H](C(=O)O)c1c2ccccc2[nH]c1(Br)', "X1186-X1772"),
+        ('Nc1nc2c(ncn2C2OC(COP(=O)(O)O)C(O)C2O)c(=O)[nH]1', "X")
     ]
 )
 def test_to_biln(smiles, seq_out):

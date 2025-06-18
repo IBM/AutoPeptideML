@@ -120,6 +120,8 @@ class SmilesToSequence(BaseElement):
 
     def _single_call(self, mol):
         final_pep = break_into_monomers(mol)
+        if not isinstance(final_pep, list):
+            raise ValueError(mol, final_pep)
 
         if self.keep_analog:
             final_pep = [AA_DICT[r][1] if r != 'X' else r for r in final_pep]
@@ -292,13 +294,13 @@ def break_into_monomers(smiles: str) -> List[str]:
         if mol.GetBondBetweenAtoms(n_idx, c_idx)
     ]
     if not bond_indices:
-        return smiles
+        return ['X']
 
     # Fragment the molecule at peptide bonds
     frags = rdops.FragmentOnBonds(mol, bond_indices, addDummies=True)
     frag_mols = Chem.GetMolFrags(frags, asMols=True, sanitizeFrags=True)
     for frag in frag_mols:
-        max_sim, best_aa = 0, 'X'
+        max_sim, best_aa = 0.3, 'X'
 
         mol1 = add_dummy_atoms(frag)
         fp1 = fpgen.GetFingerprint(mol1)
@@ -314,6 +316,7 @@ def break_into_monomers(smiles: str) -> List[str]:
             if smiles_similarity > max_sim:
                 max_sim = smiles_similarity
                 best_aa = aa
+            print(best_aa)
 
         final_pep.append(best_aa)
     return final_pep
