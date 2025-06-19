@@ -245,18 +245,26 @@ def is_smiles(mol: str):
     )
 
 
-def add_dummy_atoms(mol: Chem.Mol) -> Chem.Mol:
+def add_dummy_atoms(mol: Chem.Mol, bond_indices: List[int]) -> Chem.Mol:
     mol = Chem.AddHs(mol)
     mol = Chem.RWMol(mol)
 
     for atom in mol.GetAtoms():
+        # avoid = False
+        # for n in atom.GetNeighbors():
+        #     if mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetIdx() not in bond_indices:
+        #         avoid = True
+        # if avoid:
+        #     continue
         # Nitrogens in C-NH2
         if atom.GetAtomicNum() == 7:
             neighbors = atom.GetNeighbors()
             h_atoms = [n for n in neighbors if n.GetAtomicNum() == 1]
+            dummy_atoms = [n for n in neighbors if n.GetAtomicNum() == 0]
             h_count = len(h_atoms)
+            dummy_count = len(dummy_atoms)
 
-            if h_count == 2:
+            if h_count >= 2 and dummy_count == 0:
                 for h in h_atoms:
                     mol.RemoveAtom(h.GetIdx())
                     break
@@ -289,6 +297,24 @@ def add_dummy_atoms(mol: Chem.Mol) -> Chem.Mol:
     return mol
 
 
+def break_peptide_bonds(mol: Chem.Mol) -> Tuple[List[Chem.Mol], List[int]]:
+    patt = 'N[C](=O)C'
+    pep_bond = Chem.MolFromSmarts(patt)
+    matches = mol.GetSubstructMatches(pep_bond)
+
+    bond_indices = [
+        mol.GetBondBetweenAtoms(n_idx, c_idx).GetIdx()
+        for n_idx, c_idx, *_ in matches
+        if mol.GetBondBetweenAtoms(n_idx, c_idx)
+    ]
+    if not bond_indices:
+        return [mol], None
+
+    frags = rdops.FragmentOnBonds(mol, bond_indices, addDummies=True)
+    frag_mols = Chem.GetMolFrags(frags, asMols=True, sanitizeFrags=True)
+    return frag_mols, bond_indices
+
+
 def break_into_monomers(smiles: str) -> List[str]:
     """Breaks a given molecule into its constituent amino acid monomers.
 
@@ -300,46 +326,39 @@ def break_into_monomers(smiles: str) -> List[str]:
     """
     mol = rdm.MolFromSmiles(smiles, sanitize=True)
     fpgen = rdFingerprintGenerator.GetMorganGenerator(
-        radius=2, fpSize=2048, includeChirality=True,
+        radius=2, fpSize=4096, includeChirality=True,
         countSimulation=True
     )
     if mol is None:
         raise RuntimeError(f'Molecule: {smiles} could not be read by RDKit.',
                            'Maybe introduce a filtering step in your pipeline')
     final_pep = []
-
-    patt = 'N[C](=O)C'
-    pep_bond = Chem.MolFromSmarts(patt)
-    matches = mol.GetSubstructMatches(pep_bond)
-
-    bond_indices = [
-        mol.GetBondBetweenAtoms(n_idx, c_idx).GetIdx()
-        for n_idx, c_idx, *_ in matches
-        if mol.GetBondBetweenAtoms(n_idx, c_idx)
-    ]
+    frag_mols, bond_indices = break_peptide_bonds(mol)
     if not bond_indices:
         return ['X']
 
-    # Fragment the molecule at peptide bonds
-    frags = rdops.FragmentOnBonds(mol, bond_indices, addDummies=True)
-    frag_mols = Chem.GetMolFrags(frags, asMols=True, sanitizeFrags=True)
     for frag in frag_mols:
-        max_sim, best_aa = 0.3, 'X'
+        max_sim, best_aa = 0.7, 'X'
 
-        mol1 = add_dummy_atoms(frag)
+        mol1 = add_dummy_atoms(frag, bond_indices)
         fp1 = fpgen.GetFingerprint(mol1)
 
         for aa, monomer in AA_DICT.items():
             smiles2, _ = monomer
             smiles2 = smiles2.split(' ')[0]
             mol2 = Chem.MolFromSmiles(smiles2, sanitize=True)
-            mol2 = Chem.RemoveAllHs(mol2, sanitize=True)
+            # mol2 = Chem.RemoveAllHs(mol2, sanitize=True)
             fp2 = fpgen.GetFingerprint(mol2)
             smiles_similarity = DataStructs.TanimotoSimilarity(fp1, fp2)
-
+            if aa == 'T':
+                print(smiles_similarity, rdm.MolToSmiles(frag), rdm.MolToSmiles(mol1), rdm.MolToSmiles(mol2))
             if smiles_similarity > max_sim:
                 max_sim = smiles_similarity
                 best_aa = aa
+        if best_aa != 'X':
+            print('\n', '--', rdm.MolToSmiles(frag), AA_DICT[best_aa][0], best_aa, max_sim, '--\n')
+        else:
+            print('\n', '--', rdm.MolToSmiles(frag), best_aa, max_sim, '--\n')
 
         final_pep.append(best_aa)
     return final_pep
@@ -378,7 +397,7 @@ def build_peptide(monomerlist: List[Tuple[str, str]]) -> Tuple[str, List[str]]:
             res = mol
         else:
             res = _combine_fragments(res, mol)
-    return (rdm.MolToSmiles(_clean_peptide(res)), monomers)
+    return (rdm.MolToSmiles(_clean_peptide(res), canonical=True), monomers)
 
 
 def _combine_fragments(m1: str, m2: str) -> Mol:
