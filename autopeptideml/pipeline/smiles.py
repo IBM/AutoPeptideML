@@ -1,3 +1,4 @@
+import copy
 import os.path as osp
 
 from typing import Dict, List, Optional, Tuple
@@ -10,8 +11,11 @@ try:
     import rdkit.Chem.rdmolfiles as rdm
     import rdkit.Chem.rdmolops as rdops
     from rdkit import Chem
-    from rdkit.Chem import rdFingerprintGenerator
     from rdkit.Chem import DataStructs
+    from rdkit.Chem import rdFingerprintGenerator
+    from rdkit.Chem import RWMol
+    from rdkit.Chem.rdchem import Mol
+    from rdkit import rdBase
 except ImportError:
     raise ImportError("You need to install rdkit to use this method.",
                       "Try: `pip install rdkit`")
@@ -73,7 +77,7 @@ AA_DICT = read_chembl_library(osp.join(
 )
 
 
-class SequenceToSMILES(BaseElement):
+class SequenceToSmiles(BaseElement):
     """
     Class `SequenceToSMILES` converts peptide sequences (e.g., FASTA format) into SMILES (Simplified Molecular Input Line Entry System) representations using RDKit.
 
@@ -130,7 +134,7 @@ class SmilesToSequence(BaseElement):
         return ''.join(final_pep)
 
 
-class SmilesToBILN(BaseElement):
+class SmilesToBiln(BaseElement):
     name = "smiles-to-biln"
 
     def _single_call(self, mol):
@@ -139,7 +143,27 @@ class SmilesToBILN(BaseElement):
         return '-'.join(final_pep)
 
 
-class FilterSMILES(BaseElement):
+class BilnToSmiles(BaseElement):
+    name = "biln-to-smiles"
+
+    def _single_call(self, mol):
+        monomers = mol.split('-')
+        monomers_as_smiles = []
+        for monomer in monomers:
+            if monomer == 'X':
+                print("Warning: Monomer X is being substituted by G.")
+                monomer = 'G'
+            monomer_smiles = AA_DICT[monomer][0]
+            monomers_as_smiles.append((monomer, monomer_smiles))
+
+        if len(monomers_as_smiles) == 1:
+            return monomer
+
+        peptide, _ = build_peptide(monomers_as_smiles)
+        return peptide
+
+
+class FilterSmiles(BaseElement):
     """
     Class `FilterSMILES` filters molecular representations based on whether they are valid SMILES strings. 
     It can either retain or discard SMILES strings based on the configuration.
@@ -319,3 +343,132 @@ def break_into_monomers(smiles: str) -> List[str]:
 
         final_pep.append(best_aa)
     return final_pep
+
+
+def build_peptide(monomerlist: List[Tuple[str, str]]) -> Tuple[str, List[str]]:
+    """
+    Assemble a peptide from a list of monomer SMILES strings.
+
+    This function takes a list of monomers (represented as SMILES), connects them 
+    in order via peptide bonds, and returns the final product as a SMILES string.
+    Dummy atoms are removed or capped appropriately.
+
+    :param monomerlist: List of monomer SMILES strings.
+    :type monomerlist: List[str]
+    :return: Tuple of SMILES of the assembled peptide and List of the monomers it is comprised of.
+    :rtype: Tuple[str, List[str]]
+    """
+    monomerlist = list(monomerlist)
+    monomerlist = copy.deepcopy(monomerlist)
+    monomers = []
+    for idx, monomer in enumerate(monomerlist):
+        monomers.append(monomer[0])
+        mol = Chem.MolFromSmiles(monomer[1])
+        if mol is None:
+            try:
+                mol = Chem.MolFromSmiles(monomer[1], sanitize=False)
+                if mol is None:
+                    raise ValueError("MolFromSmiles returned None")
+                Chem.SanitizeMol(mol)
+            except Exception as e:
+                print(f"[ERROR] Failed to parse or sanitize SMILES: {monomer[1]}")
+                print(f"Reason: {e}")
+                raise RuntimeError
+        if idx == 0:
+            res = mol
+        else:
+            res = _combine_fragments(res, mol)
+    return (rdm.MolToSmiles(_clean_peptide(res)), monomers)
+
+
+def _combine_fragments(m1: str, m2: str) -> Mol:
+    """
+    Combine two RDKit molecule fragments using labeled attachment points.
+
+    Atom labels '_R2' and '_R1' are used to identify the carboxylic and amino 
+    attachment points respectively. If these labels are missing, an error is raised.
+
+    :param m1: RDKit molecule (as string or Mol object) with an '_R2' attachment point.
+    :type m1: str
+    :param m2: RDKit molecule (as string or Mol object) with an '_R1' attachment point.
+    :type m2: str
+    :return: Combined molecule with a peptide bond between m1 and m2.
+    :rtype: Mol
+    :raises RuntimeError: If required attachment points are not found in either monomer.
+    """
+    blocker = rdBase.BlockLogs()
+    m1_success, m2_success = False, False
+
+    for atm in m1.GetAtoms():
+        if atm.HasProp('atomLabel') and atm.GetProp('atomLabel') == '_R2':
+            atm.SetAtomMapNum(1)
+            m1_success = True
+    for atm in m2.GetAtoms():
+        if atm.HasProp('atomLabel') and atm.GetProp('atomLabel') == '_R1':
+            atm.SetAtomMapNum(1)
+            m2_success = True
+    if not m1_success:
+        raise RuntimeError("Molecule 1 does not have a free amino group for attachment.")
+    if not m2_success:
+        raise RuntimeError("Molecule 2 does not have a free carboxy group for attachment.")
+    return rdops.molzip(m1, m2)
+
+
+def _clean_peptide(mol: Mol) -> Mol:
+    """
+    Clean a peptide by removing or replacing dummy atoms.
+
+    - Removes dummy atoms (*) attached to nitrogen atoms (N[*]).
+    - Replaces dummy atoms attached to carbonyl carbon atoms (C([*])=O) with hydroxyl groups (→ COOH).
+    - Removes dummy atoms (*) attached to sulphur atoms (S[*])
+
+    :param mol: RDKit molecule to modify.
+    :type mol: Mol
+    :return: Modified molecule with proper N-/C-terminal capping.
+    :rtype: Mol
+    """
+    rw_mol = RWMol(mol)
+    atoms_to_remove = []
+    attach_oh_to = []
+
+    # First, scan and collect targets
+    for atom in mol.GetAtoms():
+        if atom.GetSymbol() == '*':
+            neighbors = atom.GetNeighbors()
+            if len(neighbors) != 1:
+                continue
+            neighbor = neighbors[0]
+
+            # Case 1: dummy attached to N → mark dummy for removal
+            if neighbor.GetSymbol() == 'N':
+                atoms_to_remove.append(atom.GetIdx())
+
+            # Case 2: dummy attached to carbonyl carbon (C=O)
+            elif neighbor.GetSymbol() == 'C':
+                carbon = neighbor
+                is_carbonyl = any(
+                    n.GetSymbol() == 'O' and mol.GetBondBetweenAtoms(carbon.GetIdx(), n.GetIdx()).GetBondType() == Chem.BondType.DOUBLE
+                    for n in carbon.GetNeighbors()
+                )
+                if is_carbonyl:
+                    atoms_to_remove.append(atom.GetIdx())
+                    attach_oh_to.append(carbon.GetIdx())
+
+            # Case 3: dummy attached to sulphur (CS)
+            elif neighbor.GetSymbol() == 'S':
+                atoms_to_remove.append(atom.GetIdx())
+
+    # Now, modify molecule safely
+    for carbon_idx in attach_oh_to:
+        o_idx = rw_mol.AddAtom(Chem.Atom("O"))
+        h_idx = rw_mol.AddAtom(Chem.Atom("H"))
+        rw_mol.AddBond(carbon_idx, o_idx, Chem.BondType.SINGLE)
+        rw_mol.AddBond(o_idx, h_idx, Chem.BondType.SINGLE)
+
+    # Remove dummy atoms (do in reverse order to avoid reindexing issues)
+    for idx in sorted(atoms_to_remove, reverse=True):
+        rw_mol.RemoveAtom(idx)
+
+    final_mol = rw_mol.GetMol()
+    Chem.SanitizeMol(final_mol)
+    return final_mol
