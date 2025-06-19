@@ -250,12 +250,6 @@ def add_dummy_atoms(mol: Chem.Mol, bond_indices: List[int]) -> Chem.Mol:
     mol = Chem.RWMol(mol)
 
     for atom in mol.GetAtoms():
-        # avoid = False
-        # for n in atom.GetNeighbors():
-        #     if mol.GetBondBetweenAtoms(atom.GetIdx(), n.GetIdx()).GetIdx() not in bond_indices:
-        #         avoid = True
-        # if avoid:
-        #     continue
         # Nitrogens in C-NH2
         if atom.GetAtomicNum() == 7:
             neighbors = atom.GetNeighbors()
