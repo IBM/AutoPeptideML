@@ -294,19 +294,16 @@ def add_dummy_atoms(mol: Chem.Mol) -> Chem.Mol:
 
 
 def break_into_monomers(smiles: str) -> Tuple[List[str], List[Chem.Mol]]:
-    """Breaks a given molecule into its constituent amino acid monomers.
-
-    :type mol: str
-        :param smiles: A peptide SMILES.
-
-    :rtype: List[str]
-        :return: A list of the monomers comprising the peptide
     """
-    mol = rdm.MolFromSmiles(smiles, sanitize=True)
+    Breaks a peptide SMILES into its monomers and assigns matching molAtomMapNumber
+    to each pair of dummy atoms resulting from bond breaking.
+    """
+    mol = Chem.MolFromSmiles(smiles, sanitize=True)
     if mol is None:
         raise RuntimeError(f'Molecule: {smiles} could not be read by RDKit.',
                            'Maybe introduce a filtering step in your pipeline')
 
+    # Patterns for peptide and disulfide bonds
     patt = 'N[C](=O)C'
     patt2 = "CSSC"
     pep_bond = Chem.MolFromSmarts(patt)
@@ -329,16 +326,28 @@ def break_into_monomers(smiles: str) -> Tuple[List[str], List[Chem.Mol]]:
     if not bond_indices:
         best_aa, _ = find_closest_monomer(mol)
         return [best_aa], [mol]
+    # Fragment and retain dummy atom pairs
+    frags = rdops.FragmentOnBonds(mol, bond_indices, addDummies=True,
+                                  dummyLabels=[[i+1, i+1] for i in range(len(bond_indices))])
 
-    frags = rdops.FragmentOnBonds(mol, bond_indices, addDummies=True)
-    frag_mols = Chem.GetMolFrags(frags, asMols=True, sanitizeFrags=True)
+    # Assign matching molAtomMapNumber to dummy pairs
+    for bond_num, bond_idx in enumerate(bond_indices, start=1):
+        dummy_atoms = [atom for atom in frags.GetAtoms()
+                       if atom.GetAtomicNum() == 0 and
+                       atom.GetIsotope() == bond_num]
+
+        for atom in dummy_atoms:
+            atom.SetIntProp("molAtomMapNumber", bond_num)
+
+    # Re-extract sanitized fragments with new properties
+    updated_frag_mols = Chem.GetMolFrags(frags, asMols=True,
+                                         sanitizeFrags=True)
 
     final_pep, all_frags = [], []
-
-    for frag in frag_mols:
+    for frag in updated_frag_mols:
         best_aa, _ = find_closest_monomer(frag)
         final_pep.append(best_aa)
-        all_frags.append(convert_labeled_dummies(frag))
+        all_frags.append(frag)
     return final_pep, all_frags
 
 
@@ -370,25 +379,6 @@ def find_closest_monomer(frag: Chem.Mol) -> Tuple[str, float]:
             break
 
     return best_aa, max_sim
-
-
-def convert_labeled_dummies(frag: Chem.Mol) -> Chem.Mol:
-    """
-    Converts '[5*]' style dummy atoms into RDKit-compatible '[*:5]' with molAtomMapNumber.
-    Returns an RDKit Mol with molAtomMapNumber properties set.
-    """
-    smiles = Chem.MolToSmiles(frag)
-    converted_smiles = re.sub(r'\[(\d+)\*\]', r'[*:\1]', smiles)
-    mol = Chem.MolFromSmiles(converted_smiles)
-
-    for atom in mol.GetAtoms():
-        if atom.GetSymbol() == '*' and atom.HasProp("molAtomMapNumber") == 0:
-            try:
-                label = int(atom.GetSmarts().split(":")[1].rstrip("]"))
-            except IndexError:
-                label = 1
-            atom.SetIntProp("molAtomMapNumber", label)
-    return mol
 
 
 def build_peptide(monomerlist: List[Tuple[str, str]]) -> Tuple[str, List[str]]:
@@ -424,7 +414,7 @@ def build_peptide(monomerlist: List[Tuple[str, str]]) -> Tuple[str, List[str]]:
             res = mol
         else:
             res = _combine_fragments(res, mol)
-    return (rdm.MolToSmiles(_clean_peptide(res), canonical=True), monomers)
+    return (rdm.MolToSmiles(_clean_peptide(res), canonical=True, isomericSmiles=True), monomers)
 
 
 def _combine_fragments(m1: str, m2: str) -> Mol:
