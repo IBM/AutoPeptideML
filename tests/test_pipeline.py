@@ -100,5 +100,4 @@ def _check_smiles(smiles1: str, smiles2: str) -> bool:
     fp1 = fpgen.GetFingerprint(mol1)
     fp2 = fpgen.GetFingerprint(mol2)
     smiles_similarity = DataStructs.TanimotoSimilarity(fp1, fp2)
-    print(smiles_similarity)
-    return smiles_similarity == 1
+    return smiles_similarity == 1.0
