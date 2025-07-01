@@ -1,8 +1,49 @@
-from typing import *
+from typing import Callable, Dict, List, Tuple
+
+import numpy as np
 
 
 SKLEARN_MODELS = ['knn', 'svm', 'rf', 'adaboost', 'gradboost']
 ALL_MODELS = SKLEARN_MODELS + ['lightgbm', 'xgboost']
+
+
+class VotingEnsemble:
+    def __init__(self, models: List[Callable]):
+        self.models = models
+
+    def predict(self, x: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """_summary_
+
+        :param x: _description_
+        :type x: np.ndarray
+        :return: Mean, standard deviation
+        :rtype: [np.ndarray, np.ndarray]
+        """
+        out = []
+        for model in self.models:
+            t_pred = model.predict(x)
+            out.append(t_pred)
+        pred = np.stack(out)
+        out_mean = np.mean(pred, axis=0)
+        out_std = np.std(pred, axis=0)
+        return out_mean, out_std
+
+    def predict_proba(self, x: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """_summary_
+
+        :param x: _description_
+        :type x: np.ndarray
+        :return: Mean, standard deviation
+        :rtype: [np.ndarray, np.ndarray]
+        """
+        out = []
+        for model in self.models:
+            t_pred = model.predict_proba(x)
+            out.append(t_pred)
+        pred = np.stack(out)
+        out_mean = np.mean(pred, axis=0)
+        out_std = np.std(pred, axis=0)
+        return out_mean, out_std
 
 
 def load_sklearn_models(task: str) -> Dict[str, Callable]:
