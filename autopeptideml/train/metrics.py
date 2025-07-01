@@ -1,5 +1,8 @@
-from typing import *
+from collections import defaultdict
+from typing import Dict
+
 import numpy as np
+
 from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import (matthews_corrcoef,
                              accuracy_score, f1_score,
@@ -52,6 +55,53 @@ def evaluate(preds, truth, pred_task) -> Dict[str, float]:
     for key, value in metrics.items():
         try:
             result[key] = value(preds, truth)
-        except ValueError as e:
+        except ValueError:
             result[key] = np.nan
     return result
+
+
+def bootstrap_evaluate(
+    preds: np.ndarray,
+    truth: np.ndarray,
+    pred_task: str,
+    n_bootstrap_samples: int = 1000,
+    ci: float = 0.95,
+    all_results: bool = False
+) -> Dict[str, Dict[str, float]]:
+    if pred_task == 'reg':
+        metrics = REGRESSION_METRICS
+    else:
+        preds = preds > 0.5
+        metrics = CLASSIFICATION_METRICS
+
+    n = len(preds)
+    metric_scores = defaultdict(list)
+
+    for _ in range(n_bootstrap_samples):
+        # Sample with replacement
+        indices = np.random.choice(n, n, replace=True)
+        sample_preds = preds[indices]
+        sample_truth = truth[indices]
+
+        for key, metric_fn in metrics.items():
+            try:
+                score = metric_fn(sample_preds, sample_truth)
+            except Exception:
+                score = np.nan
+            metric_scores[key].append(score)
+    if all_results:
+        return metric_scores
+    results = {}
+    alpha = 1 - ci
+    for key, scores in metric_scores.items():
+        scores = np.array(scores)
+        mean = np.nanmean(scores)
+        lower = np.nanpercentile(scores, 100 * alpha / 2)
+        upper = np.nanpercentile(scores, 100 * (1 - alpha / 2))
+        results[key] = {
+            'mean': mean,
+            'ci_lower': lower,
+            'ci_upper': upper
+        }
+
+    return results
