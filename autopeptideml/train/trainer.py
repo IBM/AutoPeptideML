@@ -229,6 +229,18 @@ class OptunaTrainer(BaseTrainer):
             'representations': ['representation1', 'representation2']
         }
         ```
+    Example Schema for `optim_strategy`:
+
+        ```python
+        optim_strategy = {
+            'task': 'class',
+            'direction': 'maximize',
+            'metric': 'mcc',
+            'patience': 15,
+            'n_steps': 75,
+            'n_jobs': 1
+        }
+        ```
     """
     name = 'optuna'
 
@@ -339,10 +351,10 @@ class OptunaTrainer(BaseTrainer):
                 if self.optim_strategy['task'] == 'reg' and h_m['name'] == 'svm':
                     if 'probability' in h_m['variables']:
                         del h_m['variables']['probability']
+
                 arch = arch(**h_m['variables'])
                 train_x, train_y = x[h_m['representation']][train_idx], y[train_idx]
-                with warnings.catch_warnings():
-                    arch.fit(train_x, train_y)
+                arch.fit(train_x, train_y)
                 ensemble['models'].append(arch)
                 ensemble['reps'].append(h_m['representation'])
 
