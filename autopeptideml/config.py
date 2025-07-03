@@ -617,6 +617,11 @@ def config_helper() -> dict:
         'type': model_selection,
         'elements': {model: HP_SPACES[model] for model in learning_alg},
     }
+    if hp_search == 'grid':
+        for element in config["train"]['hspace']['models']['elements'].values():
+            for subelement in element.values():
+                subelement['steps'] = 5
+
     config['representation'] = {
         'verbose': True,
         'elements': [
@@ -635,7 +640,7 @@ def config_helper() -> dict:
         validate=lambda x: not osp.isdir(x)
     )
     config['outputdir'] = path
-    path = osp.join(path, 'config.yml')
     os.makedirs(path, exist_ok=True)
+    path = osp.join(path, 'config.yml')
     yaml.safe_dump(config, open(path, 'w'), indent=2)
     return path

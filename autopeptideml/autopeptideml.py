@@ -141,10 +141,10 @@ class AutoPeptideML:
                 item = self._load_pipeline(config[name])
             else:
                 if 'filter-smiles' in config:
-                    from .pipeline.smiles import FilterSMILES
+                    from .pipeline.smiles import FilterSmiles
                     config = config['filter-smiles']
                     config = {} if config is None else config
-                    item = FilterSMILES(**config)
+                    item = FilterSmiles(**config)
                 
                 elif 'smiles-to-sequence' in config:
                     from .pipeline.smiles import SmilesToSequence
@@ -153,10 +153,10 @@ class AutoPeptideML:
                     item = SmilesToSequence(**config)
 
                 elif 'sequence-to-smiles' in config:
-                    from .pipeline.smiles import SequenceToSMILES
+                    from .pipeline.smiles import SequenceToSmiles
                     config = config['sequence-to-smiles']
                     config = {} if config is None else config
-                    item = SequenceToSMILES(**config)
+                    item = SequenceToSmiles(**config)
 
                 elif 'canonical-cleaner' in config:
                     config = config['canonical-cleaner']
