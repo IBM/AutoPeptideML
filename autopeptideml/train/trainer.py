@@ -390,7 +390,8 @@ class OptunaTrainer(BaseTrainer):
         self,
         train_folds: List[Tuple[np.ndarray, np.ndarray]],
         x: Dict[str, np.ndarray],
-        y: np.ndarray
+        y: np.ndarray,
+        verbose: bool = False
     ) -> Union[Callable, List[Callable]]:
         """
         Performs hyperparameter optimization using Optuna.
@@ -415,7 +416,8 @@ class OptunaTrainer(BaseTrainer):
         except ImportError:
             raise ImportError("This function requires optuna",
                               "Please try: `pip install optuna`")
-        # optuna.logging.set_verbosity(optuna.logging.ERROR)
+        if not verbose:
+            optuna.logging.set_verbosity(optuna.logging.ERROR)
         self.best_model = None
         self.best_metric = (
             float("inf") if self.optim_strategy['direction'] == 'minimize'
@@ -502,7 +504,8 @@ class GridTrainer(BaseTrainer):
                     min, max = variable['min'], variable['max']
                     if variable['log']:
                         min, max = np.log10(min), np.log10(max)
-                        step = (max - min) / (variable['steps'] - 1)
+                    step = (max - min) / (variable['steps'] - 1)
+
                     hspace[key] = []
                     for i in range(variable['steps']):
                         val = min + step * i
