@@ -1,4 +1,7 @@
+import os
 from contextlib import nullcontext
+
+os.environ['TOKENIZERS_PARALLELISM'] = 'False'
 
 import numpy as np
 import torch
