@@ -30,9 +30,24 @@ requirements = [
     # 'pepfunn @ git+https://github.com/novonordisk-research/pepfunn.git'
 ]
 
+
+def get_files_in_dir(path: str) -> list:
+    paths = []
+    if osp.isfile(path):
+        if path.endswith('.csv'):
+            return [None]
+        return [path]
+    elif osp.isdir(path):
+        for subpath in os.listdir(path):
+            subpath = osp.join(path, subpath)
+            paths += get_files_in_dir(subpath)
+    paths = set([p for p in paths if p is not None])
+    return paths
+
+
 test_requirements = requirements
-files = [osp.join('autopeptideml/data/', subfile)
-         for subfile in os.listdir('autopeptideml/data/')]
+files = get_files_in_dir(this_directory / 'autopeptideml/data/')
+
 setup(
     author="Raul Fernandez-Diaz",
     author_email='raulfd@ibm.com',
