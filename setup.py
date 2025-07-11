@@ -27,19 +27,18 @@ requirements = [
     'skl2onnx',
     'onnxruntime',
     'rdkit',
-    # 'pepfunn @ git+https://github.com/novonordisk-research/pepfunn.git'
 ]
 
 
 def get_files_in_dir(path: str) -> list:
     paths = []
     if osp.isfile(path):
-        if path.endswith('.csv'):
+        if str(path).endswith('.csv'):
             return [None]
         return [path]
     elif osp.isdir(path):
         for subpath in os.listdir(path):
-            subpath = osp.join(path, subpath)
+            subpath = path / subpath
             paths += get_files_in_dir(subpath)
     paths = set([p for p in paths if p is not None])
     return paths
