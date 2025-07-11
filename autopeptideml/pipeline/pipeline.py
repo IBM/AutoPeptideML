@@ -216,9 +216,6 @@ class Pipeline:
             else:
                 mols = e(mols, n_jobs=n_jobs, verbose=verbose)
 
-            if verbose and not self.aggregate:
-                print(f'Total molecules removed: {len(original_mols)-len(mols):,}')
-
         if self.aggregate:
             return aggregation
         else:
