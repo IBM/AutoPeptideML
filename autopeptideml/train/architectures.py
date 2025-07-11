@@ -1,17 +1,24 @@
-from typing import Callable, Dict, List, Tuple
+from typing import Callable, Dict, List, Tuple, Union
 
 import numpy as np
 
 
-SKLEARN_MODELS = ['knn', 'svm', 'rf', 'adaboost', 'gradboost']
-ALL_MODELS = SKLEARN_MODELS + ['lightgbm', 'xgboost']
+SKLEARN_MODELS = ['knn', 'svm', 'rf', 'gradboost']
+ALL_MODELS = SKLEARN_MODELS + ['lightgbm', 'xgboost', 'catboost']
 
 
 class VotingEnsemble:
-    def __init__(self, models: List[Callable]):
+    def __init__(self, models: List[Callable], reps: List[str]):
         self.models = models
+        self.reps = reps
 
-    def predict(self, x: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def _stack_results(self, out: List[np.ndarray]) -> Tuple[np.ndarray, np.ndarray]:
+        pred = np.stack(out)
+        out_mean = np.mean(pred, axis=0)
+        out_std = np.std(pred, axis=0)
+        return out_mean, out_std
+
+    def predict(self, x: Union[np.ndarray, Dict[str, np.ndarray]]) -> Tuple[np.ndarray, np.ndarray]:
         """_summary_
 
         :param x: _description_
@@ -20,13 +27,15 @@ class VotingEnsemble:
         :rtype: [np.ndarray, np.ndarray]
         """
         out = []
-        for model in self.models:
-            t_pred = model.predict(x)
-            out.append(t_pred)
-        pred = np.stack(out)
-        out_mean = np.mean(pred, axis=0)
-        out_std = np.std(pred, axis=0)
-        return out_mean, out_std
+        if isinstance(x, dict):
+            for rep, model in zip(self.reps, self.models):
+                t_pred = model.predict(x[rep])
+                out.append(t_pred)
+        else:
+            for model in self.models:
+                t_pred = model.predict(x)
+                out.append(t_pred)
+        return self._stack_results(out)
 
     def predict_proba(self, x: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """_summary_
@@ -37,13 +46,15 @@ class VotingEnsemble:
         :rtype: [np.ndarray, np.ndarray]
         """
         out = []
-        for model in self.models:
-            t_pred = model.predict_proba(x)
-            out.append(t_pred)
-        pred = np.stack(out)
-        out_mean = np.mean(pred, axis=0)
-        out_std = np.std(pred, axis=0)
-        return out_mean, out_std
+        if isinstance(x, dict):
+            for rep, model in zip(self.reps, self.models):
+                t_pred = model.predict_proba(x[rep])
+                out.append(t_pred)
+        else:
+            for model in self.models:
+                t_pred = model.predict_proba(x)
+                out.append(t_pred)
+        return self._stack_results(out)
 
 
 def load_sklearn_models(task: str) -> Dict[str, Callable]:
@@ -59,7 +70,6 @@ def load_sklearn_models(task: str) -> Dict[str, Callable]:
             'knn': neighbors.KNeighborsClassifier,
             'svm': svm.SVC,
             'rf': ensemble.RandomForestClassifier,
-            'adaboost': ensemble.AdaBoostClassifier,
             'gradboost': ensemble.GradientBoostingClassifier,
 
         }
@@ -71,6 +81,23 @@ def load_sklearn_models(task: str) -> Dict[str, Callable]:
             'adaboost': ensemble.AdaBoostRegressor,
             'gradboost': ensemble.GradientBoostingRegressor
         }
+    else:
+        raise NotImplementedError(
+            f"Task type: {task} not implemented."
+        )
+    return arch
+
+
+def load_catboost(task: str) -> Dict[str, Callable]:
+    try:
+        import catboost
+    except ImportError:
+        raise ImportError("This function requires catboost",
+                          "Please try: `pip install catboost`")
+    if 'class' in task:
+        arch = {'catboost': catboost.CatBoostClassifier}
+    elif 'reg' in task:
+        arch = {'catboost': catboost.CatBoostRegressor}
     else:
         raise NotImplementedError(
             f"Task type: {task} not implemented."

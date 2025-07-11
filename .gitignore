@@ -19,6 +19,7 @@ lib64/
 parts/
 sdist/
 var/
+catboost_info/
 .DS_Store
 wheels/
 share/python-wheels/

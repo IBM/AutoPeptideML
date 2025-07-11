@@ -13,12 +13,12 @@ import typer
 
 from .pipeline import Pipeline, CanonicalCleaner, CanonicalFilter
 from .reps import RepEngineBase
-from .train import BaseTrainer, OptunaTrainer, GridTrainer, NoHpoTrainer
+from .train import BaseTrainer, OptunaTrainer, NoHpoTrainer
 from .train.metrics import evaluate
 from .db import Database
 
 
-__version__ = '2.0.0'
+__version__ = '2.0.2'
 
 
 app = typer.Typer()

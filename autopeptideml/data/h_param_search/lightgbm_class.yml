@@ -1,0 +1,59 @@
+n_estimators:
+  type: int
+  min: 10
+  max: 500
+  log: False
+
+class_weight:
+  type: fixed
+  value: balanced
+
+num_leaves:
+  type: int
+  min: 8
+  max: 1024
+  log: False
+
+max_depth:
+  type: int
+  min: 2
+  max: 10
+  log: False
+
+subsample:
+  type: float
+  min: 0.5
+  max: 1.0
+  log: False
+
+colsample_bytree:
+  type: float
+  min: 0.3
+  max: 1.0
+  log: False
+
+min_split_gain:
+  type: float
+  min: 1e-10
+  max: 1e-3
+  log: True
+
+reg_alpha:
+  type: float
+  min: 1e-10
+  max: 1e-3
+  log: True
+
+learning_rate:
+  type: float
+  min: 1e-7
+  max: 1e-1
+  log: True
+
+verbose:
+  type: fixed
+  value: -1
+
+n_jobs:
+  type: fixed
+  value: 1

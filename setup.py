@@ -5,7 +5,8 @@ from setuptools import setup, find_packages
 from pathlib import Path
 
 
-this_directory = Path(__file__).parent
+this_file = Path(__file__).resolve()
+this_directory = this_file.parent
 readme = (this_directory / "README.md").read_text()
 
 requirements = [
@@ -24,14 +25,26 @@ requirements = [
     'skl2onnx',
     'onnxruntime',
     'rdkit',
-    # 'pepfunn @ git+https://github.com/novonordisk-research/pepfunn.git'
 ]
 
+
+def get_files_in_dir(path: Path, base: Path) -> list:
+    paths = []
+    if path.is_file():
+        if path.suffix == '.csv':
+            return [None]
+        return [path.relative_to(base)]
+    elif path.is_dir():
+        for subpath in path.iterdir():
+            paths += get_files_in_dir(subpath, base)
+    paths = set([p for p in paths if p is not None])
+    return list(paths)
+
+
 test_requirements = requirements
-files = [
-    'autopeptideml/data/readme_ex.md',
-    'autopeptideml/data/chembl_monomer_library.xml'
-]
+data_dir = this_directory / 'autopeptideml' / 'data'
+files = get_files_in_dir(data_dir, this_directory)
+
 setup(
     author="Raul Fernandez-Diaz",
     author_email='raulfd@ibm.com',

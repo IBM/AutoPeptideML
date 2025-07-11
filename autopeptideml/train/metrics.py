@@ -49,14 +49,17 @@ def evaluate(preds, truth, pred_task) -> Dict[str, float]:
     if pred_task == 'reg':
         metrics = REGRESSION_METRICS
     else:
-        preds = preds > 0.5
         metrics = CLASSIFICATION_METRICS
 
     for key, value in metrics.items():
+        if key in ['auroc'] or pred_task == 'reg':
+            t_pred = preds
+        else:
+            t_pred = preds > 0.5
         try:
-            result[key] = value(preds, truth)
+            result[key] = value(truth, t_pred)
         except ValueError:
-            result[key] = np.nan
+            result[key] = 0.0
     return result
 
 
