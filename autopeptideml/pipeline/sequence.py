@@ -58,6 +58,9 @@ class CanonicalCleaner(BaseElement):
         """
         return ''.join([c if c in RESIDUES else self.sub for c in mol])
 
+    def __str__(self):
+        return self.name + f" -> substitution: {self.sub}"
+
 
 class CanonicalFilter(BaseElement):
     """

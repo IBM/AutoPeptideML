@@ -209,6 +209,9 @@ class FilterSmiles(BaseElement):
         else:
             return None
 
+    def __str__(self):
+        return self.name + f" -> keep_smiles: {self.keep_smiles}"
+
 
 class CanonicalizeSmiles(BaseElement):
     """

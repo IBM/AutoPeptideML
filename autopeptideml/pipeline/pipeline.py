@@ -52,6 +52,9 @@ class BaseElement:
             return self._parallel_call(mol, n_jobs=n_jobs,
                                        verbose=verbose)
 
+    def __str__(self):
+        return self.name
+
     def _single_call(self, mol: str) -> str:
         """
         Processes a single molecular representation. 
@@ -171,9 +174,16 @@ class Pipeline:
         Returns a JSON string representation of the pipeline's properties.
 
         :rtype: str
-          :return: A JSON string representing the pipeline's configuration and properties.
+          :return: A string representation of the pipeline.
         """
-        return json.dumps(self.properties, indent=3)
+        string = f"{self.name}\n"
+        for element in self.elements:
+            subelements = str(element).split('\n')
+            for s in subelements:
+                string += f"->  {str(s)}\n"
+        if self.aggregate:
+            string += f'aggregate'
+        return string
 
     def __call__(self, mols: List[str],
                  n_jobs: int = cpu_count(),
