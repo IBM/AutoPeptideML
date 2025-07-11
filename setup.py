@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
 """The setup script."""
+import os
+import os.path as osp
+
 from setuptools import setup, find_packages
 from pathlib import Path
 
@@ -28,11 +31,8 @@ requirements = [
 ]
 
 test_requirements = requirements
-files = [
-    'autopeptideml/data/'
-    # 'autopeptideml/data/readme_ex.md',
-    # 'autopeptideml/data/chembl_monomer_library.xml'
-]
+files = [osp.join('autopeptideml/data/', subfile)
+         for subfile in os.listdir('autopeptideml/data/')]
 setup(
     author="Raul Fernandez-Diaz",
     author_email='raulfd@ibm.com',
