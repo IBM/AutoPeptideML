@@ -18,7 +18,7 @@ from .train.metrics import evaluate
 from .db import Database
 
 
-__version__ = '2.0.0'
+__version__ = '2.0.2'
 
 
 app = typer.Typer()
