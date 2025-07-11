@@ -1,0 +1,47 @@
+n_neighbors:
+  type: int
+  min: 1
+  max: 100
+  log: False
+
+weights:
+  type: categorical
+  values:
+    - uniform
+    - distance
+
+algorithm:
+  type: categorical
+  values:
+    - auto
+    - ball_tree
+    - kd_tree
+    - brute
+
+leaf_size:
+  type: int
+  min: 10
+  max: 100
+  log: True
+
+p:
+  type: int
+  min: 1
+  max: 2
+  log: False
+
+metric:
+  type: categorical
+  values:
+    - minkowski
+    - euclidean
+    - manhattan
+    - chebyshev
+
+metric_params:
+  type: fixed
+  value: null
+
+n_jobs:
+  type: fixed
+  value: -1

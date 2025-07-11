@@ -1,0 +1,92 @@
+iterations:
+  type: int
+  min: 10
+  max: 100
+  log: True
+
+learning_rate:
+  type: float
+  min: 0.01
+  max: 0.3
+  log: True
+
+depth:
+  type: int
+  min: 4
+  max: 10
+  log: False
+
+l2_leaf_reg:
+  type: float
+  min: 1.0
+  max: 10.0
+  log: True
+
+bootstrap_type:
+  type: categorical
+  values:
+    - Bernoulli
+    - MVS
+    - Bayesian
+  extra_parameters:
+    Bernoulli:
+      subsample:
+        type: float
+        min: 0.5
+        max: 1.0
+        log: False
+    MVS:
+      subsample:
+        type: float
+        min: 0.5
+        max: 1.0
+        log: False
+    Bayesian:
+      bagging_temperature:
+        type: float
+        min: 0.0
+        max: 1.0
+        log: False 
+
+random_strength:
+  type: float
+  min: 1e-9
+  max: 10.0
+  log: True
+
+rsm:
+  type: float
+  min: 0.5
+  max: 1.0
+  log: False
+
+leaf_estimation_iterations:
+  type: int
+  min: 1
+  max: 20
+  log: False
+
+leaf_estimation_method:
+  type: categorical
+  values:
+    - Newton
+    - Gradient
+
+scale_pos_weight:
+  type: float
+  min: 0.5
+  max: 5.0
+  log: True
+
+eval_metric:
+  type: fixed
+  value: Logloss
+
+task_type:
+  type: fixed
+  value: CPU
+
+verbose:
+  type: fixed
+  value: False
+

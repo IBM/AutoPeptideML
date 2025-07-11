@@ -1,0 +1,115 @@
+n_estimators:
+  type: int
+  min: 10
+  max: 1000
+  log: True
+
+learning_rate:
+  type: float
+  min: 0.01
+  max: 0.3
+  log: True
+
+max_depth:
+  type: int
+  min: 3
+  max: 12
+  log: False
+
+min_child_weight:
+  type: float
+  min: 0.1
+  max: 10
+  log: True
+
+gamma:
+  type: float
+  min: 0.0
+  max: 5.0
+  log: True
+
+class_weight:
+  type: fixed
+  value: balanced
+
+subsample:
+  type: float
+  min: 0.5
+  max: 1.0
+  log: False
+
+colsample_bytree:
+  type: float
+  min: 0.5
+  max: 1.0
+  log: False
+
+colsample_bylevel:
+  type: float
+  min: 0.5
+  max: 1.0
+  log: False
+
+colsample_bynode:
+  type: float
+  min: 0.5
+  max: 1.0
+  log: False
+
+reg_alpha:
+  type: float
+  min: 1e-5
+  max: 10.0
+  log: True
+
+reg_lambda:
+  type: float
+  min: 1e-5
+  max: 10.0
+  log: True
+
+scale_pos_weight:
+  type: float
+  min: 0.5
+  max: 10.0
+  log: True
+
+tree_method:
+  type: categorical
+  values:
+    - auto
+    - approx
+    - hist
+
+booster:
+  type: categorical
+  values:
+    - gbtree
+    - dart
+    - gblinear
+
+grow_policy:
+  type: categorical
+  values:
+    - depthwise
+    - lossguide
+  conditional:
+    booster:
+      - gbtree
+      - dart
+
+sampling_method:
+  type: fixed
+  value: uniform
+
+random_state:
+  type: fixed
+  value: 42
+
+verbose:
+  type: fixed
+  value: -1
+
+n_jobs:
+  type: fixed
+  value: 1

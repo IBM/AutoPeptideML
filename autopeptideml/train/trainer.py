@@ -2,15 +2,19 @@ import copy
 import itertools as it
 import json
 import operator
+import os.path as osp
+import yaml
 import warnings
 
 import numpy as np
 import pandas as pd
 
 from tqdm import tqdm
+from sklearn.model_selection import StratifiedKFold
 from typing import *
 from .architectures import *
-from .metrics import evaluate, CLASSIFICATION_METRICS, REGRESSION_METRICS
+from .metrics import evaluate
+from ..utils import format_numbers, discretizer
 
 
 PROBABILITY = ['svm']
@@ -45,9 +49,9 @@ class EarlyStoppingCallback(object):
             study.stop()
 
 
-def choose_hps(variable, trial, hspace, model, key):
+def choose_hps(variable, trial, hpspace, model, key):
     if variable['type'] == 'int':
-        hspace[key] = trial.suggest_int(
+        hpspace[key] = trial.suggest_int(
             f"{model}_{key}",
             variable['min'],
             variable['max'],
@@ -55,7 +59,7 @@ def choose_hps(variable, trial, hspace, model, key):
         )
 
     elif variable['type'] == 'float':
-        hspace[key] = trial.suggest_float(
+        hpspace[key] = trial.suggest_float(
             f"{model}_{key}",
             variable['min'],
             variable['max'],
@@ -63,62 +67,82 @@ def choose_hps(variable, trial, hspace, model, key):
         )
 
     elif variable['type'] == 'categorical':
-        hspace[key] = trial.suggest_categorical(
+        hpspace[key] = trial.suggest_categorical(
             f"{model}_{key}",
             variable['values']
         )
 
     elif variable['type'] == 'fixed':
-        hspace[key] = variable['value']
+        hpspace[key] = variable['value']
 
-    return hspace
+    return hpspace
 
 
 class BaseTrainer:
-    """
-    Class `BaseTrainer` provides a framework for hyperparameter optimization (HPO) and model training. 
-    It initializes models based on the specified task and optimization strategy, and serves as a base class for trainers.
-
-    Attributes:
-        :type name: str
-        :param name: The name of the trainer. Set dynamically in derived classes.
-
-        :type hpspace: Dict[str, Any]
-        :param hpspace: The hyperparameter search space for the models.
-
-        :type optim_strategy: Dict[str, Any]
-        :param optim_strategy: The optimization strategy, including the task type and other configurations.
-
-        :type best_config: dict
-        :param best_config: The best configuration identified during HPO. Default is `None`.
-
-        :type best_model: List[Dict[str, Union[str, Callable]]]
-        :param best_model: The best-performing model(s) identified during training.
-    """
     name: str
-    hpspace: Dict[str, Any]
-    optim_strategy: Dict[str, Any]
-    best_config: dict = None
-    best_model: List[Dict[str, Union[str, Callable]]]
+    task: str
+    metric: str
+    direction: str
+    ensemble: bool
+    random_state: int = 1
+    n_folds: int = None
+    train_val_ratio: float = None
 
-    def __init__(self, hpspace: Dict[str, Any],
-                 optim_strategy: Dict[str, Any], **args):
-        """
-        Initializes the trainer with the specified hyperparameter space and optimization strategy.
+    def __init__(self, task: str, direction: str = 'maximize',
+                 metric: str = None, ensemble: bool = False):
+        self.task = task
+        self.direction = direction
+        if metric is None:
+            if task == 'class':
+                metric = 'mcc'
+            elif task == 'multiclass':
+                metric = 'f1_weighted'
+            elif task == 'reg':
+                metric = 'mse'
+            else:
+                raise ValueError("Task is not valid. Please try: class, reg, or multiclass")
+        self.metric = metric
+        self.ensemble = ensemble
 
-        :param hpspace: Dictionary describing the hyperparameter search space for the models.
-        :type hpspace: Dict[str, Any]
-        :param optim_strategy: Dictionary describing the optimization strategy,
-            including the task type and other configurations.
-        :type optim_strategy: Dict[str, Any]
-        """
-        self.hpspace = hpspace
-        self.optim_strategy = optim_strategy
-        self.properties = copy.deepcopy(self.__dict__)
-        self.models = self._import_models(
-            optim_strategy['task'],
-            hpspace['models']['elements'].keys()
-        )
+        # self.models = models
+        # self.hpspace = {
+        #     'models': {
+        #         'elements': {
+        #             **hpspace[model] if model in hpspace
+        #                 else get_hpspace(model)
+        #             for model in models
+        #         }
+        #     }
+        # }
+        # self.hpspace = hpspace
+        # self.optim_strategy = optim_strategy
+        # self.properties = copy.deepcopy(self.__dict__)
+        # self.models = self._import_models(
+        #     optim_strategy['task'],
+        #     hpspace['models']['elements'].keys()
+        # )
+
+    def _define_folds(self, x: np.ndarray, y: np.ndarray,
+                      n_folds: int, train_val_ratio: float) -> List[tuple]:
+        if train_val_ratio is not None:
+            self.train_val_ratio = train_val_ratio
+            kf = StratifiedKFold(n_splits=1/train_val_ratio,
+                                 random_state=self.random_state,
+                                 shuffle=True)
+            if 'class' in self.task:
+                return [(train, valid) for train, valid in kf.split(x, y)][0]
+            elif self.task == 'reg':
+                y = discretizer(y)
+                return [(train, valid) for train, valid in kf.split(x, y)][0]
+        else:
+            self.n_folds = n_folds
+            kf = StratifiedKFold(n_splits=n_folds, shuffle=True,
+                                 random_state=self.random_state)
+            if 'class' in self.task:
+                return [(train, valid) for train, valid in kf.split(x, y)]
+            elif self.task == 'reg':
+                y = discretizer(y)
+                return [(train, valid) for train, valid in kf.split(x, y)]
 
     def _import_models(
         self, task: str,
@@ -148,6 +172,8 @@ class BaseTrainer:
                 archs.update(load_xgboost(task))
             elif model == 'lightgbm':
                 archs.update(load_lightgbm(task))
+            elif model == 'catboost':
+                archs.update(load_catboost(task))
             elif model == 'cnn':
                 archs.update(load_torch(task))
             else:
@@ -226,7 +252,7 @@ class OptunaTrainer(BaseTrainer):
                     ]
                 }
             },
-            'representations': ['representation1', 'representation2']
+            'reps': ['representation1', 'representation2']
         }
         ```
     Example Schema for `optim_strategy`:
@@ -244,6 +270,34 @@ class OptunaTrainer(BaseTrainer):
     """
     name = 'optuna'
 
+    def _get_hpspace(self, models: List[str], custom_hpspace: dict) -> dict:
+        file_dir = osp.abspath(osp.dirname(__file__))
+        config_dir = osp.join(file_dir, '..', 'data', 'h_param_search')
+        full_hpspace = {
+            'models': {
+                'type': 'ensemble' if self.ensemble else 'fixed',
+                'elements': {},
+                'reps': []
+            }
+        }
+        if models is None:
+            models = ALL_MODELS
+        for model in models:
+            if model in custom_hpspace:
+                hpspace = custom_hpspace[model]
+            else:
+                config_path = osp.join(config_dir, f'{model}_{self.task}.yml')
+                hpspace = yaml.safe_load(open(config_path))
+            if 'n_jobs' in hpspace:
+                hpspace['n_jobs'] = {'type': 'fixed', 'value': self.n_jobs}
+            if 'random_state' in hpspace:
+                hpspace['random_state'] = {'type': 'fixed',
+                                           'value': self.random_state}
+            full_hpspace['models']['elements'].update(
+                {model: format_numbers(hpspace)}
+            )
+        return full_hpspace
+
     def _prepare_hpspace(self, trial) -> dict:
         """Prepares the hyperparameter space for a given Optuna trial.
 
@@ -255,68 +309,93 @@ class OptunaTrainer(BaseTrainer):
 
         :raises KeyError: If the hyperparameter space is not properly defined.
         """
-        full_hspace = []
-        if (self.hpspace['models']['type'] == 'fixed' or
-           self.hpspace['models']['type'] == 'ensemble'):
+        full_hpspace = []
+        if self.hpspace['models']['type'] == 'fixed':
+            m_key = trial.suggest_categorical('model', list(self.hpspace['models']['elements'].keys()))
+            model = self.hpspace['models']['elements'][m_key]
+            hpspace = {}
+            for key, variable in model.items():
+                if 'condition' in variable:
+                    continue
+
+                hpspace = choose_hps(variable, trial, hpspace, model, key)
+            for key, variable in model.items():
+                if 'condition' not in variable:
+                    continue
+
+                hpspace = choose_hps(variable, trial, hpspace, model, key)
+                if 'condition' in variable:
+                    conditions = variable['condition'].split('|')
+                    for condition in conditions:
+                        condition = condition.split('-')
+                        v, f = condition[0], condition[1]
+                        if hpspace[v] != f:
+                            del hpspace[v]
+                            break
+
+            full_hpspace.append(
+                {'name': m_key, 'variables': hpspace,
+                 'representation': trial.suggest_categorical(
+                  "rep", self.hpspace['reps'])})
+
+        elif self.hpspace['models']['type'] == 'ensemble':
             for m_key, model in self.hpspace['models']['elements'].items():
-                hspace = {}
+                hpspace = {}
                 for key, variable in model.items():
                     if 'condition' in variable:
                         continue
 
-                    hspace = choose_hps(variable, trial, hspace, model,
-                                        key)
+                    hpspace = choose_hps(variable, trial, hpspace, model, key)
                 for key, variable in model.items():
                     if 'condition' not in variable:
                         continue
 
-                    hspace = choose_hps(variable, trial, hspace, model,
-                                        key)
+                    hpspace = choose_hps(variable, trial, hpspace, model, key)
                     if 'condition' in variable:
                         conditions = variable['condition'].split('|')
                         for condition in conditions:
                             condition = condition.split('-')
                             v, f = condition[0], condition[1]
-                            if hspace[v] != f:
-                                del hspace[v]
+                            if hpspace[v] != f:
+                                del hpspace[v]
                                 break
 
-                full_hspace.append(
-                    {'name': m_key, 'variables': hspace,
+                full_hpspace.append(
+                    {'name': m_key, 'variables': hpspace,
                      'representation': trial.suggest_categorical(
-                        f"{m_key}_rep", self.hpspace['representations'])})
+                        f"{m_key}_rep", self.hpspace['reps'])})
 
         else:
             models = []
             for m_key, model in self.hpspace['models']['elements'].items():
                 models.append(m_key)
             model = trial.suggest_categorical('model', models)
-            hspace = {}
+            hpspace = {}
 
             for key, variable in self.hpspace['models']['elements'][model].items():
                 if 'condition' in variable:
                     continue
-                hspace = choose_hps(variable, trial, hspace, model, key)
+                hpspace = choose_hps(variable, trial, hpspace, model, key)
 
             for key, variable in self.hpspace['models']['elements'][model].items():
                 if 'condition' not in variable:
                     continue
-                hspace = choose_hps(variable, trial, hspace, model, key)
+                hpspace = choose_hps(variable, trial, hpspace, model, key)
 
                 conditions = variable['condition'].split('|')
                 for condition in conditions:
                     condition = condition.split('-')
                     v, f = condition[0], condition[1]
-                    if hspace[v] != f:
-                        del hspace[v]
+                    if hpspace[v] != f:
+                        del hpspace[v]
                         break
 
-            full_hspace.append(
-                {'name': model, 'variables': hspace,
+            full_hpspace.append(
+                {'name': model, 'variables': hpspace,
                  'representation': trial.suggest_categorical(
-                     f"{model}_rep", self.hpspace['representations']
+                     f"{model}_rep", self.hpspace['reps']
                  )})
-        return full_hspace
+        return full_hpspace
 
     def _hpo_step(self, trial) -> dict:
         """Executes a single HPO step by evaluating a configuration from the hyperparameter space.
@@ -331,309 +410,301 @@ class OptunaTrainer(BaseTrainer):
         :raises KeyError: If required fields are missing in the hyperparameter space.
         """
         try:
-            hspace = self._prepare_hpspace(trial)
+            hpspace = self._prepare_hpspace(trial)
         except KeyError:
             raise ValueError(
                 "Hyperparameter space is not properly defined.",
                 "Please check the definition of all fields."
             )
         warnings.filterwarnings('ignore')
-        results, supensemble = [], {'models': [], 'reps': []}
+        results, supensemble = [], VotingEnsemble([], [])
         train_folds = self.train_folds
         x = self.x
         y = self.y
 
         for train_idx, valid_idx in train_folds:
-            ensemble = {'models': [], 'reps': []}
+            ensemble = {}
 
-            for h_m in hspace:
+            for h_m in hpspace:
                 arch = self.models[h_m['name']]
-                if self.optim_strategy['task'] == 'reg' and h_m['name'] == 'svm':
+                if self.task == 'reg' and h_m['name'] == 'svm':
                     if 'probability' in h_m['variables']:
                         del h_m['variables']['probability']
 
                 arch = arch(**h_m['variables'])
                 train_x, train_y = x[h_m['representation']][train_idx], y[train_idx]
                 arch.fit(train_x, train_y)
-                ensemble['models'].append(arch)
-                ensemble['reps'].append(h_m['representation'])
+                ensemble[h_m['representation']] = arch
 
+            v_ensemble = VotingEnsemble(list(ensemble.values()), list(ensemble.keys()))
             valid_y = y[valid_idx]
-            preds = np.zeros(valid_y.shape)
-            for arch, rep in zip(ensemble['models'], ensemble['reps']):
-                valid_x = x[rep][valid_idx]
-                try:
-                    preds += (arch.predict_proba(valid_x)[:, 1] /
-                              len(ensemble['models']))
-                except AttributeError:
-                    preds += (arch.predict(valid_x)[:] /
-                              len(ensemble['models']))
-
-            result = evaluate(preds, valid_y, self.optim_strategy['task'])
+            try:
+                preds, _ = v_ensemble.predict_proba({k: v[valid_idx] for k, v in x.items()})
+                preds = preds[:, 1]
+            except AttributeError:
+                preds, _ = v_ensemble.predict({k: v[valid_idx] for k, v in x.items()})
+            result = evaluate(preds, valid_y, self.task)
+            result.update(h_m)
+            result.update({"run": results[-1]['run'] + 1 if len(results) > 0
+                           else 1})
             results.append(result)
-            supensemble['models'].extend(ensemble['models'])
-            supensemble['reps'].extend(ensemble['reps'])
+            supensemble.models.extend(v_ensemble.models)
+            supensemble.models.extend(v_ensemble.reps)
 
         result_df = pd.DataFrame(results)
         perf = result_df[self.metric].mean()
-        if ((self.optim_strategy['direction'] == 'minimize' and
+        if ((self.direction == 'minimize' and
              perf < self.best_metric) or
-           (self.optim_strategy['direction'] == 'maximize' and
+           (self.direction == 'maximize' and
            perf > self.best_metric)):
-
+            self.history = pd.concat([self.history, result_df])
             self.best_metric = perf
-            self.best_config = hspace
+            self.best_config = hpspace
             self.best_model = supensemble
         return perf
 
     def hpo(
         self,
-        train_folds: List[Tuple[np.ndarray, np.ndarray]],
         x: Dict[str, np.ndarray],
         y: np.ndarray,
-        verbose: bool = False
+        models: List[str] = ALL_MODELS,
+        n_folds: int = 5,
+        train_val_ratio: float = None,
+        n_trials: int = 100,
+        patience: int = None,
+        random_state: int = 1,
+        n_jobs: int = 1,
+        verbose: int = 2,
+        custom_hpspace: dict = {}
     ) -> Union[Callable, List[Callable]]:
-        """
-        Performs hyperparameter optimization using Optuna.
-
-        :type train_folds: List[Tuple[np.ndarray, np.ndarray]]
-            :param train_folds: A list of training folds for cross-validation.
-
-        :type x: Dict[str, np.ndarray]
-            :param x: A dictionary mapping representations to feature matrices.
-
-        :type y: np.ndarray
-            :param y: The target labels for the dataset.
-
-        :rtype: Union[Callable, List[Callable]]
-            :return: The best-performing model(s) after optimization.
-
-        :raises ImportError: If Optuna is not installed.
-        :raises ValueError: If required fields in the hyperparameter space are missing.
-        """
         try:
             import optuna
         except ImportError:
             raise ImportError("This function requires optuna",
                               "Please try: `pip install optuna`")
-        if not verbose:
+        if verbose < 1:
             optuna.logging.set_verbosity(optuna.logging.ERROR)
+        elif verbose < 3:
+            optuna.logging.set_verbosity(optuna.logging.WARNING)
+
+        # Trainer parameters
         self.best_model = None
-        self.best_metric = (
-            float("inf") if self.optim_strategy['direction'] == 'minimize'
-            else float('-inf')
+        self.random_state = random_state
+        self.history = pd.DataFrame()
+        self.n_jobs = n_jobs
+        self.n_trials = n_trials
+        self.models = self._import_models(self.task, models)
+        self.hpspace = self._get_hpspace(models, custom_hpspace)
+        self.hpspace['reps'] = list(x.keys())
+        if patience is None:
+            self.patience = n_trials / 5
+        self.best_metric = (float("inf") if self.direction == 'minimize'
+                            else float('-inf'))
+
+        # Data preparation
+        self.train_folds = self._define_folds(x[list(x.keys())[0]], y,
+                                              n_folds, train_val_ratio)
+        self.x, self.y = x, y
+
+        # Optuna definition
+        self.study = optuna.create_study(direction=self.direction)
+        callback = EarlyStoppingCallback(
+            early_stopping_rounds=self.patience,
+            direction=self.direction
         )
-        study = optuna.create_study(
-            direction=self.optim_strategy['direction']
-        )
-        self.metric = self.optim_strategy['metric']
-        if 'patience' in self.optim_strategy:
-            callback = EarlyStoppingCallback(
-                early_stopping_rounds=self.optim_strategy['patience'],
-                direction=self.optim_strategy['direction']
-            )
-        else:
-            callback = EarlyStoppingCallback(
-                early_stopping_rounds=self.optim_strategy['n_steps'],
-                direction=self.optim_strategy['direction']
-            )
-        self.train_folds = train_folds
-        self.x = x
-        self.y = y
-        study.optimize(self._hpo_step, n_trials=self.optim_strategy['n_steps'],
-                       n_jobs=self.optim_strategy['n_jobs'],
-                       callbacks=[callback], gc_after_trial=True,
-                       show_progress_bar=True)
+        self.study.optimize(self._hpo_step, n_trials=self.n_trials,
+                            callbacks=[callback],
+                            gc_after_trial=True, show_progress_bar=verbose == 2)
 
 
-class GridTrainer(BaseTrainer):
-    """
-    Class `GridTrainer` implements a grid search-based hyperparameter optimization (HPO) framework.
-    It systematically explores a predefined hyperparameter space by evaluating all possible combinations.
+# class GridTrainer(BaseTrainer):
+#     """
+#     Class `GridTrainer` implements a grid search-based hyperparameter optimization (HPO) framework.
+#     It systematically explores a predefined hyperparameter space by evaluating all possible combinations.
 
-    Attributes:
-        :type name: str
-        :param name: The name of the trainer. Default is `'grid'`.
+#     Attributes:
+#         :type name: str
+#         :param name: The name of the trainer. Default is `'grid'`.
 
-    Example Usage:
-        ```python
-        trainer = GridTrainer(hpspace=my_hpspace, optim_strategy=my_strategy)
-        best_model = trainer.hpo(train_folds, x, y)
-        ```
+#     Example Usage:
+#         ```python
+#         trainer = GridTrainer(hpspace=my_hpspace, optim_strategy=my_strategy)
+#         best_model = trainer.hpo(train_folds, x, y)
+#         ```
 
-    Example Schema for `hpspace`:
+#     Example Schema for `hpspace`:
 
-        ```python
-        hpspace = {
-            'models': {
-                'type': 'fixed',  # Options: 'fixed', 'ensemble'
-                'elements': {
-                    'svm': [
-                        {'C': {'type': 'float', 'min': 0.1, 'max': 10, 'steps': 5, 'log': True}},
-                        {'kernel': {'type': 'categorical', 'values': ['linear', 'rbf']}},
-                        {'probability': {'type': 'fixed', 'value': True}}
-                    ],
-                    'xgboost': [
-                        {'n_estimators': {'type': 'int', 'min': 50, 'max': 200, 'steps': 4}},
-                        {'learning_rate': {'type': 'float', 'min': 0.01, 'max': 0.1, 'steps': 5}},
-                        {'max_depth': {'type': 'int', 'min': 3, 'max': 10, 'steps': 3}}
-                    ]
-                }
-            },
-            'representations': ['representation1', 'representation2']
-        }
-        ```
-    """
-    name = 'grid'
+#         ```python
+#         hpspace = {
+#             'models': {
+#                 'type': 'fixed',  # Options: 'fixed', 'ensemble'
+#                 'elements': {
+#                     'svm': [
+#                         {'C': {'type': 'float', 'min': 0.1, 'max': 10, 'steps': 5, 'log': True}},
+#                         {'kernel': {'type': 'categorical', 'values': ['linear', 'rbf']}},
+#                         {'probability': {'type': 'fixed', 'value': True}}
+#                     ],
+#                     'xgboost': [
+#                         {'n_estimators': {'type': 'int', 'min': 50, 'max': 200, 'steps': 4}},
+#                         {'learning_rate': {'type': 'float', 'min': 0.01, 'max': 0.1, 'steps': 5}},
+#                         {'max_depth': {'type': 'int', 'min': 3, 'max': 10, 'steps': 3}}
+#                     ]
+#                 }
+#             },
+#             'reps': ['representation1', 'representation2']
+#         }
+#         ```
+#     """
+#     name = 'grid'
 
-    def _prepare_hpspace(self) -> dict:
-        """
-        Prepares the hyperparameter space for grid search by generating all possible combinations
-        of hyperparameter values.
+#     def _prepare_hpspace(self) -> dict:
+#         """
+#         Prepares the hyperparameter space for grid search by generating all possible combinations
+#         of hyperparameter values.
 
-        :rtype: dict
-            :return: A list of dictionaries representing all possible hyperparameter configurations.
-        """
-        full_hspace = []
-        for m_key, model in self.hpspace['models']['elements'].items():
-            hspace = {}
-            for key in model:
-                variable = model[key]
+#         :rtype: dict
+#             :return: A list of dictionaries representing all possible hyperparameter configurations.
+#         """
+#         full_hpspace = []
+#         for m_key, model in self.hpspace['models']['elements'].items():
+#             hpspace = {}
+#             for key in model:
+#                 variable = model[key]
 
-                if variable['type'] == 'int':
-                    min, max = variable['min'], variable['max']
-                    if variable['log']:
-                        min, max = np.log10(min), np.log10(max)
-                    step = (max - min) / (variable['steps'] - 1)
+#                 if variable['type'] == 'int':
+#                     min, max = variable['min'], variable['max']
+#                     if variable['log']:
+#                         min, max = np.log10(min), np.log10(max)
+#                     step = (max - min) / (variable['steps'] - 1)
 
-                    hspace[key] = []
-                    for i in range(variable['steps']):
-                        val = min + step * i
-                        if variable['log']:
-                            hspace[key].append(int(10**val))
-                        else:
-                            hspace[key].append(int(val))
+#                     hpspace[key] = []
+#                     for i in range(variable['steps']):
+#                         val = min + step * i
+#                         if variable['log']:
+#                             hpspace[key].append(int(10**val))
+#                         else:
+#                             hpspace[key].append(int(val))
 
-                elif variable['type'] == 'float':
-                    min, max = variable['min'], variable['max']
-                    if variable['log']:
-                        min, max = np.log10(min), np.log10(max)
-                        step = (max - min) / (variable['steps'] - 1)
-                    hspace[key] = []
-                    for i in range(variable['steps']):
-                        val = min + step * i
-                        if variable['log']:
-                            hspace[key].append(10**val)
-                        else:
-                            hspace[key].append(val)
+#                 elif variable['type'] == 'float':
+#                     min, max = variable['min'], variable['max']
+#                     if variable['log']:
+#                         min, max = np.log10(min), np.log10(max)
+#                         step = (max - min) / (variable['steps'] - 1)
+#                     hpspace[key] = []
+#                     for i in range(variable['steps']):
+#                         val = min + step * i
+#                         if variable['log']:
+#                             hpspace[key].append(10**val)
+#                         else:
+#                             hpspace[key].append(val)
 
-                elif variable['type'] == 'categorical':
-                    hspace[key] = variable['values']
+#                 elif variable['type'] == 'categorical':
+#                     hpspace[key] = variable['values']
 
-                elif variable['type'] == 'fixed':
-                    hspace[key] = [variable['value']]
+#                 elif variable['type'] == 'fixed':
+#                     hpspace[key] = [variable['value']]
 
-                if key.lower() in PROBABILITY:
-                    hspace['probability'] = [True]
-                if key.lower() in PROBABILITY and self.optim_strategy['task'] == 'reg':
-                    del hspace['probability']
+#                 if key.lower() in PROBABILITY:
+#                     hpspace['probability'] = [True]
+#                 if key.lower() in PROBABILITY and self.optim_strategy['task'] == 'reg':
+#                     del hpspace['probability']
 
-            full_hspace.append(
-                {'name': m_key, 'variables': hspace,
-                 'representation': self.hpspace['representations']})
+#             full_hpspace.append(
+#                 {'name': m_key, 'variables': hpspace,
+#                  'representation': self.hpspace['reps']})
 
-        real_hspace = []
-        for m_space in full_hspace:
-            model = m_space['name']
-            variables = [v for v in m_space['variables'].values()]
-            names = list(m_space['variables'].keys())
-            names.append('representation')
-            combs = it.product(*variables, m_space['representation'])
-            hspace = [{n: v[idx] for idx, n in enumerate(names)}
-                      for v in combs]
-            for idx in range(len(hspace)):
-                hspace[idx]['name'] = model
-            real_hspace.extend(hspace)
-        return real_hspace
+#         real_hpspace = []
+#         for m_space in full_hpspace:
+#             model = m_space['name']
+#             variables = [v for v in m_space['variables'].values()]
+#             names = list(m_space['variables'].keys())
+#             names.append('representation')
+#             combs = it.product(*variables, m_space['representation'])
+#             hpspace = [{n: v[idx] for idx, n in enumerate(names)}
+#                       for v in combs]
+#             for idx in range(len(hpspace)):
+#                 hpspace[idx]['name'] = model
+#             real_hpspace.extend(hpspace)
+#         return real_hpspace
 
-    def hpo(
-        self,
-        train_folds: List[Tuple[np.ndarray, np.ndarray]],
-        x: Dict[str, np.ndarray],
-        y: np.ndarray
-    ) -> Union[Callable, List[Callable]]:
-        """Performs hyperparameter optimization using grid search.
+#     def hpo(
+#         self,
+#         train_folds: List[Tuple[np.ndarray, np.ndarray]],
+#         x: Dict[str, np.ndarray],
+#         y: np.ndarray
+#     ) -> Union[Callable, List[Callable]]:
+#         """Performs hyperparameter optimization using grid search.
 
-        :type train_folds: List[Tuple[np.ndarray, np.ndarray]]
-            :param train_folds: A list of training folds for cross-validation.
+#         :type train_folds: List[Tuple[np.ndarray, np.ndarray]]
+#             :param train_folds: A list of training folds for cross-validation.
 
-        :type x: Dict[str, np.ndarray]
-            :param x: A dictionary mapping representations to feature matrices.
+#         :type x: Dict[str, np.ndarray]
+#             :param x: A dictionary mapping representations to feature matrices.
 
-        :type y: np.ndarray
-            :param y: The target labels for the dataset.
+#         :type y: np.ndarray
+#             :param y: The target labels for the dataset.
 
-        :rtype: Union[Callable, List[Callable]]
-            :return: The best-performing model(s) after optimization.
-        """
-        self.best_model = None
-        self.best_metric = (
-            float("inf") if self.optim_strategy['direction'] == 'minimize'
-            else float('-inf')
-        )
-        self.metric = self.optim_strategy['metric']
-        hspace = self._prepare_hpspace()
-        if (self.hpspace['models']['type'] == 'fixed' or
-           self.hpspace['models']['type'] == 'ensemble'):
-            o_hspace = copy.deepcopy(hspace)
-            n_hspace = {}
-            for e in o_hspace:
-                if e['name'] in n_hspace:
-                    n_hspace[e['name']].append(e)
-                else:
-                    n_hspace[e['name']] = [e]
+#         :rtype: Union[Callable, List[Callable]]
+#             :return: The best-performing model(s) after optimization.
+#         """
+#         self.best_model = None
+#         self.best_metric = (
+#             float("inf") if self.optim_strategy['direction'] == 'minimize'
+#             else float('-inf')
+#         )
+#         self.metric = self.optim_strategy['metric']
+#         hpspace = self._prepare_hpspace()
+#         if (self.hpspace['models']['type'] == 'fixed' or
+#            self.hpspace['models']['type'] == 'ensemble'):
+#             o_hpspace = copy.deepcopy(hpspace)
+#             n_hpspace = {}
+#             for e in o_hpspace:
+#                 if e['name'] in n_hpspace:
+#                     n_hpspace[e['name']].append(e)
+#                 else:
+#                     n_hpspace[e['name']] = [e]
 
-            hspace = list(it.product(*list(n_hspace.values())))
+#             hpspace = list(it.product(*list(n_hpspace.values())))
 
-        pbar = tqdm(hspace)
-        for idx, h in enumerate(pbar):
-            supensemble = {'models': [], 'reps': []}
-            results = []
-            for train_idx, valid_idx in train_folds:
-                ensemble = {'models': [], 'reps': []}
+#         pbar = tqdm(hpspace)
+#         for idx, h in enumerate(pbar):
+#             supensemble = {'models': [], 'reps': []}
+#             results = []
+#             for train_idx, valid_idx in train_folds:
+#                 ensemble = {'models': [], 'reps': []}
 
-                for h_m in h:
-                    h_m = copy.deepcopy(h_m)
-                    arch = self.models[h_m['name']]
-                    train_x, train_y = x[h_m['representation']][train_idx], y[train_idx]
-                    ensemble['reps'].append(h_m['representation'])
-                    del h_m['name'],  h_m['representation']
-                    arch = arch(**h_m)
-                    arch.fit(train_x, train_y)
-                    ensemble['models'].append(arch)
+#                 for h_m in h:
+#                     h_m = copy.deepcopy(h_m)
+#                     arch = self.models[h_m['name']]
+#                     train_x, train_y = x[h_m['representation']][train_idx], y[train_idx]
+#                     ensemble['reps'].append(h_m['representation'])
+#                     del h_m['name'],  h_m['representation']
+#                     arch = arch(**h_m)
+#                     arch.fit(train_x, train_y)
+#                     ensemble['models'].append(arch)
 
-                valid_y = y[valid_idx]
-                preds = np.zeros(valid_y.shape)
-                for arch, rep in zip(ensemble['models'], ensemble['reps']):
-                    valid_x = x[rep][valid_idx]
-                    preds += (arch.predict_proba(valid_x)[:, 1] /
-                              len(ensemble['models']))
+#                 valid_y = y[valid_idx]
+#                 preds = np.zeros(valid_y.shape)
+#                 for arch, rep in zip(ensemble['models'], ensemble['reps']):
+#                     valid_x = x[rep][valid_idx]
+#                     preds += (arch.predict_proba(valid_x)[:, 1] /
+#                               len(ensemble['models']))
 
-                result = evaluate(preds, valid_y, self.optim_strategy['task'])
-                results.append(result)
-                supensemble['models'].extend(ensemble['models'])
-                supensemble['reps'].extend(ensemble['reps'])
+#                 result = evaluate(preds, valid_y, self.optim_strategy['task'])
+#                 results.append(result)
+#                 supensemble['models'].extend(ensemble['models'])
+#                 supensemble['reps'].extend(ensemble['reps'])
 
-            result_df = pd.DataFrame(results)
-            perf = result_df[self.metric].mean()
-            if ((self.optim_strategy['direction'] == 'minimize' and
-                perf < self.best_metric) or
-                (self.optim_strategy['direction'] == 'maximize' and
-               perf > self.best_metric)):
-                self.best_metric = perf
-                self.best_config = hspace
-                self.best_model = supensemble
-                pbar.set_description(f'Best Value: {perf:.4g} at step {idx}')
+#             result_df = pd.DataFrame(results)
+#             perf = result_df[self.metric].mean()
+#             if ((self.optim_strategy['direction'] == 'minimize' and
+#                 perf < self.best_metric) or
+#                 (self.optim_strategy['direction'] == 'maximize' and
+#                perf > self.best_metric)):
+#                 self.best_metric = perf
+#                 self.best_config = hpspace
+#                 self.best_model = supensemble
+#                 pbar.set_description(f'Best Value: {perf:.4g} at step {idx}')
 
 
 class NoHpoTrainer(BaseTrainer):

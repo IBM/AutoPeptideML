@@ -1,0 +1,46 @@
+C:
+  type: float
+  min: 1e-3
+  max: 1e3
+  log: True
+
+epsilon:
+  type: float
+  min: 1e-5
+  max: 1e1
+  log: True
+  
+tol:
+  type: fixed
+  value: 1e-3
+
+max_iter:
+  type: fixed
+  value: 1000
+
+kernel:
+  type: categorical
+  values:
+    - linear
+    - poly
+    - rbf
+    - sigmoid
+
+  extra_parameters:
+    poly:
+      degree:
+        type: int
+        min: 2
+        max: 5
+        log: False
+      coef0:
+        type: float
+        min: 1e-8
+        max: 1
+        log: True
+    sigmoid:
+      coef0:
+        type: float
+        min: 1e-8
+        max: 1e1
+        log: True

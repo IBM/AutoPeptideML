@@ -1,0 +1,39 @@
+n_estimators:
+  type: int
+  min: 10
+  max: 1000
+  log: True
+
+max_depth:
+  type: int
+  min: 5
+  max: 50
+  log: False
+
+min_samples_split:
+  type: int
+  min: 2
+  max: 20
+  log: True
+
+min_samples_leaf:
+  type: int
+  min: 1
+  max: 20
+  log: True
+
+max_features:
+  type: categorical
+  values:
+    - sqrt
+    - log2
+
+bootstrap:
+  type: categorical
+  values:
+    - True
+    - False
+
+n_jobs:
+  type: fixed
+  value: 1
