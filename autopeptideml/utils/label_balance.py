@@ -3,7 +3,8 @@ import numpy as np
 from sklearn.preprocessing import KBinsDiscretizer
 
 
-def discretizer(labels: np.ndarray, n_bins: int = 5) -> np.ndarray:
+def discretizer(labels: np.ndarray, n_bins: int = 5,
+                return_discretizer: bool = False) -> np.ndarray:
     if labels is None:
         return None
     elif len(np.unique(labels)) > 0.5 * len(labels):
@@ -15,6 +16,9 @@ def discretizer(labels: np.ndarray, n_bins: int = 5) -> np.ndarray:
         except TypeError:
             disc = KBinsDiscretizer(n_bins=n_bins, encode='ordinal')
         labels = disc.fit_transform(labels)
-        return labels
+        if return_discretizer:
+            return labels, disc
+        else:
+            return labels
     else:
         return labels

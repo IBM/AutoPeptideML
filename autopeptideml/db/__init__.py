@@ -1,1 +1,1 @@
-from .db import Database
+from .db import add_negatives_from_db
