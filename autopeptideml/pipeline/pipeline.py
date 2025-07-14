@@ -1,5 +1,7 @@
 import json
 import yaml
+
+from copy import deepcopy
 from typing import *
 
 from concurrent.futures import ThreadPoolExecutor
@@ -54,6 +56,9 @@ class BaseElement:
 
     def __str__(self):
         return self.name
+
+    def to_dict(self):
+        return deepcopy(self.properties)
 
     def _single_call(self, mol: str) -> str:
         """
@@ -161,13 +166,15 @@ class Pipeline:
         """
         self.elements = elements
         self.name = name
-        self.properties = {name: {
-                'name': name,
-                'aggregate': aggregate,
-                'elements': [{e.name: e.properties} for e in elements]}
+        self.properties = {
+            'name': name,
+            'aggregate': aggregate,
+            'elements': [{e.name: e.to_dict()} for e in elements]
         }
-        self.properties['aggregate'] = aggregate
         self.aggregate = aggregate
+
+    def to_dict(self):
+        return deepcopy(self.properties)
 
     def __str__(self) -> str:
         """
@@ -182,7 +189,7 @@ class Pipeline:
             for s in subelements:
                 string += f"->  {str(s)}\n"
         if self.aggregate:
-            string += f'aggregate'
+            string += 'aggregate'
         return string
 
     def __call__(self, mols: List[str],
