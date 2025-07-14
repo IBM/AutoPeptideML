@@ -130,7 +130,8 @@ def add_negatives_from_db(
     if sample_by not in db:
         db[sample_by], n_bins = MATCHING[sample_by](db[field], n_jobs=n_jobs,
                                                     verbose=False)
-        db.to_csv(path, index=False)
+        if not isinstance(target_db, pd.DataFrame):
+            db.to_csv(path, index=False)
     else:
         if sample_by == 'mw':
             n_bins = 50
