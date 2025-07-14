@@ -87,7 +87,6 @@ class AutoPeptideML:
         self.metadata['status'] = f'preprocessing-{self.p_it}'
         if isinstance(pipeline, str):
             pipeline = get_pipeline(pipeline)
-        print(pipeline.to_dict())
 
         self.metadata[f'pipeline-{self.p_it}'] = pipeline.to_dict()
         self.save_metadata()
