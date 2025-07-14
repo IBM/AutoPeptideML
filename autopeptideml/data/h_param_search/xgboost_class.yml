@@ -93,10 +93,7 @@ grow_policy:
   values:
     - depthwise
     - lossguide
-  conditional:
-    booster:
-      - gbtree
-      - dart
+
 
 sampling_method:
   type: fixed

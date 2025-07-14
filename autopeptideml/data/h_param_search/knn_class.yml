@@ -36,7 +36,6 @@ metric:
     - minkowski
     - euclidean
     - manhattan
-    - chebyshev
 
 metric_params:
   type: fixed

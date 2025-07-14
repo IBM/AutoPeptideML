@@ -1,17 +1,17 @@
 import copy
-import itertools as it
 import json
 import operator
 import os.path as osp
 import yaml
 import warnings
 
+from typing import *
+
 import numpy as np
 import pandas as pd
 
-from tqdm import tqdm
 from sklearn.model_selection import StratifiedKFold
-from typing import *
+
 from .architectures import *
 from .metrics import evaluate
 from ..utils import format_numbers, discretizer
@@ -311,7 +311,10 @@ class OptunaTrainer(BaseTrainer):
         """
         full_hpspace = []
         if self.hpspace['models']['type'] == 'fixed':
-            m_key = trial.suggest_categorical('model', list(self.hpspace['models']['elements'].keys()))
+            if len(self.hpspace['models']['elements']) == 1:
+                m_key = list(self.hpspace['models']['elements'])[0]
+            else:
+                m_key = trial.suggest_categorical('model', list(self.hpspace['models']['elements'].keys()))
             model = self.hpspace['models']['elements'][m_key]
             hpspace = {}
             for key, variable in model.items():
@@ -422,8 +425,8 @@ class OptunaTrainer(BaseTrainer):
         x = self.x
         y = self.y
 
-        for train_idx, valid_idx in train_folds:
-            ensemble = {}
+        for fold_idx, (train_idx, valid_idx) in enumerate(train_folds):
+            ensemble = VotingEnsemble([], [])
 
             for h_m in hpspace:
                 arch = self.models[h_m['name']]
@@ -434,30 +437,38 @@ class OptunaTrainer(BaseTrainer):
                 arch = arch(**h_m['variables'])
                 train_x, train_y = x[h_m['representation']][train_idx], y[train_idx]
                 arch.fit(train_x, train_y)
-                ensemble[h_m['representation']] = arch
+                ensemble.reps.append(h_m['representation'])
+                ensemble.models.append(arch)
 
-            v_ensemble = VotingEnsemble(list(ensemble.values()), list(ensemble.keys()))
             valid_y = y[valid_idx]
             try:
-                preds, _ = v_ensemble.predict_proba({k: v[valid_idx] for k, v in x.items()})
+                preds, _ = ensemble.predict_proba({k: v[valid_idx]
+                                                   for k, v in x.items()})
                 preds = preds[:, 1]
             except AttributeError:
-                preds, _ = v_ensemble.predict({k: v[valid_idx] for k, v in x.items()})
+                preds, _ = ensemble.predict({k: v[valid_idx]
+                                             for k, v in x.items()})
+
             result = evaluate(preds, valid_y, self.task)
             result.update(h_m)
-            result.update({"run": results[-1]['run'] + 1 if len(results) > 0
-                           else 1})
+            result.update({"fold": fold_idx})
             results.append(result)
-            supensemble.models.extend(v_ensemble.models)
-            supensemble.models.extend(v_ensemble.reps)
+            supensemble.models.extend(ensemble.models)
+            supensemble.reps.extend(ensemble.reps)
 
         result_df = pd.DataFrame(results)
+        if len(self.history) == 0:
+            result_df['run'] = 1
+        else:
+            result_df['run'] = self.history['run'].max() + 1
+
+        self.history = pd.concat([self.history, result_df])
+
         perf = result_df[self.metric].mean()
         if ((self.direction == 'minimize' and
              perf < self.best_metric) or
            (self.direction == 'maximize' and
            perf > self.best_metric)):
-            self.history = pd.concat([self.history, result_df])
             self.best_metric = perf
             self.best_config = hpspace
             self.best_model = supensemble
@@ -475,7 +486,9 @@ class OptunaTrainer(BaseTrainer):
         random_state: int = 1,
         n_jobs: int = 1,
         verbose: int = 2,
-        custom_hpspace: dict = {}
+        custom_hpspace: dict = {},
+        db_file: str = None,
+        study_name: str = None
     ) -> Union[Callable, List[Callable]]:
         try:
             import optuna
@@ -507,7 +520,12 @@ class OptunaTrainer(BaseTrainer):
         self.x, self.y = x, y
 
         # Optuna definition
-        self.study = optuna.create_study(direction=self.direction)
+        db_file = f'sqlite:///{db_file}'
+        self.study = optuna.create_study(
+            direction=self.direction,
+            storage=db_file,
+            study_name=study_name if study_name is not None else None
+        )
         callback = EarlyStoppingCallback(
             early_stopping_rounds=self.patience,
             direction=self.direction
@@ -516,6 +534,23 @@ class OptunaTrainer(BaseTrainer):
                             callbacks=[callback],
                             gc_after_trial=True, show_progress_bar=verbose == 2)
 
+    @classmethod
+    def load_from_db(
+        self, path: str, task: str,
+        study_name: str
+    ) -> "OptunaTrainer":
+        try:
+            import optuna
+        except ImportError:
+            raise ImportError("This function requires optuna",
+                              "Please try: `pip install optuna`")
+
+        db_file = f'sqlite:///{path}'
+        trainer = OptunaTrainer(task=task)
+        trainer.study = optuna.load_study(
+            storage=db_file, study_name=study_name
+        )
+        return trainer
 
 # class GridTrainer(BaseTrainer):
 #     """

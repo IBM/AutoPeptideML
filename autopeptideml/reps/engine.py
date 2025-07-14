@@ -92,6 +92,9 @@ class RepEngineBase:
                 return out
         return np.stack(out)
 
+    def get_num_params(self) -> int:
+        return 0
+
     def dim(self) -> int:
         """
         Returns the dimensionality of the molecular representations.

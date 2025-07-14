@@ -1,8 +1,10 @@
 import json
 import yaml
+
+from copy import deepcopy
 from typing import *
 
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import cpu_count
 from tqdm import tqdm
 
@@ -55,6 +57,9 @@ class BaseElement:
     def __str__(self):
         return self.name
 
+    def to_dict(self):
+        return deepcopy(self.properties)
+
     def _single_call(self, mol: str) -> str:
         """
         Processes a single molecular representation. 
@@ -103,7 +108,7 @@ class BaseElement:
         """
         if n_jobs > 1:
             jobs, out = [], []
-            with ThreadPoolExecutor(n_jobs) as exec:
+            with ProcessPoolExecutor(n_jobs) as exec:
                 for item in mol:
                     job = exec.submit(self._single_call, item)
                     jobs.append(job)
@@ -161,13 +166,15 @@ class Pipeline:
         """
         self.elements = elements
         self.name = name
-        self.properties = {name: {
-                'name': name,
-                'aggregate': aggregate,
-                'elements': [{e.name: e.properties} for e in elements]}
+        self.properties = {
+            'name': name,
+            'aggregate': aggregate,
+            'elements': [{e.name: e.to_dict()} for e in elements]
         }
-        self.properties['aggregate'] = aggregate
         self.aggregate = aggregate
+
+    def to_dict(self):
+        return deepcopy(self.properties)
 
     def __str__(self) -> str:
         """
@@ -182,7 +189,7 @@ class Pipeline:
             for s in subelements:
                 string += f"->  {str(s)}\n"
         if self.aggregate:
-            string += f'aggregate'
+            string += 'aggregate'
         return string
 
     def __call__(self, mols: List[str],
