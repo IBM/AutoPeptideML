@@ -18,6 +18,7 @@ def _tosmiles(substitution: str = 'G') -> Pipeline:
                     name='to-smiles')
     return pipe
 
+
 def _tosmiles_fast(substitution: str = 'G') -> Pipeline:
     from .smiles import SequenceToSmiles, CanonicalizeSmiles, FilterSmiles
     from .sequence import CanonicalCleaner

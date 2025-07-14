@@ -4,7 +4,7 @@ import yaml
 from copy import deepcopy
 from typing import *
 
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import cpu_count
 from tqdm import tqdm
 
@@ -108,7 +108,7 @@ class BaseElement:
         """
         if n_jobs > 1:
             jobs, out = [], []
-            with ThreadPoolExecutor(n_jobs) as exec:
+            with ProcessPoolExecutor(n_jobs) as exec:
                 for item in mol:
                     job = exec.submit(self._single_call, item)
                     jobs.append(job)
