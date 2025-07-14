@@ -60,6 +60,8 @@ def evaluate(preds, truth, pred_task) -> Dict[str, float]:
             result[key] = value(truth, t_pred)
         except ValueError:
             result[key] = 0.0
+        if np.isnan(result[key]):
+            result[key] = 0.0
     return result
 
 
