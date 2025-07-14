@@ -1,23 +1,25 @@
 import os.path as osp
 
 import numpy as np
+import pandas as pd
 
-from autopeptideml.db import Database
-from autopeptideml.pipeline import Pipeline, CanonicalFilter
+from autopeptideml.db import add_negatives_from_db
+from autopeptideml.pipeline import get_pipeline
 
 
 def test_database():
     dir_path = osp.abspath(osp.dirname(__file__))
     path = osp.join(dir_path, 'sample', 'example.csv')
-    db = Database(path, feat_fields=['sequence'],
-                  pipe=Pipeline([CanonicalFilter()]))
-    assert len(db) == 500
+    df = pd.read_csv(path)
     path2 = osp.join(dir_path, 'sample', 'example2.csv')
-    db2 = Database(path2, feat_fields=['sequence'],
-                   pipe=Pipeline([CanonicalFilter()]),
-                   label_field='Y')
-    db2.df['Y'] = 1
-    db2.add_negatives(db, columns_to_exclude=['Allergen', 'Toxic'])
-    labels, counts = np.unique(db2.df.Y, return_counts=True)
+    df2 = pd.read_csv(path2)
+    assert len(df) == 500
+    pipe = get_pipeline('to-smiles')
+    df['smiles'] = pipe(df['sequence'])
+    df2['smiles'] = pipe(df2['sequence'])
+    df2['Y'] = 1
+    df2 = add_negatives_from_db(df2, target_db=df, sequence_field='smiles',
+                                activities_to_exclude=['Allergen', 'Toxic'])
+    labels, counts = np.unique(df.Y, return_counts=True)
     assert labels.tolist() == [0, 1]
     assert counts.tolist() == [272, 300]

@@ -19,7 +19,7 @@ requirements = [
     'transformers',
     'lightgbm',
     'xgboost',
-    'pqdm',
+    # 'pqdm',
     'catboost',
     # 'mdpdf',
     'hestia-good',
