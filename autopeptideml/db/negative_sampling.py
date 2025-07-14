@@ -80,7 +80,7 @@ def add_negatives_from_db(
     if isinstance(target_db, pd.DataFrame):
         db = target_db
 
-    if target_db == 'canonical':
+    elif target_db == 'canonical':
         path = osp.join(db_dir, 'canonical.csv')
         if not osp.exists(path):
             try:
