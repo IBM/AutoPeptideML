@@ -1,581 +1,498 @@
-import copy
 import os
 import os.path as osp
-import json
+import time
 import yaml
-from typing import *
+import pickle
 
-import pandas as pd
+from datetime import datetime
+from multiprocessing import cpu_count
+from typing import Dict, List, Union
+
 import numpy as np
-from hestia import HestiaGenerator, SimArguments
-from hestia.utils import _discretizer
-import typer
+import pandas as pd
 
-from .pipeline import Pipeline, CanonicalCleaner, CanonicalFilter
-from .reps import RepEngineBase
-from .train import BaseTrainer, OptunaTrainer, NoHpoTrainer
+from hestia import HestiaGenerator, SimArguments
+from hestia import __version__ as hestia_version
+
+from .db import add_negatives_from_db
+from .pipeline import get_pipeline, Pipeline
+from .train import OptunaTrainer
+from .train.architectures import ALL_MODELS
 from .train.metrics import evaluate
-from .db import Database
+from .reps import RepEngineBase, PLMs, CLMs, FPs
 
 
 __version__ = '2.0.2'
 
 
-app = typer.Typer()
-
-
 class AutoPeptideML:
-    config: dict
-    pipeline: Pipeline = None
-    rep: Dict[str, RepEngineBase]
-    train: BaseTrainer = None
-    db: Database = None
-    parts: dict = None
-    x: Optional[Dict[str, np.ndarray]] = None
-    y: np.ndarray
+    df: pd.DataFrame
+    metadata: dict = {}
 
-    def __init__(self, config: dict):
-        if 'pipeline' in config:
-            self.pipe_config = config['pipeline']
-        if 'representation' in config:
-            self.rep_config = config['representation']
-        if 'train' in config:
-            self.train_config = config['train']
-        if 'databases' in config:
-            self.db_config = config['databases']
-        if 'test' in config:
-            self.test_config = config['test']
-
-        self.config = config
-        self.outputdir = config['outputdir']
-        self.x = None
-        if osp.isdir(self.outputdir):
-            print(f"Warning - Output dir: {self.outputdir} exists. Results may be overwritten")
-        else:
-            os.makedirs(self.outputdir)
-
-    def get_pipeline(self, pipe_config: Optional[dict] = None) -> Pipeline:
-        if pipe_config is not None:
-            self.pipe_config = pipe_config
-
-        if isinstance(self.pipe_config, str):
-            pipe_config_path = osp.join(self.pipe_config, 'config.yml')
-            self.pipe_config = yaml.safe_load(open(pipe_config_path))['pipeline']
-        else:
-            self.pipeline = self._load_pipeline(self.pipe_config)
-        return self.pipeline
-
-    def get_database(self, db_config: Optional[dict] = None) -> Database:
-        if db_config is not None:
-            self.db_config = db_config
-
-        if 'precalculated' in self.db_config:
-            self.get_precalculated_db(self.db_config)
-        else:
-            if self.pipeline is None:
-                self.get_pipeline()
-            self.db = self._load_database(self.db_config)
-
-        return self.db
-
-    def get_reps(self, rep_config: Optional[dict] = None) -> Dict[str, np.ndarray]:
-        if rep_config is not None:
-            self.rep_config = rep_config
-
-        if isinstance(self.rep_config, str):
-            self.outputdir = self.rep_config
-            self.get_precalculated_reps(self.rep_config)
-            self.outputdir = self.config['outputdir']
-        else:
-            self.reps = self._load_representation(self.rep_config)
-
-        if self.x is not None:
-            return self.reps, self.x
-        if self.reps is None:
-            self._load_representation(self.rep_config)
-
-        x = {}
-        rep_dir = osp.join(self.outputdir, 'reps')
-        os.makedirs(rep_dir, exist_ok=True)
-        self.x = self._get_reps(rep_dir, self.db)
-        return self.reps, self.x
-
-    def get_test(self, test_config: Optional[Dict] = None) -> HestiaGenerator:
-        if test_config is not None:
-            self.test_config = test_config
-
-        if self.db is None:
-            self.get_database()
-
-        if isinstance(self.test_config, str):
-            config_path = osp.join(self.test_config, 'config.yml')
-            self.test_config = yaml.safe_load(open(config_path))['test']
-            self.parts = self._load_test(self.test_config)
-        else:
-            self.parts = self._load_test(self.test_config)
-        return self.parts
-
-    def get_train(self, train_config: Optional[Dict] = None) -> BaseTrainer:
-        if train_config is not None:
-            self.train_config = train_config
-
-        if self.x is None:
-            self.get_reps()
-        if self.parts is None:
-            self.get_test()
-
-        if isinstance(self.train_config, str):
-            train_config_path = osp.join(self.train_config, 'config.yml')
-            self.train_config = yaml.safe_load(open(train_config_path))['train']
-            self.train = self._load_trainer(self.train_config)
-        else:
-            self.train = self._load_trainer(self.train_config)
-        return self.train
-
-    def _load_pipeline(self, pipe_config: dict) -> Pipeline:
-        elements = []
-
-        for config in pipe_config['elements']:
-            name = list(config.keys())[0]
-            if 'pipe' in name:
-                item = self._load_pipeline(config[name])
-            else:
-                if 'filter-smiles' in config:
-                    from .pipeline.smiles import FilterSmiles
-                    config = config['filter-smiles']
-                    config = {} if config is None else config
-                    item = FilterSmiles(**config)
-                
-                elif 'smiles-to-sequence' in config:
-                    from .pipeline.smiles import SmilesToSequence
-                    config = config['smiles-to-sequence']
-                    config = {} if config is None else config
-                    item = SmilesToSequence(**config)
-
-                elif 'sequence-to-smiles' in config:
-                    from .pipeline.smiles import SequenceToSmiles
-                    config = config['sequence-to-smiles']
-                    config = {} if config is None else config
-                    item = SequenceToSmiles(**config)
-
-                elif 'canonical-cleaner' in config:
-                    config = config['canonical-cleaner']
-                    config = {} if config is None else config
-                    item = CanonicalCleaner(**config)
-
-                elif 'canonical-filter' in config:
-                    config = config['canonical-filter']
-                    config = {} if config is None else config
-                    item = CanonicalFilter(**config)
-                else:
-                    item = None
-
-            if item is not None:
-                elements.append(item)
-            else:
-                print(f"Warning - Element : {config} is not implemented.")
-        return Pipeline(name=pipe_config['name'], elements=elements,
-                        aggregate=pipe_config['aggregate'])
-
-    def _load_representation(self, rep_config: str) -> Dict[str, RepEngineBase]:
-        out = {}
-        for r in rep_config['elements']:
-            name = list(r.keys())[0]
-            r_config = r[name]
-            if 'lm' in r_config['engine'].lower():
-                from .reps.lms import RepEngineLM
-                re = RepEngineLM(r_config['model'], r_config['average_pooling'])
-                re.batch_size = r_config['batch_size']
-                re.device = r_config['device']
-
-            elif 'fp' in r_config['engine'].lower():
-                from .reps.fps import RepEngineFP
-                re = RepEngineFP(r_config['fp'], nbits=r_config['nbits'],
-                                 radius=r_config['radius'])
-
-            elif 'onehot' in r_config['engine'].lower():
-                from .reps import RepEngineOnehot
-                re = RepEngineOnehot(rep_config['max_length'])
-
-            out[name] = re
-        return out
-
-    def _load_trainer(self, train_config: dict) -> BaseTrainer:
-        hspace = train_config['hspace']
-        optim_strategy = train_config['optim_strategy']
-        if optim_strategy['trainer'] == 'optuna':
-            trainer = OptunaTrainer(hspace, optim_strategy)
-        elif optim_strategy['trainer'] == 'grid':
-            trainer = GridTrainer(hpspace=hspace, optim_strategy=optim_strategy)
-        return trainer
-
-    def _load_database(self, db_config: dict) -> Database:
-        db = Database(
-            db_config['dataset']['path'], pipe=self.pipeline,
-            feat_fields=db_config['dataset']['feat_fields'],
-            label_field=db_config['dataset']['label_field'],
-            verbose=db_config['dataset']['verbose']
-        )
-        if 'neg_database' in db_config:
-            db2 = Database(
-                db_config['neg_database']['path'], pipe=self.pipeline,
-                feat_fields=db_config['neg_database']['feat_fields'],
-                verbose=db_config['neg_database']['verbose'],
-                seed=1 if 'seed' not in db_config else db_config['seed']
-            )
-            print("Adding negatives")
-            db.add_negatives(
-                db2,
-                columns_to_exclude=db_config['neg_database']['columns_to_exclude']
-            )
-        return db
-
-    def _load_test(self, test_config: dict) -> HestiaGenerator:
-        parts_path = osp.join(self.outputdir, 'parts.pckl')
-        if osp.exists(parts_path):
-            hdg = HestiaGenerator(self.db.df, verbose=test_config['verbose'])
-            hdg.from_precalculated(parts_path)
-        else:
-            test_config['sim_arguments']['field_name'] = self.db.feat_fields[0]
-            sim_args = SimArguments(**test_config['sim_arguments'])
-            hdg = HestiaGenerator(self.db.df, verbose=test_config['verbose'])
-            hdg.calculate_partitions(sim_args, label_name=self.db.label_field,
-                                     threshold_step=test_config['threshold_step'],
-                                     min_threshold=test_config['min_threshold'],
-                                     partition_algorithm=test_config['algorithm'],
-                                     valid_size=0)
-        self.hdg = hdg
-        self.parts = hdg.get_partitions(filter=test_config['filter'])
-        if self.test_config['partitions'] == 'all':
-            parts = {th: v for th, v in self.parts}
-        elif self.test_config['partitions'] == 'min':
-            min_th = min([th for th, v in self.parts if th != 'random'])
-            parts = {th: v for th, v in self.parts if th == min_th}
-        elif self.test_config['partitions'] == 'max':
-            max_th = max([th for th, v in self.parts if th != 'random'])
-            parts = {th: v for th, v in self.parts if th == max_th}
-        elif isinstance(self.test_config['partitions'], float):
-            parts = {th: v for th, v in self.parts if th == self.test_config['partitions']}
-        elif self.test_config['partitions'] == 'random':
-            parts = {th: v for th, v in self.parts if th == 'random'}
-        else:
-            raise ValueError(f"Test partitions: {self.test_config['partitions']} are not supported.")
-
-        self.parts = parts
-        return parts
-
-    def _get_folds(self, val_config: dict, part, y) -> Dict[str, np.ndarray]:
-        if val_config['type'] == 'kfold':
-            from sklearn.model_selection import StratifiedKFold
-            kf = StratifiedKFold(n_splits=val_config['k'], shuffle=True,
-                                 random_state=val_config['random_state'])
-            folds = [fold for fold in kf.split(part['train'], _discretizer(y[part['train']]))]
-
-        elif val_config['type'] == 'single':
-            from sklearn.model_selection import train_test_split
-            folds = train_test_split(part['train'], test_size=val_config['size'],
-                                     random_state=val_config['random_state'],
-                                     shuffle=True)
-        else:
-            raise NotImplementedError(f"Validation split: {val_config['type']} is not supported.")
-        return folds
-
-    def _get_reps(self, rep_dir: str, db: Database) -> Dict[str, np.ndarray]:
-        x = {}
-        for name, rep in self.reps.items():
-            if rep_dir is not None:
-                path = osp.join(rep_dir, f'{rep.name}.pckl')
-                if osp.exists(path):
-                    x[name] = np.load(path, allow_pickle=True)
-
-            if self.rep_config['verbose']:
-                print(f'Computing representations with: {name}')
-            if 'lm' in rep.name:
-                rep.move_to_device(rep.device)
-                x[name] = rep.compute_reps(
-                    db.df[db.feat_fields[0]], verbose=True,
-                    batch_size=rep.batch_size
-                )
-            else:
-                x[name] = rep.compute_reps(db.df[db.feat_fields[0]],
-                                           verbose=True)
-            if rep_dir is not None:
-                x[name].dump(path)
-        return x
-
-    def run_hpo(self):
-        if self.train is None:
-            self.get_train()
-        self.get_reps()
-        x = self.x
-        y = self.db.df[self.db.label_field].to_numpy()
-        models = {}
-
-        print("Performing HPO")
-        if self.train_config['optim_strategy']['partition'] == 'all':
-            for th, part in self.parts.items():
-                folds = self._get_folds(self.config['val'], part, y)
-                self.train.hpo(folds, x, y)
-                models[th] = self.train.best_model
-        else:
-            part = self.parts[self.train_config['optim_strategy']['partition']]
-            folds = self._get_folds(self.config['val'], part, y)
-            self.train.hpo(folds, x, y)
-            trainer2 = NoHpoTrainer(self.train.best_config,
-                                    self.train.optim_strategy)
-            for th, part in self.parts.items():
-                print(f"Training Partition: {th}")
-                folds = self._get_folds(self.config['val'], part, y)
-                model = trainer2.train(folds, x, y)
-                models[th] = model
-        self.models = models
-        return models
-
-    def run_evaluation(self, models) -> pd.DataFrame:
-        print("Run evaluation")
-        self.get_reps()
-        x = self.x
-        y = self.db.df[self.db.label_field].to_numpy()
-
-        results = []
-
-        for th, part in self.parts.items():
-            test_y = y[part['test']]
-            preds = np.zeros(test_y.shape)
-            ensemble = models[th]
-            for arch, rep in zip(ensemble['models'], ensemble['reps']):
-                test_x = x[rep][part['test']]
-                try:
-                    preds += (arch.predict_proba(test_x)[:, 1] /
-                              len(ensemble['models']))
-                except AttributeError:
-                    preds += (arch.predict(test_x)[:] /
-                              len(ensemble['models']))
-            result = evaluate(preds, test_y, self.train.optim_strategy['task'])
-            result['threshold'] = th
-            results.append(result)
-
-        df = pd.DataFrame(results)
-        path = osp.join(self.outputdir, 'results.csv')
-        df.to_csv(path, index=False)
-        return df
-
-    def save_experiment(self, model_backend: str = 'onnx', save_reps: bool = False,
-                        save_test: bool = True, save_all_models: bool = True):
-        config_path = osp.join(self.outputdir, 'config.yml')
-        parts_path = osp.join(self.outputdir, 'parts.pckl')
-        model_info = osp.join(self.outputdir, 'model_info')
-        ensemble_path = osp.join(model_info, 'ensemble')
-        reps_dir = osp.join(self.outputdir, 'reps')
-
-        ensemble_config_path = osp.join(model_info, 'ensemble_config.json')
-
-        os.makedirs(ensemble_path, exist_ok=True)
-        os.makedirs(reps_dir, exist_ok=True)
-
-        self.save_models(ensemble_path, model_backend,
-                         save_all=save_all_models)
-        self.save_database()
-        to_save = copy.deepcopy(self.models)
-
-        for th, model in to_save.items():
-            del model['models']
-
-        if save_test:
-            self.hdg.save_precalculated(parts_path)
-        if save_reps:
-            self.save_reps(reps_dir)
-
-        self.config['databases'] = self.db_config
-        self.config['representation'] = self.rep_config
-        self.config['test'] = self.test_config
-        self.config['train'] = self.train_config
-        yaml.safe_dump(self.config, open(config_path, 'w'))
-        json.dump(to_save, open(ensemble_config_path, 'w'))
-
-    def save_database(self):
-        db_path = osp.join(self.outputdir, 'db.csv')
-        self.db.df.to_csv(db_path, index=False)
-
-    def save_models(
+    def __init__(
         self,
-        ensemble_path: str,
-        backend: str = 'onnx',
-        save_all: bool = True
+        data: Union[pd.DataFrame, List[str]],
+        outputdir: str,
+        sequence_field: str = None,
+        label_field: str = None
     ):
-        if backend == 'joblib':
-            try:
-                import joblib
-            except ImportError:
-                raise ImportError(
-                    'This backend requires joblib.',
-                    'Please try: `pip install joblib`'
-                )
-        elif backend == 'onnx':
-            try:
-                import onnxmltools as onxt
-                from skl2onnx.common.data_types import FloatTensorType
-                from onnxmltools.convert.common import data_types
-                from skl2onnx import to_onnx
-                import logging
-            except ImportError:
-                raise ImportError(
-                    'This backend requires onnx.',
-                    'Please try: `pip install onnxmltools skl2onnx`'
-                )
-        else:
-            raise NotImplementedError(f"Backend: {backend} not implemented.",
-                                      "Please try: `onnx` or `joblib`.")
-        if not save_all:
-            self.models = {k: v for k, v in self.models.items() if k == 'random'}
+        outputdir = osp.join(outputdir, self._get_current_timestamp())
+        self.outputdir = outputdir.replace(' ', '_')
+        self.meta_dir = osp.join(self.outputdir, 'metadata')
+        os.makedirs(self.outputdir, exist_ok=False)
+        os.makedirs(self.meta_dir, exist_ok=True)
 
-        for th, model in self.models.items():
-            model['save_path'] = []
-            model['task'] = []
-            logger = logging.getLogger("skl2onnx")
-            logger.setLevel(logging.DEBUG)
-            if backend == 'onnx':
-                for idx, clf in enumerate(model['models']):
-                    m_x = self.x[model['reps'][idx]]
-                    variable_type = FloatTensorType([None, m_x.shape[1]])
-                    if 'LGBM' in str(clf):
-                        clf_onx = onxt.convert_lightgbm(
-                            clf,
-                            initial_types=[('float_input', variable_type)]
-                        )
-                    elif 'XGB' in str(clf):
-                        variable_type = data_types.FloatTensorType
-                        clf_onx = onxt.convert_xgboost(
-                            clf,
-                            initial_types=[('float_input', variable_type)]
+        if isinstance(data, list):
+            if sequence_field is None:
+                sequence_field = 'peptide'
+                self.sequence_field = sequence_field
+            if label_field is None:
+                label_field = 'label'
+                self.label_field = label_field
+
+            self.df = pd.DataFrame({sequence_field: data,
+                                    label_field: [1 for _ in data]})
+        else:
+            self.df = data.copy()
+
+        self.df.to_csv(osp.join(self.meta_dir, 'start-data.tsv'),
+                       index=False,
+                       sep='\t')
+        self.df.drop_duplicates(subset=sequence_field, inplace=True)
+        self.metadata['start-time'] = self._get_current_timestamp()
+        self.metadata['outputdir'] = self.outputdir
+        self.metadata['autopeptideml-version'] = __version__
+        self.metadata['size'] = len(self.df)
+        self.metadata['sequence-field'] = sequence_field
+        self.metadata['label-field'] = label_field
+        self.metadata['removed-entries'] = len(data) - len(self.df)
+        self.metadata['status'] = 'started'
+        self.p_it = 1
+        self.save_metadata()
+
+    def _get_current_timestamp(self) -> str:
+        return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    def save_metadata(self):
+        self.metadata['last-update'] = self._get_current_timestamp()
+        path = osp.join(self.metadata['outputdir'], 'metadata.yml')
+        yaml.safe_dump(self.metadata, open(path, 'w'))
+
+    def preprocess_data(
+        self,
+        pipeline: Union[str, Pipeline],
+        n_jobs: int = cpu_count(),
+        verbose: bool = True,
+    ):
+        self.metadata['status'] = f'preprocessing-{self.p_it}'
+        if isinstance(pipeline, str):
+            pipeline = get_pipeline(pipeline)
+        print(pipeline.to_dict())
+
+        self.metadata[f'pipeline-{self.p_it}'] = pipeline.to_dict()
+        self.save_metadata()
+        start = time.time()
+        if self.p_it == 1:
+            self.df[self.sequence_field] = pipeline(
+                self.df[self.sequence_field], n_jobs=n_jobs, verbose=verbose
+            )
+        else:
+            self.df[f'{self.sequence_field}-{self.p_it}'] = pipeline(
+                self.df[self.sequence_field], n_jobs=n_jobs, verbose=verbose
+            )
+        end = time.time()
+        self.df.to_csv(osp.join(self.outputdir, 'data.tsv'), index=False,
+                       sep='\t')
+        self.metadata['status'] = 'preprocessed'
+        self.metadata[f'preprocessing-metadata-{self.p_it}'] = {
+            'n-jobs': n_jobs,
+            'execution-time': end - start
+        }
+        self.save_metadata()
+
+    def sample_negatives(
+        self,
+        target_db: Union[str, pd.DataFrame],
+        activities_to_exclude: List[str] = [],
+        desired_ratio: float = 1.0,
+        verbose: bool = True,
+        sample_by: str = 'mw',
+        n_jobs: int = cpu_count(),
+        random_state: int = 1
+    ):
+        if isinstance(target_db, pd.DataFrame):
+            path = osp.join(self.outputdir, 'neg-db.tsv')
+            target_db.to_csv(path, sep='\t', index=False)
+        else:
+            path = target_db
+
+        self.metadata['status'] = 'sampling-negatives'
+        self.metadata['negative-sampling-metadata'] = {
+            'n-jobs': n_jobs,
+            'random-state': random_state,
+            'desired-ratio': desired_ratio,
+            'activities-to-exclude': activities_to_exclude,
+            'sample-by': sample_by,
+            'target-db': path
+        }
+        self.save_metadata()
+        start = time.time()
+        self.df = add_negatives_from_db(
+            df=self.df,
+            label_field=self.label_field,
+            sequence_field=self.sequence_field,
+            target_db=target_db,
+            activities_to_exclude=activities_to_exclude,
+            desired_ratio=desired_ratio,
+            verbose=verbose,
+            sample_by=sample_by,
+            n_jobs=n_jobs,
+            random_state=random_state
+        )
+        end = time.time()
+        neg = (self.df[self.label_field] == 0).sum()
+        pos = (self.df[self.label_field] == 1).sum()
+        self.metadata['negative-sampling-metadata'].update({
+            'real-ratio': float(neg / pos),
+            'execution-time': end - start,
+        })
+        self.metadata['status'] = 'negatives-sampled'
+        path = osp.join(self.outputdir, 'data.tsv')
+        self.df.to_csv(path, sep='\t', index=False)
+        self.p_it += 1
+        self.save_metadata()
+
+    def build_models(
+        self,
+        task: str = 'class',
+        ensemble: bool = False,
+        reps: Union[str, List[str], Dict[str, RepEngineBase]] = ['ecfp-16'],
+        models: Union[str, List[str]] = ALL_MODELS,
+        split_strategy: str = 'min',
+        hestia_generator: HestiaGenerator = None,
+        model_configs: Dict[str, dict] = {},
+        partitions: Dict[str, np.ndarray] = None,
+        n_folds_cv: int = 5,
+        verbose: bool = True,
+        device: str = 'cpu',
+        random_state: int = 1,
+        n_jobs: int = cpu_count()
+    ):
+        if task not in ['class', 'reg']:
+            raise ValueError(f"Task: {task} is not valid.",
+                             "Choose one: `class, reg`")
+
+        if split_strategy == 'good':
+            raise NotImplementedError(
+                "Split strategy: `good` is currently not implemented.",
+                "Please try: `min`",
+                "`good` strategy will be implemented in future releases."
+            )
+        self._partitioning(
+            split_strategy=split_strategy,
+            hestia_generator=hestia_generator,
+            verbose=verbose,
+            n_jobs=n_jobs,
+            random_state=random_state,
+            partitions=partitions
+        )
+        self._representing(
+            reps=reps,
+            device=device,
+            n_jobs=n_jobs,
+            verbose=verbose
+        )
+        self._hpo(
+            task=task,
+            ensemble=ensemble,
+            models=models,
+            n_folds=n_folds_cv,
+            random_state=random_state,
+            n_jobs=n_jobs,
+            model_configs=model_configs
+        )
+        self._evaluating(
+            task=task
+        )
+
+    def _hpo(
+        self,
+        task: str,
+        ensemble: str,
+        models: Union[str, List[str]],
+        model_configs: Dict[str, dict],
+        n_folds: int,
+        n_jobs: int,
+        random_state: int
+    ):
+        if task == 'class':
+            metric = 'mcc'
+        else:
+            metric = 'spcc'
+
+        self.metadata['status'] = 'hpo'
+        self.metadata['trainer-metadata'] = {
+            'models': models,
+            'n-folds': n_folds,
+            'custom-hpspace': model_configs,
+            'random-state': random_state,
+            'n-jobs': n_jobs
+        }
+        self.save_metadata()
+        self.trainer = OptunaTrainer(
+            task=task,
+            direction='maximize',
+            metric=metric,
+            ensemble=ensemble
+        )
+        start = time.time()
+        train_x = {rep: val[self.parts['train']]
+                   for rep, val in self.x.items()}
+        train_y = self.df[self.label_field].to_numpy()[self.parts['train']]
+        self.trainer.hpo(
+            x=train_x,
+            y=train_y,
+            models=models,
+            n_folds=n_folds,
+            custom_hpspace=model_configs,
+            random_state=random_state,
+            n_jobs=n_jobs,
+            db_file=osp.join(self.meta_dir, 'database.sql'),
+            study_name='apml-1'
+        )
+        end = time.time()
+        self.metadata['status'] = 'trained'
+        self.metadata['trainer-metadata'].update({
+            'execution-time': end - start,
+            'best_model': str(self.trainer.best_config)
+        })
+        input_trial = {rep: self.x[rep][:1]
+                       for rep in self.trainer.best_model.reps}
+        self.trainer.history.to_csv(osp.join(self.outputdir, 'hpo_history.tsv'),
+                                    index=False, sep='\t')
+        self.trainer.best_model.predict(input_trial)
+        self.trainer.best_model.save(osp.join(self.outputdir, 'ensemble'))
+        self.ensemble = self.trainer.best_model
+        self.save_metadata()
+
+    def _representing(
+        self,
+        reps: Union[str, List[str], Dict[str, RepEngineBase]],
+        device: str,
+        n_jobs: int,
+        verbose: bool
+    ):
+        self.x, execution = {}, {}
+        prot, mol = False, False
+
+        for rep in reps:
+            if rep in PLMs and not prot:
+                prot = True
+            elif (rep in CLMs or rep in FPs) and not mol:
+                mol = True
+
+        if 'to-sequences' in self.metadata['pipeline-1']['name'] and mol:
+            self.preprocess_data('to-smiles', n_jobs=n_jobs,
+                                 verbose=verbose)
+        if 'to-smiles' in self.metadata['pipeline-1']['name'] and prot:
+            self.preprocess_data('to-sequences', n_jobs=n_jobs,
+                                 verbose=verbose)
+
+        self.metadata['status'] = 'representing'
+        self.save_metadata()
+
+        if isinstance(reps, dict):
+            for name, repengine in reps.items():
+                execution[name] = {'start': time.time()}
+                self.x[name] = repengine.compute_reps(
+                    self.df[self.sequence_field], verbose=verbose, batch_size=16
+                )
+                execution[name]['end'] = time.time()
+            reps = list(reps.keys())
+        else:
+            for rep in reps:
+                execution[rep] = {'start': time.time()}
+                if verbose:
+                    print(f"Computing {rep} representations...")
+
+                if rep in PLMs or rep in CLMs:
+                    from autopeptideml.reps.lms import RepEngineLM
+
+                    repengine = RepEngineLM(rep, average_pooling=True,
+                                            fp16=True)
+                    repengine.move_to_device(device)
+
+                elif rep.split('-')[0] in FPs:
+                    old_rep = rep
+                    from autopeptideml.reps.fps import RepEngineFP
+                    if len(rep.split('-')) == 1:
+                        rep = f'{rep}-16-2048'
+                    elif len(rep.split('-')) == 2:
+                        rep = f'{rep.split('-')[0]}-{rep.split('-')[1]}-2048'
+
+                    repengine = RepEngineFP(
+                        rep=rep.split('-')[0],
+                        radius=int(rep.split('-')[1]),
+                        nbits=int(rep.split('-')[2])
+                    )
+                    rep = old_rep
+                elif rep == 'one-hot':
+                    from autopeptideml.reps.seq_based import RepEngineOnehot
+                    repengine = RepEngineOnehot(max_length=50)
+
+                batch_size = 128 if repengine.get_num_params() < 2e7 else 16
+                if rep in PLMs or rep == 'one-hot':
+                    if 'to-sequences' in self.metadata['pipeline-1']['name']:
+                        self.x[rep] = repengine.compute_reps(
+                            self.df[f'{self.sequence_field}'], verbose=verbose,
+                            batch_size=batch_size
                         )
                     else:
-                        clf_onx = to_onnx(clf, [('X', variable_type)])
+                        self.x[rep] = repengine.compute_reps(
+                            self.df[f'{self.sequence_field}-2'], verbose=verbose,
+                            batch_size=batch_size
+                        )
+                elif rep in CLMs or rep.split('-')[0] in FPs:
+                    if 'to-smiles' in self.metadata['pipeline-1']['name']:
+                        self.x[rep] = repengine.compute_reps(
+                            self.df[f'{self.sequence_field}'], verbose=verbose,
+                            batch_size=batch_size
+                        )
+                    else:
+                        self.x[rep] = repengine.compute_reps(
+                            self.df[f'{self.sequence_field}-2'], verbose=verbose,
+                            batch_size=batch_size
+                        )
+                execution[rep]['end'] = time.time()
 
-                    name = f'{th}_{idx}.onnx'
-                    model['save_path'].append(name)
-                    model['task'].append(self.train_config['task'])
+        self.x = {rep: np.array(value) for rep, value in self.x.items()}
+        path = osp.join(self.meta_dir, 'reps.pckl')
+        pickle.dump(self.x, open(path, 'wb'))
+        self.metadata['status'] = 'represented'
+        self.metadata['reps-metadata'] = {'reps': reps}
+        self.metadata['reps-metadata'].update({
+            f'{rep}-execution-time':
+            execution[rep]['end'] - execution[rep]['start']
+            for rep in reps})
+        self.save_metadata()
 
-                    with open(osp.join(ensemble_path, name), "wb") as f:
-                        f.write(clf_onx.SerializeToString())
-            else:
-                for idx, clf in enumerate(self.models['models']):
-                    name = f'{idx}.onnx'
-                    model['save_path'].append(name)
-                    model['task'].append(self.train_config['task'])
-                    joblib.dump(clf, open(osp.join(ensemble_path, name)), 'wb')
-
-    def save_reps(self, rep_dir: str):
-        for name, rep in self.reps.items():
-            path = osp.join(rep_dir, f'{rep.name}.pckl')
-            self.x[name].dump(path)
-
-    def predict(self, df: pd.DataFrame, feature_field: str,
-                experiment_dir: str,
-                backend: str = 'onnx') -> np.ndarray:
-        features = df[feature_field]
-        if backend == 'joblib':
-            try:
-                import joblib
-            except ImportError:
-                raise ImportError(
-                    'This backend requires joblib.',
-                    'Please try: `pip install joblib`'
-                )
-        elif backend == 'onnx':
-            try:
-                import onnxruntime
-            except ImportError:
-                raise ImportError(
-                    'This backend requires onnx.',
-                    'Please try: `pip install onnxruntime onnxmltools skl2onnx`'
-                )
-        else:
-            raise NotImplementedError(f"Backend: {backend} not implemented.",
-                                      "Please try: `onnx` or `joblib`.")
-        ensemble_dir = osp.join(experiment_dir, 'model_info', 'ensemble')
-        ensemble_config = osp.join(experiment_dir, 'model_info', 'ensemble_config.json')
-        if not osp.exists(ensemble_config):
-            raise FileNotFoundError("Configuration file for ensemble was not found in experiment dir.")
-        if not osp.isdir(ensemble_dir):
-            raise NotADirectoryError("Ensemble directory not found.")
-        ensemble_config = json.load(open(ensemble_config))
-        pipe = self.get_pipeline()
-        db = Database(
-            df=pd.DataFrame({"features": features}),
-            feat_fields='features',
-            pipe=pipe
-        )
-        self.reps = self._load_representation(self.rep_config)
-        x = self._get_reps(None, db)
-
-        for th, model in ensemble_config.items():
-            if th != 'random':
-                continue
-            model_paths = [path for path in model['save_path']]
-            reps = [rep for rep in model['reps']]
-            task = [t for t in model['task']]
-            preds = []
-            for m, r, t in zip(model_paths, reps, task):
-                if backend == 'onnx':
-                    preds.append(self._onnx_prediction(
-                        osp.join(ensemble_dir, m), t, x[r]
-                    ))
-                else:
-                    raise NotImplementedError()
-        preds = np.stack(preds, axis=1)
-        df['score'] = preds.mean(1)
-        df['std'] = preds.std(1)
-        if len(ensemble_config) == 1:
-            df.sort_values("score", ignore_index=True, ascending=False,
-                           inplace=True)
-        return df
-
-    def _onnx_prediction(
+    def _partitioning(
         self,
-        path: str,
-        task: str,
-        X: np.ndarray,
-    ):
-        import onnxruntime as rt
-        sess = rt.InferenceSession(path, providers=['CPUExecutionProvider'])
-        input_name = sess.get_inputs()[0].name
-        try:
-            label_name = sess.get_outputs()[1].name
-        except IndexError:
-            label_name = sess.get_outputs()[0].name
+        split_strategy: str,
+        hestia_generator: HestiaGenerator,
+        verbose: bool,
+        n_jobs: int,
+        random_state: int,
+        partitions: Dict[str, np.ndarray]
+    ) -> Dict[str, np.ndarray]:
+        if verbose:
+            print("Partitioning...")
 
-        pred_onx = sess.run([label_name], {input_name: X.astype(np.float32)})[0]
+        if partitions is not None:
+            part_path = osp.join(self.outputdir, 'parts.pckl')
+            parts = {k: v for k, v in partitions.items()}
+            pickle.dump(parts, open(part_path, 'wb'))
+            self.parts = parts
 
+        SPLIT_STRATEGIES = ['random', 'min', 'good', None]
+        self.metadata['status'] = 'partitioning'
+        self.save_metadata()
+
+        start = time.time()
+        if split_strategy not in SPLIT_STRATEGIES:
+            raise ValueError(f"split_strategy: {split_strategy} is not valid.",
+                             F"Please choose: {', '.join(SPLIT_STRATEGIES)}")
+        if hestia_generator is not None:
+            sim_args = hestia_generator.sim_args.to_dict()
+            min_part, _ = hestia_generator.get_partition('min', filter=0.185)
+        elif split_strategy == 'random':
+            self.parts = {
+                'test': self.df.sample(frac=0.2, random_state=random_state).index.to_numpy()
+            }
+            self.parts['train'] = self.df[~self.df.index.isin(self.parts['test'])].index.to_numpy()
+            sim_args = {}
+            min_part = 'NA'
+        elif 'to-smiles' in self.metadata['pipeline-1']:
+            sim_args = SimArguments(
+                data_type='small molecule',
+                fingerprint='mapc',
+                sim_function='jaccard',
+                bits=2048,
+                radius=4,
+                field_name=self.sequence_field,
+                min_threshold=0.1,
+                threads=n_jobs,
+                verbose=verbose
+            )
+            hdg = HestiaGenerator(self.df, verbose=verbose)
+            hdg.calculate_partitions(sim_args, label_name=self.label_field,
+                                     min_threshold=0.2, threshold_step=0.1,
+                                     valid_size=0., random_state=random_state)
+            sim_args = sim_args.to_dict()
+            if split_strategy == 'min':
+                min_part, self.parts = hdg.get_partition('min', filter=0.185)
+            elif split_strategy == 'good':
+                self.parts = hdg.get_partitions(filter=0.185, return_dict=True)
+                min_part, _ = hdg.get_partition('min', filter=0.185)
+        elif 'to-sequences' in self.metadata['pipeline-1']:
+            sim_args = SimArguments(
+                data_type='sequence',
+                field_name=self.sequence_field,
+                min_threshold=0.1,
+                alignment_algorithm='mmseqs',
+                prefilter=True,
+                denominator='shortest',
+                threads=n_jobs,
+                verbose=verbose
+            )
+            hdg = HestiaGenerator(self.df, verbose=verbose)
+            hdg.calculate_partitions(sim_args, label_name=self.label_field,
+                                     min_threshold=0.2, threshold_step=0.1,
+                                     valid_size=0., random_state=random_state)
+            sim_args = sim_args.to_dict()
+            if split_strategy == 'min':
+                th, self.parts = hdg.get_partition('min', filter=0.185)
+            elif split_strategy == 'good':
+                self.parts = hdg.get_partitions(filter=0.185, return_dict=True)
+
+        part_path = osp.join(self.meta_dir, 'parts.pckl')
+        parts = {k: v for k, v in self.parts.items()}
+        pickle.dump(parts, open(part_path, 'wb'))
+
+        end = time.time()
+        self.metadata['partitioning-metadata'] = {
+            'execution-time': end - start,
+            'split-strategy': split_strategy,
+            'sim-args': sim_args,
+            'number-partitions': len(self.parts),
+            'n-jobs': n_jobs,
+            'random-state': random_state,
+            'hestia-version': hestia_version,
+            'min-part': min_part
+        }
+        self.metadata['status'] = 'partitioned'
+        self.save_metadata()
+
+    def _evaluating(self, task: str):
+        self.metadata['status'] = 'evaluating'
+        self.save_metadata()
+
+        start = time.time()
+        test_x = {rep: val[self.parts['test']]
+                  for rep, val in self.x.items()}
+        test_y = self.df[self.label_field].to_numpy()[self.parts['test']]
         if task == 'class':
-            preds = np.array([i[1] for i in pred_onx])
-        elif task == 'reg':
-            preds = np.array([i[0] for i in pred_onx])
+            preds, _ = self.ensemble.predict_proba(test_x)
         else:
-            preds = np.stack([i[l] for i in pred_onx
-                             for l in range(len(i.keys()))])
-        return preds
+            preds, _ = self.ensemble.predict(test_x)
 
-    def get_precalculated_reps(self, outputdir: str) -> Dict[str, np.ndarray]:
-        config_path = osp.join(outputdir, 'config.yml')
-        config = yaml.safe_load(open(config_path))
-        rep_config = config['representation']
-        self.rep_config = rep_config
-        self.reps = self._load_representation(rep_config)
-        self.x = self._get_reps()
-        return self.x
-
-    def get_precalculated_test(self, outputdir: str) -> Dict[str, np.ndarray]:
-        config_path = osp.join(outputdir, 'config.yml')
-        config = yaml.safe_load(open(config_path))
-        rep_config = config['test']
-        c_outputdir = self.outputdir
-        self.outputdir = config['outputdir']
-        self.parts = self._load_test(rep_config)
-        self.outputdir = c_outputdir
-        return self.parts
-
-    def get_precalculated_db(self, db_config: dict) -> Database:
-        db_path = osp.join(db_config['precalculated'], 'db.csv')
-        self.db = Database(db_path, feat_fields=db_config['feat_fields'],
-                           label_field=db_config['label_field'])
+        result = evaluate(preds, test_y, pred_task=task)
+        self.test_result = pd.DataFrame([result])
+        end = time.time()
+        print(result)
+        self.metadata['test-metadata'] = {
+            str(metric): float(value) for metric, value in result.items()
+        }
+        self.metadata['test-metadata']['execution-time'] = end - start
+        self.metadata['status'] = 'evaluated'
+        self.save_metadata()
