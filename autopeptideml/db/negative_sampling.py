@@ -6,8 +6,6 @@ from typing import List, Tuple, Union
 
 import pandas as pd
 
-from pqdm.processes import pqdm
-
 from ..pipeline import get_pipeline
 from ..utils import discretizer
 
@@ -79,6 +77,9 @@ def add_negatives_from_db(
         label_field = 'label'
         df[label_field] = 1
 
+    if isinstance(target_db, pd.DataFrame):
+        db = target_db
+
     if target_db == 'canonical':
         path = osp.join(db_dir, 'canonical.csv')
         if not osp.exists(path):
@@ -89,6 +90,8 @@ def add_negatives_from_db(
             print("Downloading negative database...")
             FILE_ID = "189VtkbQ2bVpQlAe2UMBSzt_O4F7EyBWl"
             gdown.download(id=FILE_ID, output=path, quiet=verbose)
+        db = pd.read_csv(path)
+
     elif target_db == 'non-canonical':
         path = osp.join(db_dir, 'non-canonical.csv')
         if not osp.exists(path):
@@ -99,6 +102,8 @@ def add_negatives_from_db(
             print("Downloading negative database...")
             FILE_ID = "1U4RXDNx_aijVDJ1oTaRKjo78Yakd3Mg4"
             gdown.download(id=FILE_ID, output=path, quiet=verbose)
+        db = pd.read_csv(path)
+
     elif target_db == 'both':
         path = osp.join(db_dir, 'both.csv')
         if not osp.exists(path):
@@ -109,8 +114,8 @@ def add_negatives_from_db(
             print("Downloading negative database...")
             FILE_ID = "189VtkbQ2bVpQlAe2UMBSzt_O4F7EyBWl"
             gdown.download(id=FILE_ID, output=path, quiet=verbose)
+        db = pd.read_csv(path)
 
-    db = pd.read_csv(path)
     first_time = True
     for column in activities_to_exclude:
         if column not in db.columns:
