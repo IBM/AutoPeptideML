@@ -127,14 +127,20 @@ def add_negatives_from_db(
             db = db[db[column] != 1].copy().reset_index()
 
     field = 'sequence' if sample_by == 'length' else 'smiles'
-    db[sample_by], n_bins = MATCHING[sample_by](db[field], n_jobs=n_jobs,
-                                                verbose=False)
+    if sample_by not in db:
+        db[sample_by], n_bins = MATCHING[sample_by](db[field], n_jobs=n_jobs,
+                                                    verbose=False)
+        db.to_csv(path, index=False)
+    else:
+        if sample_by == 'mw':
+            n_bins = 50
+        else:
+            n_bins = 10
     db[sample_by], disc = discretizer(db[sample_by].to_numpy(),
                                       n_bins=n_bins,
                                       return_discretizer=True)
-
-    df[sample_by], n_bins = MATCHING[sample_by](df[sequence_field],
-                                                n_jobs=n_jobs, verbose=False)
+    df[sample_by], _ = MATCHING[sample_by](df[sequence_field],
+                                           n_jobs=n_jobs, verbose=False)
     df[sample_by] = disc.transform(df[sample_by].to_numpy().reshape(-1, 1))
 
     all_samples, all_wts = [], []

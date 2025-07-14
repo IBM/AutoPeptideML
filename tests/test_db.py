@@ -19,7 +19,8 @@ def test_database():
     df2['smiles'] = pipe(df2['sequence'])
     df2['Y'] = 1
     df2 = add_negatives_from_db(df2, target_db=df, sequence_field='smiles',
-                                activities_to_exclude=['Allergen', 'Toxic'])
-    labels, counts = np.unique(df.Y, return_counts=True)
+                                activities_to_exclude=['Allergen'],
+                                label_field='Y')
+    labels, counts = np.unique(df2.Y, return_counts=True)
     assert labels.tolist() == [0, 1]
-    assert counts.tolist() == [272, 300]
+    assert counts.tolist() == [285, 300]
