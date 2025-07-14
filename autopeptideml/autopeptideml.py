@@ -328,7 +328,7 @@ class AutoPeptideML:
                     if len(rep.split('-')) == 1:
                         rep = f'{rep}-16-2048'
                     elif len(rep.split('-')) == 2:
-                        rep = f'{rep.split('-')[0]}-{rep.split('-')[1]}-2048'
+                        rep = f"{rep.split('-')[0]}-{rep.split('-')[1]}-2048"
 
                     repengine = RepEngineFP(
                         rep=rep.split('-')[0],
