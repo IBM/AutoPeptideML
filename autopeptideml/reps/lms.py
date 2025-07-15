@@ -210,7 +210,7 @@ class RepEngineLM(RepEngineBase):
             except ImportError:
                 raise ImportError("This function requires smilespe. Please install: `pip install smilespe`")
             if os.getenv('HF_HOME') is None:
-                hf_home = os.path.abspath('~/.cache/huggingface/hub/')
+                hf_home = os.path.abspath(f"{os.getenv("HOME")}/.cache/huggingface/hub/")
             else:
                 hf_home = os.path.abspath(os.getenv('HF_HOME'))
             path = os.path.join(hf_home, 'peptideclm_tokenizer')
