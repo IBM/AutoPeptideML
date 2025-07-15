@@ -7,8 +7,8 @@ import pandas as pd
 
 from ItsPrompt.prompt import Prompt
 
-from .db.negative_sampling import get_neg_db
-from .train.architectures import ALL_MODELS
+from ..db.negative_sampling import get_neg_db
+from ..train.architectures import ALL_MODELS
 
 
 def _is_int(text: str) -> bool:
