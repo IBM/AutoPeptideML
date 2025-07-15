@@ -510,7 +510,9 @@ class OptunaTrainer(BaseTrainer):
         self.hpspace = self._get_hpspace(models, custom_hpspace)
         self.hpspace['reps'] = list(x.keys())
         if patience is None:
-            self.patience = n_trials / 5
+            self.patience = n_trials // 5
+        else:
+            self.patience = patience
         self.best_metric = (float("inf") if self.direction == 'minimize'
                             else float('-inf'))
 
