@@ -45,26 +45,26 @@ class AutoPeptideML:
         if isinstance(data, list):
             if sequence_field is None:
                 sequence_field = 'peptide'
-                self.sequence_field = sequence_field
             if label_field is None:
                 label_field = 'label'
-                self.label_field = label_field
 
             self.df = pd.DataFrame({sequence_field: data,
                                     label_field: [1 for _ in data]})
         else:
             self.df = data.copy()
 
+        self.sequence_field = sequence_field
+        self.label_field = label_field
         self.df.to_csv(osp.join(self.meta_dir, 'start-data.tsv'),
                        index=False,
                        sep='\t')
-        self.df.drop_duplicates(subset=sequence_field, inplace=True)
+        self.df.drop_duplicates(subset=self.sequence_field, inplace=True)
         self.metadata['start-time'] = self._get_current_timestamp()
         self.metadata['outputdir'] = self.outputdir
         self.metadata['autopeptideml-version'] = __version__
         self.metadata['size'] = len(self.df)
-        self.metadata['sequence-field'] = sequence_field
-        self.metadata['label-field'] = label_field
+        self.metadata['sequence-field'] = self.sequence_field
+        self.metadata['label-field'] = self.label_field
         self.metadata['removed-entries'] = len(data) - len(self.df)
         self.metadata['status'] = 'started'
         self.p_it = 1
@@ -155,6 +155,8 @@ class AutoPeptideML:
             'real-ratio': float(neg / pos),
             'execution-time': end - start,
         })
+        self.metadata['original-size'] = self.metadata['size']
+        self.metadata['size'] = len(self.df)
         self.metadata['status'] = 'negatives-sampled'
         path = osp.join(self.outputdir, 'data.tsv')
         self.df.to_csv(path, sep='\t', index=False)
@@ -173,6 +175,7 @@ class AutoPeptideML:
         partitions: Dict[str, np.ndarray] = None,
         n_folds_cv: int = 5,
         verbose: bool = True,
+        n_trials: int = 100,
         device: str = 'cpu',
         random_state: int = 1,
         n_jobs: int = cpu_count()
@@ -208,6 +211,7 @@ class AutoPeptideML:
             n_folds=n_folds_cv,
             random_state=random_state,
             n_jobs=n_jobs,
+            n_trials=n_trials,
             model_configs=model_configs
         )
         self._evaluating(
@@ -222,6 +226,7 @@ class AutoPeptideML:
         model_configs: Dict[str, dict],
         n_folds: int,
         n_jobs: int,
+        n_trials: int,
         random_state: int
     ):
         if task == 'class':
@@ -253,6 +258,8 @@ class AutoPeptideML:
             y=train_y,
             models=models,
             n_folds=n_folds,
+            n_trials=n_trials,
+            patience=n_trials//5,
             custom_hpspace=model_configs,
             random_state=random_state,
             n_jobs=n_jobs,
@@ -325,7 +332,7 @@ class AutoPeptideML:
                     old_rep = rep
                     from autopeptideml.reps.fps import RepEngineFP
                     if len(rep.split('-')) == 1:
-                        rep = f'{rep}-16-2048'
+                        rep = f'{rep}-8-2048'
                     elif len(rep.split('-')) == 2:
                         rep = f"{rep.split('-')[0]}-{rep.split('-')[1]}-2048"
 
@@ -411,11 +418,11 @@ class AutoPeptideML:
             self.parts['train'] = self.df[~self.df.index.isin(self.parts['test'])].index.to_numpy()
             sim_args = {}
             min_part = 'NA'
-        elif 'to-smiles' in self.metadata['pipeline-1']:
+        elif 'to-smiles' in self.metadata['pipeline-1']['name']:
             sim_args = SimArguments(
                 data_type='small molecule',
-                fingerprint='mapc',
-                sim_function='jaccard',
+                fingerprint='mapc' if len(self.df) < 10_000 else 'ecfp',
+                sim_function='jaccard' if len(self.df) < 10_000 else 'tanimoto',
                 bits=2048,
                 radius=4,
                 field_name=self.sequence_field,
@@ -433,7 +440,7 @@ class AutoPeptideML:
             elif split_strategy == 'good':
                 self.parts = hdg.get_partitions(filter=0.185, return_dict=True)
                 min_part, _ = hdg.get_partition('min', filter=0.185)
-        elif 'to-sequences' in self.metadata['pipeline-1']:
+        elif 'to-sequences' in self.metadata['pipeline-1']['name']:
             sim_args = SimArguments(
                 data_type='sequence',
                 field_name=self.sequence_field,
@@ -455,8 +462,8 @@ class AutoPeptideML:
                 self.parts = hdg.get_partitions(filter=0.185, return_dict=True)
 
         part_path = osp.join(self.meta_dir, 'parts.pckl')
-        parts = {k: v for k, v in self.parts.items()}
-        pickle.dump(parts, open(part_path, 'wb'))
+        self.parts = {k: v for k, v in self.parts.items()}
+        pickle.dump(self.parts, open(part_path, 'wb'))
 
         end = time.time()
         self.metadata['partitioning-metadata'] = {
@@ -480,15 +487,15 @@ class AutoPeptideML:
         test_x = {rep: val[self.parts['test']]
                   for rep, val in self.x.items()}
         test_y = self.df[self.label_field].to_numpy()[self.parts['test']]
-        if task == 'class':
+        try:
             preds, _ = self.ensemble.predict_proba(test_x)
-        else:
+            preds = preds[:, 1]
+        except AttributeError:
             preds, _ = self.ensemble.predict(test_x)
 
         result = evaluate(preds, test_y, pred_task=task)
         self.test_result = pd.DataFrame([result])
         end = time.time()
-        print(result)
         self.metadata['test-metadata'] = {
             str(metric): float(value) for metric, value in result.items()
         }
