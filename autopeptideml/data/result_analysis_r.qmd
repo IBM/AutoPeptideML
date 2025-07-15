@@ -1,0 +1,256 @@
+---
+title: "AutoPeptideML - Model Development report"
+format:
+  pdf:
+    echo: false
+    toc: true
+    number-sections: true
+    colorlinks: true
+jupyter: python3
+---
+
+```{python}
+import yaml
+import os.path as osp
+
+from os import makedirs
+
+import matplotlib.pyplot as plt
+
+cwd = osp.abspath('.')
+plots_dir = osp.join(cwd, 'plots')
+makedirs(plots_dir, exist_ok=True)
+metadata_path = osp.join(cwd, 'metadata', 'metadata.yml')
+metadata = yaml.safe_load(open(metadata_path))
+```
+
+# Introduction
+
+This is an automatically generated report that contains multiple plots and metrics to help you understand the reliability of the model you have just built with AutoPeptideML.
+
+Please note that the generation of this report is completely heuristic and does not rely on LLMs and therefore cannot contain any hallucinations.
+
+If you have found AutoPeptideML useful, consider helping us improve by filling a quick survey:
+
+[https://forms.gle/ntmsSnDFMBYtTeJJ6](https://forms.gle/ntmsSnDFMBYtTeJJ6)
+
+For more details check the following papers:
+
+- Fernández-Díaz R, Cossio-Pérez R, Agoni C, Lam HT, Lopez V, Shields DC. AutoPeptideML: a study on how to build more trustworthy peptide bioactivity predictors. Bioinformatics. 2024 Sep;40(9):btae555.
+- Fernández-Díaz R, Ochoa R, Hoang TL, Lopez V, Shields D. How to generalize machine learning models to both canonical and non-canonical peptides.
+- Fernandez-Diaz R, Lam HT, López V, Shields DC. A new framework for evaluating model out-of-distribution generalisation for the biochemical domain. In The Thirteenth International Conference on Learning Representations 2025.
+
+# Guidance on the interpretation of model performance metrics
+
+This section explains common metrics used to evaluate regression models, models that predict continuous values, like binding affinity, concentration, or activity scores.
+
+- Mean Squared Error (MSE) and Mean Absolute Error (MAE): These metrics measure how far off the model’s predictions are from the actual values. To interpret these values, compare them to the standard deviation of the actual target values with smaller errors relative to that spread indicating better model performance.
+   - MSE gives more weight to large errors (because the errors are squared), so it's sensitive to outliers.
+   - MAE treats all errors equally by using their absolute value.
+- Pearson’s Correlation Coefficient (PCC): This measures the strength of a linear relationship between the predicted and actual values. It ranges from -1 to 1, where 1 means perfect positive linear correlation. You can think of it as roughly similar to R², the "goodness of fit" in standard regression analysis.
+- Spearman’s Correlation Coefficient (SPCC): This measures the strength of a ranking relationship — it tells you how well the model preserves the order of the values, regardless of their exact magnitude.
+It's particularly useful in drug discovery and similar fields, where you're often more interested in ranking compounds by activity than in predicting exact values. Because of this, Spearman’s correlation is the recommended metric for prioritization tasks.
+
+# Metadata
+
+```{python}
+print("TIME AND VERSION")
+print(f"The model building process used AutoPeptideML v.{metadata['autopeptideml-version']},")
+print(f"was started in {metadata['start-time']} and finished in {metadata['last-update']}.")
+print()
+
+print("DATA")
+print(f"There were {metadata['original-size']:,} entries in the original dataset.")
+print(f"{metadata['removed-entries']:,} duplicated entries were removed.")
+print()
+
+if 'negative-sampling-metadata' in metadata:
+    print("NEGATIVE SAMPLING")
+    neg_samp = metadata['negative-sampling-metadata']
+    print(f"Negative sampling was conducted with database: {neg_samp['target-db']}.")
+    print("The activities excluded from sampling were:")
+    for activity in neg_samp['activities-to-exclude']:
+        print("  - ", activity)
+    print(f"\nThe desired negative/positive ratio was {neg_samp['desired-ratio']} and the real ratio, {neg_samp['real-ratio']}.")
+    print(f"After negative sampling, the dataset had {metadata['size']:,} entries.")
+    print()
+
+print("TRAIN/TEST SPLITTING")
+print("The dataset was split into train and test partitions with 20±18.5%")
+print(f"of the dataset in the test set, using Hestia-GOOD v.{metadata['partitioning-metadata']['hestia-version']}.")
+print(f"\nMaximum similarity between train and test is: {metadata['partitioning-metadata']['min-part']}")
+print("\nReal sizes:")
+print(f"- Train size: {metadata['partitioning-metadata']['train-size']:,}")
+print(f"- Test size: {metadata['partitioning-metadata']['test-size']:,}")
+print()
+print(f"Molecular similarity was calculated with the following parameters:")
+
+sim_args = metadata['partitioning-metadata']['sim-args']
+
+if sim_args['data_type'] == 'small molecule':
+    print(f"- Fingerprint: {sim_args['fingerprint'].upper()}")
+    print(f"- Radius: {sim_args['radius']}")
+    print(f"- Number of bits: {sim_args['bits']}")
+    print(f"- Similarity function: {sim_args['sim_function']}")
+else:
+    print(f"- Alignment algorithm: {sim_args['alignment_algorithm']}")
+    print(f"- Prefiltering: {sim_args['prefilter']}")
+
+print()
+print("MODEL BUILDING")
+print("Models and peptide representations were chosen based on an exploration")
+print(f"guided by maximizing the average {metadata['trainer-metadata']['metric'].upper()} across {metadata['trainer-metadata']['n-folds']} cross-validation folds.")
+print(f"The exploration was performed for {metadata['trainer-metadata']['n-trials']:,} trials with early stopping")
+print(f"after {metadata['trainer-metadata']['patience']} consecutive trials without improvement.")
+print("\nDuring model and representation selection the following representations")
+print("were considered:")
+
+for rep in metadata['reps-metadata']['reps']:
+    print(f"- {rep}")
+
+print("\nAnd the following ML models:")
+for model in metadata['trainer-metadata']['models']:
+    print(f"- {model}")
+
+```
+
+# Model and representation selection
+
+This section describes the model and representation selection process.
+It includes the following information:
+
+- Optimization history: describes the evoluation of the optimization process that explores model, representation and model configuration combinatorial space.
+- Model vs peptide representation: describes the combinations of model and peptide representation explored and their performance.
+- Final model: describes the final model selected as the best option
+
+## Optimization history
+
+This figure describes the evolution of model performance along the different trials. It also describes where the top-10 trials happen along the process.
+
+If the curve plateaus, that is an indication that the number of trials used is sufficient. If it continues growing, then more trials might lead to more reliable models.
+
+```{python}
+import pandas as pd
+
+from autopeptideml.utils.plots import plot_optimization_history 
+
+history = pd.read_csv(osp.join(cwd, 'metadata', 'hpo_history.tsv'), sep='\t')
+metric = 'mcc' if 'mcc' in history else 'spcc'
+plot_optimization_history(history=history, metric=metric)
+plt.savefig(osp.join(plots_dir, 'optim_history.png'), bbox_inches='tight', dpi=512)
+```
+
+## Model vs peptide representation
+
+This figure describes the relationship between model choice and peptide representation choice how many times a certain combination has been chosen. The intensity of the cell color indicates the performance achieved by any given combination.
+
+If there are many combinations that have not been explored, then more trials might lead to a more comprehensive exploration. Alternatively, if one of the representations or models consistently underperforms it could also be removed from the list to obtain better exploration without increasing the number of computational steps.
+
+```{python}
+from autopeptideml.utils.plots import plot_model_vs_rep 
+
+plot_model_vs_rep(history=history, metric=metric)
+plt.savefig(osp.join(plots_dir, 'model_vs_rep.png'), bbox_inches='tight', dpi=512)
+
+```
+
+## Final model
+
+This section contains the data for the final choice of model, configuration, and representations:
+
+```{python}
+print("Configuration: ")
+for model in metadata['trainer-metadata']['best-model']:
+    print(f"- {model['name']} with {model['representation']} representation and hyperparameters: ")
+    for k, v in model['variables'].items():
+        if k == 'n_jobs':
+            continue
+        print(f"   - {k}: {v}")
+```
+
+Model performance in cross-validation is shown in table below. The error in the last row is the standard deviation across folds:
+
+```{python}
+from IPython.display import Markdown, display
+import numpy as np
+
+h_run = history[history['run'] == metadata['trainer-metadata']['best-run']].copy()
+h_run.style.hide()
+
+h_run.drop(columns=['variables', 'name', 'representation', 'run',
+                    'Representation', 'Model', 'Run'], inplace=True)
+
+av_df = pd.DataFrame([{c: f"{h_run[c].mean():.2f}±{h_run[c].std():.2f}" for c in h_run.columns}])
+av_df['fold'] = "Average"
+h_run['fold'] = h_run['fold'].map(lambda x: str(x))
+for c in h_run.columns:
+    h_run[c] = h_run[c].map(lambda x: x if isinstance(x, str) else f"{x:.2f}")
+h_run = pd.concat([h_run, av_df])
+h_run.set_index('fold', inplace=True)
+display(Markdown(h_run.to_markdown(floatfmt=",.2f")))
+```
+
+# Evaluation in independent hold-out test set
+
+## Metrics
+
+Main performance metrics in independent hold-out test set.
+
+```{python}
+
+test_df = pd.DataFrame([metadata['test-metadata']])
+test_df.drop(columns=['execution-time'], inplace=True)
+display(Markdown(test_df.to_markdown(floatfmt=",.2f", index=False)))
+```
+
+## Actual vs predicted plot
+
+**Purpose:**
+To visually assess how well your regression model is performing by comparing the predicted values against the ground truth.
+
+**Interpretation:**
+
+- Ideal Line (red dashed line): Where predicted values = actual values (perfect prediction).
+- Scatter Points: Each point represents one prediction. Points close to the red line = good predictions. Systematic deviation from the line = model bias. High vertical spread = high prediction error.
+
+**Usage:**
+
+Detecting underfitting, overfitting, and bias (e.g., consistently overpredicting at low concentrations). Complements metrics like RMSE, MAE, or R² with visual intuition.
+
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+import pickle
+from autopeptideml.utils.plots import plot_actual_vs_pred
+
+
+df = pd.read_csv(osp.join(cwd, 'data.tsv'), sep='\t')
+parts = pickle.load(open(osp.join(cwd, 'metadata', 'parts.pckl'), 'rb'))
+preds = np.load(osp.join(cwd, 'metadata', 'preds.npy'))
+truth = df[metadata['label-field']].to_numpy()[parts['test']]
+plot_actual_vs_pred(preds, truth)
+plt.savefig(osp.join(plots_dir, 'actual_vs_pred.png'), bbox_inches='tight', dpi=512)
+
+```
+
+## Regression Error Charateristic (REC) curve
+
+**Purpose:**
+The REC curve shows the fraction of data points for which the model's prediction error is within a certain threshold. It's useful for assessing how tolerant your model is to error, especially when exact predictions aren't needed, just "good enough" ones.
+
+**Interpretation:**
+
+- X-axis: Error tolerance (e.g., |prediction − true value| ≤ ε)
+- Y-axis: Fraction of samples with error ≤ ε
+- The steeper the curve, the better the model.
+- The area under the REC curve (AUC-REC) is a global performance measure.
+
+**Usage:** You care about prediction accuracy within a range, not just average error. You want to know: “How often is the model within ±1 unit? ±0.5?”
+
+```{python}
+from autopeptideml.utils.plots import plot_rec
+
+plot_rec(preds, truth)
+plt.savefig(osp.join(plots_dir, 'rec.png'), bbox_inches='tight', dpi=512)
+
+```

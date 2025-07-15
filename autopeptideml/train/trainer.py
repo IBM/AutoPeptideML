@@ -471,6 +471,7 @@ class OptunaTrainer(BaseTrainer):
            perf > self.best_metric)):
             self.best_metric = perf
             self.best_config = hpspace
+            self.best_run = result_df['run'].max()
             self.best_model = supensemble
         return perf
 

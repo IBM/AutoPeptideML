@@ -1,0 +1,305 @@
+---
+title: "AutoPeptideML - Model Development report"
+format:
+  pdf:
+    echo: false
+    toc: true
+    number-sections: true
+    colorlinks: true
+jupyter: python3
+---
+
+```{python}
+import yaml
+import os.path as osp
+
+from os import makedirs
+
+import matplotlib.pyplot as plt
+
+cwd = osp.abspath('.')
+plots_dir = osp.join(cwd, 'plots')
+makedirs(plots_dir, exist_ok=True)
+metadata_path = osp.join(cwd, 'metadata', 'metadata.yml')
+metadata = yaml.safe_load(open(metadata_path))
+```
+
+# Introduction
+
+This is an automatically generated report that contains multiple plots and metrics to help you understand the reliability of the model you have just built with AutoPeptideML.
+
+Please note that the generation of this report is completely heuristic and does not rely on LLMs and therefore cannot contain any hallucinations.
+
+If you have found AutoPeptideML useful, consider helping us improve by filling a quick survey:
+
+[https://forms.gle/ntmsSnDFMBYtTeJJ6](https://forms.gle/ntmsSnDFMBYtTeJJ6)
+
+For more details check the following papers:
+
+- Fernández-Díaz R, Cossio-Pérez R, Agoni C, Lam HT, Lopez V, Shields DC. AutoPeptideML: a study on how to build more trustworthy peptide bioactivity predictors. Bioinformatics. 2024 Sep;40(9):btae555.
+- Fernández-Díaz R, Ochoa R, Hoang TL, Lopez V, Shields D. How to generalize machine learning models to both canonical and non-canonical peptides.
+- Fernandez-Diaz R, Lam HT, López V, Shields DC. A new framework for evaluating model out-of-distribution generalisation for the biochemical domain. In The Thirteenth International Conference on Learning Representations 2025.
+
+# Guidance on the interpretation of model performance metrics
+
+## Classification
+
+This section explains common metrics used to evaluate classification models.
+
+- Accuracy (acc): This is the proportion of correct predictions the model makes. However, accuracy can be misleading if your dataset has an imbalance between the number of positive and negative examples. For instance, if there are equal numbers of positive and negative samples (a 1:1 ratio), a random model would achieve 50% accuracy. So, an accuracy near or below 0.5 in that case would be poor performance.
+- Precision: Precision tells you how often the model is correct when it predicts something to be positive. In other words, among all the samples the model says are positive, what fraction actually are? High precision means you can trust the model’s positive predictions. Be aware that this metric can also be affected by how many real positives there are in your dataset.
+- Recall: Recall measures how many of the actual positive cases the model is able to correctly identify. It's also known as the hit rate. High recall means the model is good at catching all the real positives, even if some predictions turn out to be false alarms.
+- F1 Score and F1 Weighted: These scores combine precision and recall into a single number to give a balanced view. The F1 score is especially useful when there is an uneven class distribution. There's no simple interpretation, but in general, higher values mean the model balances precision and recall well.
+- Area Under the ROC Curve (auroc): This measures how well the model distinguishes between positive and negative cases. A higher value (closer to 1) means better overall performance. Like the F1 score, it's a summary measure and doesn’t have a simple intuitive meaning, but it's commonly used.
+- Matthews Correlation Coefficient (mcc): MCC is a robust metric that takes into account all four parts of the confusion matrix (true/false positives/negatives). It handles class imbalance better than most other metrics. It ranges from -1 (completely wrong) to 1 (perfect prediction), with 0 meaning random guessing. Because of its balance and reliability, MCC is often the preferred metric for comparing models.
+
+## Regression
+
+This section explains common metrics used to evaluate regression models, models that predict continuous values, like binding affinity, concentration, or activity scores.
+
+- Mean Squared Error (MSE) and Mean Absolute Error (MAE): These metrics measure how far off the model’s predictions are from the actual values. To interpret these values, compare them to the standard deviation of the actual target values with smaller errors relative to that spread indicating better model performance.
+   - MSE gives more weight to large errors (because the errors are squared), so it's sensitive to outliers.
+   - MAE treats all errors equally by using their absolute value.
+- Pearson’s Correlation Coefficient (PCC): This measures the strength of a linear relationship between the predicted and actual values. It ranges from -1 to 1, where 1 means perfect positive linear correlation. You can think of it as roughly similar to R², the "goodness of fit" in standard regression analysis.
+- Spearman’s Correlation Coefficient (SPCC): This measures the strength of a ranking relationship — it tells you how well the model preserves the order of the values, regardless of their exact magnitude.
+It's particularly useful in drug discovery and similar fields, where you're often more interested in ranking compounds by activity than in predicting exact values. Because of this, Spearman’s correlation is the recommended metric for prioritization tasks.
+
+# Metadata
+
+```{python}
+print("TIME AND VERSION")
+print(f"The model building process used AutoPeptideML v.{metadata['autopeptideml-version']},")
+print(f"was started in {metadata['start-time']} and finished in {metadata['last-update']}.")
+print()
+
+print("DATA")
+print(f"There were {metadata['original-size']:,} entries in the original dataset.")
+print(f"{metadata['removed-entries']:,} duplicated entries were removed.")
+print()
+
+if 'negative-sampling-metadata' in metadata:
+    print("NEGATIVE SAMPLING")
+    neg_samp = metadata['negative-sampling-metadata']
+    print(f"Negative sampling was conducted with database: {neg_samp['target-db']}.")
+    print("The activities excluded from sampling were:")
+    for activity in neg_samp['activities-to-exclude']:
+        print("  - ", activity)
+    print(f"\nThe desired negative/positive ratio was {neg_samp['desired-ratio']} and the real ratio, {neg_samp['real-ratio']}.")
+    print(f"After negative sampling, the dataset had {metadata['size']:,} entries.")
+    print()
+
+print("TRAIN/TEST SPLITTING")
+print("The dataset was split into train and test partitions with 20±18.5%")
+print(f"of the dataset in the test set, using Hestia-GOOD v.{metadata['partitioning-metadata']['hestia-version']}.")
+print(f"\nMaximum similarity between train and test is: {metadata['partitioning-metadata']['min-part']}")
+print("\nReal sizes:")
+print(f"- Train size: {metadata['partitioning-metadata']['train-size']:,}")
+print(f"- Test size: {metadata['partitioning-metadata']['test-size']:,}")
+print()
+print(f"Molecular similarity was calculated with the following parameters:")
+
+sim_args = metadata['partitioning-metadata']['sim-args']
+
+if sim_args['data_type'] == 'small molecule':
+    print(f"- Fingerprint: {sim_args['fingerprint'].upper()}")
+    print(f"- Radius: {sim_args['radius']}")
+    print(f"- Number of bits: {sim_args['bits']}")
+    print(f"- Similarity function: {sim_args['sim_function']}")
+else:
+    print(f"- Alignment algorithm: {sim_args['alignment_algorithm']}")
+    print(f"- Prefiltering: {sim_args['prefilter']}")
+
+print()
+print("MODEL BUILDING")
+print("Models and peptide representations were chosen based on an exploration")
+print(f"guided by maximizing the average {metadata['trainer-metadata']['metric'].upper()} across {metadata['trainer-metadata']['n-folds']} cross-validation folds.")
+print(f"The exploration was performed for {metadata['trainer-metadata']['n-trials']:,} trials with early stopping")
+print(f"after {metadata['trainer-metadata']['patience']} consecutive trials without improvement.")
+print("\nDuring model and representation selection the following representations")
+print("were considered:")
+
+for rep in metadata['reps-metadata']['reps']:
+    print(f"- {rep}")
+
+print("\nAnd the following ML models:")
+for model in metadata['trainer-metadata']['models']:
+    print(f"- {model}")
+
+```
+
+# Model and representation selection
+
+This section describes the model and representation selection process.
+It includes the following information:
+
+- Optimization history: describes the evoluation of the optimization process that explores model, representation and model configuration combinatorial space.
+- Model vs peptide representation: describes the combinations of model and peptide representation explored and their performance.
+- Final model: describes the final model selected as the best option
+
+## Optimization history
+
+This figure describes the evolution of model performance along the different trials. It also describes where the top-10 trials happen along the process.
+
+If the curve plateaus, that is an indication that the number of trials used is sufficient. If it continues growing, then more trials might lead to more reliable models.
+
+```{python}
+import pandas as pd
+
+from autopeptideml.utils.plots import plot_optimization_history 
+
+history = pd.read_csv(osp.join(cwd, 'metadata', 'hpo_history.tsv'), sep='\t')
+metric = 'mcc' if 'mcc' in history else 'spcc'
+plot_optimization_history(history=history, metric=metric)
+plt.savefig(osp.join(plots_dir, 'optim_history.png'), bbox_inches='tight', dpi=512)
+```
+
+## Model vs peptide representation
+
+This figure describes the relationship between model choice and peptide representation choice how many times a certain combination has been chosen. The intensity of the cell color indicates the performance achieved by any given combination.
+
+If there are many combinations that have not been explored, then more trials might lead to a more comprehensive exploration. Alternatively, if one of the representations or models consistently underperforms it could also be removed from the list to obtain better exploration without increasing the number of computational steps.
+
+```{python}
+from autopeptideml.utils.plots import plot_model_vs_rep 
+
+plot_model_vs_rep(history=history, metric=metric)
+plt.savefig(osp.join(plots_dir, 'model_vs_rep.png'), bbox_inches='tight', dpi=512)
+
+```
+
+## Final model
+
+This section contains the data for the final choice of model, configuration, and representations:
+
+```{python}
+print("Configuration: ")
+for model in metadata['trainer-metadata']['best-model']:
+    print(f"- {model['name']} with {model['representation']} representation and hyperparameters: ")
+    for k, v in model['variables'].items():
+        if k == 'n_jobs':
+            continue
+        print(f"   - {k}: {v}")
+```
+
+Model performance in cross-validation is shown in table below. The error in the last row is the standard deviation across folds:
+
+```{python}
+from IPython.display import Markdown, display
+import numpy as np
+
+h_run = history[history['run'] == metadata['trainer-metadata']['best-run']].copy()
+h_run.style.hide()
+
+h_run.drop(columns=['variables', 'name', 'representation', 'run',
+                    'Representation', 'Model', 'Run',
+                    'tp', 'tn', 'fp', 'fn'], inplace=True)
+
+av_df = pd.DataFrame([{c: f"{h_run[c].mean():.2f}±{h_run[c].std():.2f}" for c in h_run.columns}])
+av_df['fold'] = "Average"
+h_run['fold'] = h_run['fold'].map(lambda x: str(x))
+for c in h_run.columns:
+    h_run[c] = h_run[c].map(lambda x: x if isinstance(x, str) else f"{x:.2f}")
+h_run = pd.concat([h_run, av_df])
+h_run.set_index('fold', inplace=True)
+display(Markdown(h_run.to_markdown(floatfmt=",.2f")))
+```
+
+# Evaluation in independent hold-out test set
+
+## Metrics
+
+Main performance metrics in independent hold-out test set.
+
+```{python}
+
+test_df = pd.DataFrame([metadata['test-metadata']])
+test_df.drop(columns=['execution-time'], inplace=True)
+if metadata['trainer-metadata']['task'] == 'class':
+    test_df.drop(columns=['tp', 'tn', 'fp', 'fn'], inplace=True)
+
+display(Markdown(test_df.to_markdown(floatfmt=",.2f", index=False)))
+```
+
+## Calibration curve
+
+A calibration curve (also known as a reliability diagram) is a tool used to assess how well the predicted probabilities from a classification model reflect the actual likelihood of outcomes. Imagine your model predicts that certain samples have a 70% probability of being positive (e.g., active compound, disease present). A well-calibrated model should be right about 70% of the time for such predictions.
+
+**Structure:**
+
+- The x-axis is the predicted probability (from the model).
+- The y-axis is the actual observed frequency of the positive class (from the data).
+- The diagonal line (y = x) represents perfect calibration — the predicted probability matches the real-world outcome frequency.
+- A curve above the diagonal means the model is underconfident (predictions are too low).
+- A curve below the diagonal means the model is overconfident (predictions are too high).
+
+**Importance:**
+
+A model might be accurate, but still badly calibrated — e.g., always giving predictions close to 0 or 1, even when uncertain. Calibration is especially important when your predictions will be used to make risk-based decisions or will be interpreted probabilistically (e.g., in clinical settings or when ranking compounds by confidence).
+
+**Use cases:**
+
+In drug discovery, calibration helps assess whether predicted activity scores can be trusted as actual probabilities. In medical diagnosis, it's crucial to know if a "70% chance of disease" truly means 7 out of 10 such cases will be positive.
+
+
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+import pickle
+from autopeptideml.utils.plots import plot_calibration_curve
+
+
+df = pd.read_csv(osp.join(cwd, 'data.tsv'), sep='\t')
+parts = pickle.load(open(osp.join(cwd, 'metadata', 'parts.pckl'), 'rb'))
+preds = np.load(osp.join(cwd, 'metadata', 'preds.npy'))
+truth = df[metadata['label-field']].to_numpy()[parts['test']]
+
+plot_calibration_curve(preds, truth, figsize=(4, 4))
+plt.savefig(osp.join(plots_dir, 'calibration.png'), bbox_inches='tight', dpi=512)
+
+```
+
+## ROC curve
+
+The ROC curve (Receiver Operating Characteristic curve) is a way to visualize how well a binary classifier can distinguish between two classes across different thresholds.
+
+**Structure:**
+
+- X-axis: False Positive Rate (FPR) = proportion of negatives incorrectly classified as positives
+- Y-axis: True Positive Rate (TPR) = proportion of positives correctly classified (also called recall)
+
+**Interpretation:**
+
+A perfect model will reach the top-left corner (FPR = 0, TPR = 1). A random classifier will fall along the diagonal (gray dashed line). The closer the curve hugs the top-left corner, the better the model is at distinguishing between the classes.
+
+It is great for evaluating binary classifiers across all decision thresholds.
+
+**Use cases:**
+
+- Your classes are imbalanced.
+- You care about ranking/class separation rather than a fixed threshold. For example, if you want to screen only the top 1% of predicted actives, a high AUC tells you those top-ranked compounds are likely enriched in true actives.
+
+
+```{python}
+from autopeptideml.utils.plots import plot_roc_curve
+
+plot_roc_curve(preds, truth, figsize=(4, 4))
+plt.savefig(osp.join(plots_dir, 'roc.png'), bbox_inches='tight', dpi=512)
+```
+
+## Precision-recall curve
+
+A Precision-Recall curve plots the trade-off between:
+
+- Precision: How many predicted positives are actually positive?
+- Recall: How many actual positives did we correctly identify?
+
+It is especially useful in imbalanced datasets, where the number of true positives is much smaller than true negatives, a common scenario in drug discovery (e.g., identifying actives, toxic compounds).
+
+
+```{python}
+from autopeptideml.utils.plots import plot_pr_curve
+
+plot_pr_curve(preds, truth, figsize=(4, 4))
+plt.savefig(osp.join(plots_dir, 'precision-recall.png'), bbox_inches='tight', dpi=512)
+
+```

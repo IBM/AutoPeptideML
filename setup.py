@@ -13,20 +13,18 @@ requirements = [
     'optuna',
     'scikit-learn',
     'typer',
-    # 'mljar-scikit-plot',
     'tokenizers',
     'torch',
     'transformers',
     'lightgbm',
     'xgboost',
-    # 'pqdm',
-    'catboost',
-    # 'mdpdf',
+    # 'catboost',
     'hestia-good',
     'onnxmltools',
     'skl2onnx',
     'onnxruntime',
     'rdkit',
+    'quarto'
 ]
 
 

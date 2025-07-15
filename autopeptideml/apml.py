@@ -1,5 +1,7 @@
 import os
 import os.path as osp
+import shutil
+import subprocess as sp
 import time
 import yaml
 import pickle
@@ -26,6 +28,20 @@ __version__ = '2.0.2'
 
 
 class AutoPeptideML:
+    """
+    Main class for the AutoPeptideML pipeline that handles data preprocessing,
+    negative sampling, model building, representation generation, and evaluation.
+
+    :param data: Input data as a DataFrame or a list of peptide sequences.
+    :type data: Union[pandas.DataFrame, List[str]]
+    :param outputdir: Path to the output directory.
+    :type outputdir: str
+    :param sequence_field: Name of the column containing sequences.
+    :type sequence_field: str, optional
+    :param label_field: Name of the column containing labels.
+    :type label_field: str, optional
+    :rtype: AutoPeptideML
+    """
     df: pd.DataFrame
     metadata: dict = {}
 
@@ -75,7 +91,7 @@ class AutoPeptideML:
 
     def save_metadata(self):
         self.metadata['last-update'] = self._get_current_timestamp()
-        path = osp.join(self.metadata['outputdir'], 'metadata.yml')
+        path = osp.join(self.meta_dir, 'metadata.yml')
         yaml.safe_dump(self.metadata, open(path, 'w'))
 
     def preprocess_data(
@@ -84,6 +100,17 @@ class AutoPeptideML:
         n_jobs: int = cpu_count(),
         verbose: bool = True,
     ):
+        """
+        Apply a preprocessing pipeline to the input sequences.
+
+        :param pipeline: Pipeline object or string identifier of a predefined pipeline.
+        :type pipeline: Union[str, Pipeline]
+        :param n_jobs: Number of parallel jobs to use.
+        :type n_jobs: int
+        :param verbose: If True, prints detailed progress.
+        :type verbose: bool
+        :rtype: None
+    """
         self.metadata['status'] = f'preprocessing-{self.p_it}'
         if isinstance(pipeline, str):
             pipeline = get_pipeline(pipeline)
@@ -119,6 +146,25 @@ class AutoPeptideML:
         n_jobs: int = cpu_count(),
         random_state: int = 1
     ):
+        """
+        Sample negative examples from a database to balance the dataset.
+
+        :param target_db: Path to a database or a DataFrame to sample from.
+        :type target_db: Union[str, pandas.DataFrame]
+        :param activities_to_exclude: List of activities to exclude during sampling.
+        :type activities_to_exclude: List[str]
+        :param desired_ratio: Desired negative-to-positive ratio.
+        :type desired_ratio: float
+        :param verbose: If True, prints detailed progress.
+        :type verbose: bool
+        :param sample_by: Strategy to sample negatives ('mw' for molecular weight).
+        :type sample_by: str
+        :param n_jobs: Number of parallel jobs to use.
+        :type n_jobs: int
+        :param random_state: Random seed for reproducibility.
+        :type random_state: int
+        :rtype: None
+        """
         if isinstance(target_db, pd.DataFrame):
             path = osp.join(self.outputdir, 'neg-db.tsv')
             target_db.to_csv(path, sep='\t', index=False)
@@ -180,6 +226,39 @@ class AutoPeptideML:
         random_state: int = 1,
         n_jobs: int = cpu_count()
     ):
+        """
+        Build, train, and evaluate machine learning models using specified representations.
+
+        :param task: Type of task ('class' or 'reg').
+        :type task: str
+        :param ensemble: If True, use an ensemble model.
+        :type ensemble: bool
+        :param reps: Representations to use for features.
+        :type reps: Union[str, List[str], Dict[str, RepEngineBase]]
+        :param models: Models to include in the hyperparameter optimization.
+        :type models: Union[str, List[str]]
+        :param split_strategy: Strategy for data partitioning ('random', 'min', etc.).
+        :type split_strategy: str
+        :param hestia_generator: HestiaGenerator instance for advanced partitioning.
+        :type hestia_generator: HestiaGenerator
+        :param model_configs: Custom model configuration dictionary.
+        :type model_configs: Dict[str, dict]
+        :param partitions: Optional pre-defined train/test partitions.
+        :type partitions: Dict[str, numpy.ndarray]
+        :param n_folds_cv: Number of folds for cross-validation.
+        :type n_folds_cv: int
+        :param verbose: If True, prints detailed progress.
+        :type verbose: bool
+        :param n_trials: Number of optimization trials.
+        :type n_trials: int
+        :param device: Device to use ('cpu', 'cuda', or 'mps').
+        :type device: str
+        :param random_state: Random seed.
+        :type random_state: int
+        :param n_jobs: Number of parallel jobs to use.
+        :type n_jobs: int
+        :rtype: None
+        """
         if task not in ['class', 'reg']:
             raise ValueError(f"Task: {task} is not valid.",
                              "Choose one: `class, reg`")
@@ -218,6 +297,17 @@ class AutoPeptideML:
             task=task
         )
 
+    def create_report(self):
+        pack_dir = osp.dirname(__file__)
+        final_path = osp.join(self.outputdir, 'result_analysis.qmd')
+        if self.metadata['trainer-metadata']['task'] == 'class':
+            tmp_path = osp.join(pack_dir, 'data', 'result_analysis_c.qmd')
+        else:
+            tmp_path = osp.join(pack_dir, 'data', 'result_analysis_r.qmd')
+        shutil.copyfile(tmp_path, final_path)
+        sp.run(['quarto', 'render', final_path])
+        os.remove(final_path)
+
     def _hpo(
         self,
         task: str,
@@ -240,7 +330,8 @@ class AutoPeptideML:
             'n-folds': n_folds,
             'custom-hpspace': model_configs,
             'random-state': random_state,
-            'n-jobs': n_jobs
+            'n-jobs': n_jobs,
+            'task': task
         }
         self.save_metadata()
         self.trainer = OptunaTrainer(
@@ -270,12 +361,16 @@ class AutoPeptideML:
         self.metadata['status'] = 'trained'
         self.metadata['trainer-metadata'].update({
             'execution-time': end - start,
-            'best_model': str(self.trainer.best_config)
+            'best-model': self.trainer.best_config,
+            'metric': metric,
+            'n-trials': n_trials,
+            'patience': n_trials // 5,
+            'best-run': int(self.trainer.best_run)
         })
         input_trial = {rep: self.x[rep][:1]
                        for rep in self.trainer.best_model.reps}
-        self.trainer.history.to_csv(osp.join(self.outputdir, 'hpo_history.tsv'),
-                                    index=False, sep='\t')
+        history_path = osp.join(self.meta_dir, 'hpo_history.tsv')
+        self.trainer.history.to_csv(history_path, index=False, sep='\t')
         self.trainer.best_model.predict(input_trial)
         self.trainer.best_model.save(osp.join(self.outputdir, 'ensemble'))
         self.ensemble = self.trainer.best_model
@@ -317,54 +412,62 @@ class AutoPeptideML:
             reps = list(reps.keys())
         else:
             for rep in reps:
-                execution[rep] = {'start': time.time()}
                 if verbose:
                     print(f"Computing {rep} representations...")
 
                 if rep in PLMs or rep in CLMs:
                     from autopeptideml.reps.lms import RepEngineLM
+                    execution[rep] = {'start': time.time()}
 
                     repengine = RepEngineLM(rep, average_pooling=True,
                                             fp16=True)
                     repengine.move_to_device(device)
 
                 elif rep.split('-')[0] in FPs:
-                    old_rep = rep
                     from autopeptideml.reps.fps import RepEngineFP
                     if len(rep.split('-')) == 1:
                         rep = f'{rep}-8-2048'
                     elif len(rep.split('-')) == 2:
                         rep = f"{rep.split('-')[0]}-{rep.split('-')[1]}-2048"
-
+                    execution[rep] = {'start': time.time()}
                     repengine = RepEngineFP(
                         rep=rep.split('-')[0],
                         radius=int(rep.split('-')[1]),
                         nbits=int(rep.split('-')[2])
                     )
-                    rep = old_rep
                 elif rep == 'one-hot':
                     from autopeptideml.reps.seq_based import RepEngineOnehot
+                    execution[rep] = {'start': time.time()}
+
                     repengine = RepEngineOnehot(max_length=50)
 
                 batch_size = 128 if repengine.get_num_params() < 2e7 else 16
                 if rep in PLMs or rep == 'one-hot':
                     if 'to-sequences' in self.metadata['pipeline-1']['name']:
+                        execution[rep] = {'start': time.time()}
+
                         self.x[rep] = repengine.compute_reps(
                             self.df[f'{self.sequence_field}'], verbose=verbose,
                             batch_size=batch_size
                         )
                     else:
+                        execution[rep] = {'start': time.time()}
+
                         self.x[rep] = repengine.compute_reps(
                             self.df[f'{self.sequence_field}-2'], verbose=verbose,
                             batch_size=batch_size
                         )
                 elif rep in CLMs or rep.split('-')[0] in FPs:
                     if 'to-smiles' in self.metadata['pipeline-1']['name']:
+                        execution[rep] = {'start': time.time()}
+
                         self.x[rep] = repengine.compute_reps(
                             self.df[f'{self.sequence_field}'], verbose=verbose,
                             batch_size=batch_size
                         )
                     else:
+                        execution[rep] = {'start': time.time()}
+
                         self.x[rep] = repengine.compute_reps(
                             self.df[f'{self.sequence_field}-2'], verbose=verbose,
                             batch_size=batch_size
@@ -375,11 +478,11 @@ class AutoPeptideML:
         path = osp.join(self.meta_dir, 'reps.pckl')
         pickle.dump(self.x, open(path, 'wb'))
         self.metadata['status'] = 'represented'
-        self.metadata['reps-metadata'] = {'reps': reps}
+        self.metadata['reps-metadata'] = {'reps': list(self.x.keys())}
         self.metadata['reps-metadata'].update({
             f'{rep}-execution-time':
             execution[rep]['end'] - execution[rep]['start']
-            for rep in reps})
+            for rep in self.x.keys()})
         self.save_metadata()
 
     def _partitioning(
@@ -428,7 +531,7 @@ class AutoPeptideML:
                 field_name=self.sequence_field,
                 min_threshold=0.1,
                 threads=n_jobs,
-                verbose=verbose
+                verbose=3 if verbose else 0,
             )
             hdg = HestiaGenerator(self.df, verbose=verbose)
             hdg.calculate_partitions(sim_args, label_name=self.label_field,
@@ -462,9 +565,8 @@ class AutoPeptideML:
                 self.parts = hdg.get_partitions(filter=0.185, return_dict=True)
 
         part_path = osp.join(self.meta_dir, 'parts.pckl')
-        self.parts = {k: v for k, v in self.parts.items()}
+        self.parts = {k: v for k, v in self.parts.items() if k != 'clusters'}
         pickle.dump(self.parts, open(part_path, 'wb'))
-
         end = time.time()
         self.metadata['partitioning-metadata'] = {
             'execution-time': end - start,
@@ -474,7 +576,9 @@ class AutoPeptideML:
             'n-jobs': n_jobs,
             'random-state': random_state,
             'hestia-version': hestia_version,
-            'min-part': min_part
+            'min-part': min_part,
+            'train-size': len(self.parts['train']),
+            'test-size': len(self.parts['test'])
         }
         self.metadata['status'] = 'partitioned'
         self.save_metadata()
@@ -494,6 +598,7 @@ class AutoPeptideML:
             preds, _ = self.ensemble.predict(test_x)
 
         result = evaluate(preds, test_y, pred_task=task)
+        np.save(open(osp.join(self.meta_dir, 'preds.npy'), 'wb'), preds)
         self.test_result = pd.DataFrame([result])
         end = time.time()
         self.metadata['test-metadata'] = {
