@@ -63,16 +63,14 @@ To use version 1.0, which may be necessary for retrocompatibility with previousl
 In order to build a new model, AutoPeptideML (v.2.0), introduces a new utility to automatically prepare an experiment configuration file, to i) improve the reproducibility of the pipeline and ii) to keep a user-friendly interface despite the much increased flexibility.
 
 ```bash
-autopeptideml prepare-config
+autopeptideml prepare-config --config-path <config-path>
 ```
 This launches an interactive CLI that walks you through:
 
 - Choosing a modeling task (classification or regression)
-- Selecting input modality (macromolecules or sequences)
 - Loading and parsing datasets (csv, tsv, or fasta)
-- Defining evaluation strategy
 - Picking models and representations
-- Setting hyperparameter search strategy and training parameters
+- Automatically sampling negatives
 
 
 You’ll be prompted to answer various questions like:
@@ -88,13 +86,13 @@ You’ll be prompted to answer various questions like:
 And so on. The final config is written to:
 
 ```
-<outputdir>/config.yml
+<config-path>.yml
 ```
 
 This config file allows for easy reproducibility of the results, so that anyone can repeat the training processes. You can check the configuration file and make any changes you deem necessary. Finally, you can build the model by simply running:
 
 ```
-autopeptideml build-model --config-path <outputdir>/config.yml
+autopeptideml build-model --outdir <outdir> --config-path <outputdir>/config.yml
 ```
 
 ## Prediction <a name="prediction"></a>
@@ -105,7 +103,7 @@ In order to use a model that has already built you can run:
 autopeptideml predict <model_outputdir> <features_path> <feature_field> --output-path <my_predictions_path.csv>
 ```
 
-Where `<features_path>` is the path to a `CSV` file with a column `features_field` that contains the peptide sequences/SMILES. The output file `<my_predictions_path>` will contain the original data with two additional columns `score` (which are the predictions) and `std` which is the standard deviation between the predictions of the models in the ensemble, which can be used as a measure of the uncertainty of the prediction.
+Where `<features_path>` is the path to a `CSV` file with a column `<features_field>` that contains the peptide sequences/SMILES. The output file `<my_predictions_path>` will contain the original data with two additional columns `score` (which are the predictions) and `std` which is the standard deviation between the predictions of the models in the ensemble, which can be used as a measure of the uncertainty of the prediction.
 
 ## Benchmark data <a name="benchmark"></a>
 
@@ -196,201 +194,39 @@ pip install smilesPE
 
 ### Configuration file
 
-#### Top-level structure
 
 ```yaml
-pipeline: {...}
-databases: {...}
-test: {...}
-val: {...}
-train: {...}
-representation: {...}
-outputdir: "path/to/experiment_results"
-```
+datasets:
+  main:
+    feat-fields: # Column with peptide sequence/SMILES
+    label-field: # Column with labels/ "Assume all entries are positives"
+    path: # Path to dataset
+  neg-db:
+    activities-to-exclude: # List of activities to exclude
+      - activity-1
+      - activity-2
+      ...
+    feat-fields: null # Column with peptide sequence/SMILES (only if using custom database)
+    path: # Path to custom database or choose: canonical, non-canonical, both
+device: # Device for computing representations. Choose: cpu, mps, cuda
+direction: # Direction of optimization. Choose: maximize or minimize
+metric: # Metric for optimization. mse, mae require direction minimize
+models: # List of machine learning algorithms to explore. List:
+        # knn, svm, rf, gradboost, xgboost, lightgbm
+  - model-1
+  - model-2
+  ...
+n-trials: # Number of optimization steps. Recommended 100-200
+pipeline: to-smiles # Pipeline for preprocessing. Choose: to-smiles, to-sequences
+reps: # List of peptide representations to explore. List:
+      # ecfp, chemberta-2, molformer-xl, peptide-clm, esm2-8m, ...
+  - rep-1
+  - rep-2
+  ...
 
-#### `pipeline`
-Defines the preprocessing pipeline depending on the modality (`mol` or `seqs`). It includes data cleaning and transformations, such as:
-
-- `filter-smiles`
-- `canonical-cleaner`
-- `sequence-to-smiles`
-- `smiles-to-sequences`
-
-The name of a pipeline object has to include the word `pipe`. Pipelines can be elements within a pipeline. Here, is an example. Aggregate will combine the output from the different elements. In this case, the two elements process SMILES and sequences independently and then combine them into a single datastream.
-
-
-```yaml
-pipeline:
-  name: "macromolecules_pipe"
-  aggregate: true
-  verbose: false
-  elements:
-    - pipe-smiles-input: {...}
-    - pipe-seq-input: {...}
-
-```
-
-### `databases`
-
-Defines dataset paths and how to interpret them.
-
-**Required:**
-- `path`: Path to main dataset.
-- `feat_fields`: Column name with SMILES or sequences.
-- `label_field`: Column with classification/regression labels.
-- `verbose`: Logging flag.
-
-**Optional:**
-- `neg_database`: If using negative sampling.
-- `path`: Path to negative dataset.
-- `feat_fields`: Feature column.
-- `columns_to_exclude`: Bioactivity columns to ignore.
-
-```yaml
-databases:
-  dataset:
-    path: "data/main.csv"
-    feat_fields: "sequence"
-    label_field: "activity"
-    verbose: false
-  neg_database:
-    path: "data/negatives.csv"
-    feat_fields: "sequence"
-    columns_to_exclude: ["to_exclude"]
-    verbose: false
-```
-
-### `test`
-
-Defines evaluation and similarity filtering settings.
-
-- min_threshold: Identity threshold for filtering.
-- sim_arguments: Similarity computation details.
-
-For sequences:
-
-- `alignment_algorithm`: `mmseqs`, `mmseqs+prefilter`, `needle`
-- `denominator`: How identity is normalized: `longest`, `shortest`, `n_aligned`
-- `prefilter`: Whether to use a prefilter.
-- `field_name`: Name of column with the peptide sequences/SMILES
-- `verbose`: Logging flag.
-
-For molecules:
-
-- `sim_function`: e.g., tanimoto, jaccard
-- `radius`: Radius to define the substructures when computing the fingerprint
-- `bits`: Size of the fingerprint, greater gives more resolution but demands more computational resources.
-- `partitions`: `min`, `all`, `<threshold>`
-- `algorithm`: `ccpart`, `ccpart_random`, `graph_part`
-- `threshold_step`: Step size for threshold evaluation.
-- `filter`: Minimum proportion of data in the test set that is acceptable (test set proportion = 20%, `filter=0.185`, does not consider test sets with less than 18.5%)
-- `verbose`: Logging level.
-
-Example:
-
-```yaml
-test:
-  min_threshold: 0.1
-  sim_arguments:
-    data_type: "sequence"
-    alignment_algorithm: "mmseqs"
-    denominator: "shortest"
-    prefilter: true
-    min_threshold: 0.1
-    field_name: "sequence"
-    verbose: 2
-  partitions: "all"
-  algorithm: "ccpart"
-  threshold_step: 0.1
-  filter: 0.185
-  verbose: 2
-```
-
-### `val`
-
-Cross-validation strategy:
-
-- `type`: `kfold` or `single`
-- `k`: Number of folds.
-- `random_state`: Seed for reproducibility.
-
-### `train`
-Training configuration.
-
-Required:
-
-- `task`: class or reg
-- `optim_strategy`: Optimization strategy.
-- `trainer`: grid or optuna
-- `n_steps`: Number of trials (Optuna only).
-- `direction`: maximize or minimize
-- `metric`: mcc or mse
-- `partition`: Partitioning type.
-- `n_jobs`: Parallel jobs.
-- `patience`: Early stopping patience.
-- `hspace`: Search space.
-- `representations`: List of representations to try.
-- `models`:
-- `type`: select or ensemble
-- `elements`: model names and their hyperparameter space.
-
-Example: 
-
-```yaml
-train:
-  task: "class"
-  optim_strategy:
-    trainer: "optuna"
-    n_steps: 100
-    direction: "maximize"
-    task: "class"
-    metric: "mcc"
-    partition: "random"
-    n_jobs: 8
-    patience: 20
-  hspace:
-    representations: ["chemberta-2", "ecfp-4"]
-    models:
-      type: "select"
-      elements:
-        knn:
-          n_neighbors:
-            type: int
-            min: 1
-            max: 20
-            log: false
-          weights:
-            type: categorical
-            values: ["uniform", "distance"]
-```
-
-
-### `representation`
-Specifies molecular or sequence representations.
-
-Each element includes:
-
-- `engine`: `lm` (language model) or `fp` (fingerprint)
-- `model`: Model name (e.g., chemberta-2, esm2-150m)
-- `device`: `cpu`, `gpu`, or `mps`
-- `batch_size`: Size per batch
-- `average_pooling`: Whether to average token representations (only for `lm`)
-
-```yaml
-representation:
-  verbose: true
-  elements:
-    - chemberta-2:
-        engine: "lm"
-        model: "chemberta-2"
-        device: "gpu"
-        batch_size: 32
-        average_pooling: true
-    - ecfp-4:
-        engine: "fp"
-        fp: "ecfp"
-        radius: 2
-        nbits: 2048
+split-strategy: min # Strategy for splitting train/test. Choose: min, random. 
+task: class # Machine learning type of problem. Choose: class or reg.
+n-jobs: # Number of processes to launch. -1 uses all possible CPU cores.
 ```
 
 ### More details about API
