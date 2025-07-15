@@ -13,7 +13,7 @@ from skl2onnx import to_onnx
 
 
 SKLEARN_MODELS = ['knn', 'svm', 'rf', 'gradboost']
-ALL_MODELS = SKLEARN_MODELS + ['lightgbm', 'xgboost', 'catboost']
+ALL_MODELS = SKLEARN_MODELS + ['lightgbm', 'xgboost']
 
 
 class OnnxModel:
@@ -102,7 +102,9 @@ class VotingEnsemble:
         logger = logging.getLogger("skl2onnx")
         logger.setLevel(logging.DEBUG)
         for idx, (mdl, rep) in enumerate(zip(self.models, self.reps)):
-            variable_type = FloatTensorType([None, self.dims[rep]])
+            variable_type = onxt.convert.common.data_types.FloatTensorType(
+                [None, self.dims[rep]]
+            )
             initial_types = [('float_input', variable_type)]
             if 'LGBM' in str(mdl):
                 mdl_onnx = onxt.convert_lightgbm(
@@ -117,6 +119,8 @@ class VotingEnsemble:
                     mdl, initial_types=initial_types
                 )
             else:
+                variable_type = FloatTensorType([None, self.dims[rep]])
+                initial_types = [('float_input', variable_type)]
                 mdl_onnx = to_onnx(mdl, initial_types=initial_types)
 
             name = f'{idx}_{rep}.onnx'
