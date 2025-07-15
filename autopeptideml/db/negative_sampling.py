@@ -43,44 +43,12 @@ TARGET_DBs = ['canonical', 'non-canonical', 'both']
 MATCHING = {'mw': _mw, 'length': _length}
 
 
-def add_negatives_from_db(
-    df: pd.DataFrame,
-    target_db: Union[str, pd.DataFrame],
-    sequence_field: str,
-    activities_to_exclude: List[str] = [],
-    label_field: str = None,
-    desired_ratio: float = 1.0,
-    verbose: bool = True,
-    sample_by: str = 'mw',
-    n_jobs: int = cpu_count(),
-    random_state: int = 1
-) -> pd.DataFrame:
-    if label_field is not None and label_field not in df.columns:
-        raise ValueError(f"Label field {label_field} not in DataFrame.")
-    if sequence_field not in df.columns:
-        raise ValueError("Sequence field is not in DataFrame. Please check spelling.")
-    if not (isinstance(target_db, str) or isinstance(target_db, pd.DataFrame)):
-        raise ValueError("target_db has to be a string or a pd.DataFrame")
-    if isinstance(target_db, str) and target_db not in TARGET_DBs:
-        raise ValueError(f"target_db: {target_db} is not valid.",
-                         f"Either provide a custom pd.DataFrame or use one of the prepared ones: {', '.join(TARGET_DBs)}")
-    if sample_by not in MATCHING:
-        raise ValueError(f"sample_by: {sample_by} is not valid.",
-                         f"Please select one of the following options: {', '.join(list(MATCHING.keys()))}")
-    if isinstance(activities_to_exclude, str):
-        activities_to_exclude = [activities_to_exclude]
+def get_neg_db(target_db: str, verbose: bool, return_path: bool = False) -> pd.DataFrame:
     db_dir = osp.join(osp.dirname(__file__), '..', 'data', 'dbs')
     if not osp.isdir(db_dir):
         os.makedirs(db_dir, exist_ok=True)
 
-    elif label_field is None:
-        label_field = 'label'
-        df[label_field] = 1
-
-    if isinstance(target_db, pd.DataFrame):
-        db = target_db
-
-    elif target_db == 'canonical':
+    if target_db == 'canonical':
         path = osp.join(db_dir, 'canonical.csv')
         if not osp.exists(path):
             try:
@@ -115,6 +83,48 @@ def add_negatives_from_db(
             FILE_ID = "189VtkbQ2bVpQlAe2UMBSzt_O4F7EyBWl"
             gdown.download(id=FILE_ID, output=path, quiet=verbose)
         db = pd.read_csv(path)
+    if not return_path:
+        return db
+    else:
+        return db, path
+
+
+def add_negatives_from_db(
+    df: pd.DataFrame,
+    target_db: Union[str, pd.DataFrame],
+    sequence_field: str,
+    activities_to_exclude: List[str] = [],
+    label_field: str = None,
+    desired_ratio: float = 1.0,
+    verbose: bool = True,
+    sample_by: str = 'mw',
+    n_jobs: int = cpu_count(),
+    random_state: int = 1
+) -> pd.DataFrame:
+    if label_field is not None and label_field not in df.columns:
+        raise ValueError(f"Label field {label_field} not in DataFrame.")
+    if sequence_field not in df.columns:
+        raise ValueError("Sequence field is not in DataFrame. Please check spelling.")
+    if not (isinstance(target_db, str) or isinstance(target_db, pd.DataFrame)):
+        raise ValueError("target_db has to be a string or a pd.DataFrame")
+    if isinstance(target_db, str) and target_db not in TARGET_DBs:
+        raise ValueError(f"target_db: {target_db} is not valid.",
+                         f"Either provide a custom pd.DataFrame or use one of the prepared ones: {', '.join(TARGET_DBs)}")
+    if sample_by not in MATCHING:
+        raise ValueError(f"sample_by: {sample_by} is not valid.",
+                         f"Please select one of the following options: {', '.join(list(MATCHING.keys()))}")
+    if isinstance(activities_to_exclude, str):
+        activities_to_exclude = [activities_to_exclude]
+
+    elif label_field is None:
+        label_field = 'label'
+        df[label_field] = 1
+
+    if isinstance(target_db, pd.DataFrame):
+        db = target_db
+
+    else:
+        db, path = get_neg_db(target_db, verbose=verbose, return_path=True)
 
     first_time = True
     for column in activities_to_exclude:
@@ -124,7 +134,7 @@ def add_negatives_from_db(
                 first_time = False
             print(f"Warning: column: {column} does not exist in database. Ignoring")
         else:
-            db = db[db[column] != 1].copy().reset_index()
+            db = db[db[column] != 1].copy().reset_index(drop=True)
 
     field = 'sequence' if sample_by == 'length' else 'smiles'
     if sample_by not in db:
