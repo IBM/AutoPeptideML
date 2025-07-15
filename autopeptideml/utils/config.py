@@ -148,7 +148,7 @@ def config_helper(config_path: str) -> dict:
     )
     reps = Prompt().checkbox("What representations would you like to use?",
                              options=['ecfp', 'chemberta-2', 'molformer-xl',
-                                      'peptide-clm', 'esm2-8m'],
+                                      'peptideclm', 'esm2-8m'],
                              min_selections=1)
     acc = Prompt().select("Which accelerator would you like to use to compute the representations?",
                           options=['cpu', "cuda", "mps"])
