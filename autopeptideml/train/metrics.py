@@ -7,7 +7,7 @@ from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import (matthews_corrcoef,
                              accuracy_score, f1_score,
                              precision_score, recall_score, mean_squared_error,
-                             mean_absolute_error, roc_auc_score)
+                             mean_absolute_error, roc_auc_score, r2_score)
 
 
 def _pcc(preds, truths):
@@ -26,6 +26,22 @@ def _recall(preds, truths):
     return recall_score(preds, truths, zero_division=True)
 
 
+def _tp(preds, truths):
+    return ((preds == 1) & (truths == 1)).sum()
+
+
+def _tn(preds, truths):
+    return ((preds == 0) & (truths == 0)).sum()
+
+
+def _fp(preds, truths):
+    return ((preds == 1) & (truths == 0)).sum()
+
+
+def _fn(preds, truths):
+    return ((preds == 0) & (truths == 1)).sum()
+
+
 CLASSIFICATION_METRICS = {
     'mcc': matthews_corrcoef,
     'acc': accuracy_score,
@@ -33,14 +49,20 @@ CLASSIFICATION_METRICS = {
     'f1_weighted': _f1_weighted,
     'precision': precision_score,
     'recall': _recall,
-    'auroc': roc_auc_score
+    'auroc': roc_auc_score,
+    'tp': _tp,
+    'tn': _tn,
+    'fp': _fp,
+    'fn': _fn
+
 }
 
 REGRESSION_METRICS = {
     'mse': mean_squared_error,
     'mae': mean_absolute_error,
     'pcc': _pcc,
-    'spcc': _spcc
+    'spcc': _spcc,
+    'r2': r2_score
 }
 
 

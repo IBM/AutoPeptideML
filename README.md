@@ -100,7 +100,7 @@ autopeptideml build-model --outdir <outdir> --config-path <outputdir>/config.yml
 In order to use a model that has already built you can run:
 
 ```bash
-autopeptideml predict <model_outputdir> <features_path> <feature_field> --output-path <my_predictions_path.csv>
+autopeptideml predict <result_dir> <features_path> --feature-field <feature_field> --output-path <my_predictions_path.csv>
 ```
 
 Where `<features_path>` is the path to a `CSV` file with a column `<features_field>` that contains the peptide sequences/SMILES. The output file `<my_predictions_path>` will contain the original data with two additional columns `score` (which are the predictions) and `std` which is the standard deviation between the predictions of the models in the ensemble, which can be used as a measure of the uncertainty of the prediction.
