@@ -44,6 +44,7 @@ def get_files_in_dir(path: Path, base: Path) -> list:
 test_requirements = requirements
 data_dir = this_directory / 'autopeptideml' / 'data'
 files = get_files_in_dir(data_dir, this_directory)
+files = [str(f) for f in files]
 
 setup(
     author="Raul Fernandez-Diaz",
