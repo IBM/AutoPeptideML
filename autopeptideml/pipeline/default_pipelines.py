@@ -20,7 +20,7 @@ def _tosmiles(substitution: str = 'G') -> Pipeline:
 
 
 def _tosmiles_fast(substitution: str = 'G') -> Pipeline:
-    from .smiles import SequenceToSmiles, CanonicalizeSmiles, FilterSmiles
+    from .smiles import SequenceToSmiles, FilterSmiles
     from .sequence import CanonicalCleaner
     stream_1a = Pipeline([FilterSmiles(keep_smiles=False),
                          CanonicalCleaner(substitution=substitution),
@@ -65,7 +65,33 @@ PIPELINES = {
 
 
 def get_pipeline(name: str, **kwargs) -> Pipeline:
-    if name in PIPELINES:
-        return PIPELINES[name](**kwargs)
-    else:
-        raise ValueError(f"Pipeline {name} does not exist. Please try: {', '.join(PIPELINES.keys())}")
+    """
+    Retrieve a predefined processing pipeline by name.
+
+    Supported pipeline names:
+
+    - ``'to-smiles'``: Converts a sequence to a canonical SMILES representation.
+      Performs cleaning and full canonicalization.
+
+    - ``'to-smiles-fast'``: Converts a sequence to SMILES quickly with minimal processing.
+      Skips canonicalization for performance.
+
+    - ``'to-sequences'``: Converts SMILES back to a cleaned sequence, optionally preserving analog information.
+
+    Keyword arguments depend on the pipeline selected:
+
+    - For ``'to-smiles'`` and ``'to-smiles-fast'``:
+        - ``substitution`` (str): A character used to replace non-canonical residues in sequences.
+          Default is ``'G'``.
+
+    - For ``'to-sequences'``:
+        - ``substitution`` (str): A character used for cleaning sequences. Default is ``'G'``.
+        - ``keep_analog`` (bool): Whether to substitute non-canonical residues for their natural analog information during SMILES-to-sequence conversion. Default is ``True``.
+
+    :param name: The name of the pipeline to retrieve. Must be one of: ``'to-smiles'``, ``'to-smiles-fast'``, ``'to-sequences'``.
+    :type name: str
+    :param kwargs: Additional keyword arguments passed to the selected pipeline constructor.
+    :raises ValueError: If the provided name is not a valid pipeline.
+    :return: An instance of the requested processing pipeline.
+    :rtype: Pipeline
+    """
