@@ -44,6 +44,28 @@ MATCHING = {'mw': _mw, 'length': _length}
 
 
 def get_neg_db(target_db: str, verbose: bool, return_path: bool = False) -> pd.DataFrame:
+    """
+    Retrieves a precompiled database of negative samples.
+
+    If the database file is not found locally, it will attempt to download it
+    using `gdown`.
+
+    Valid values for ``target_db``:
+
+    - ``'canonical'``: Uses the canonical negative dataset.
+    - ``'non-canonical'``: Uses the non-canonical version.
+    - ``'both'``: Merged version of both canonical and non-canonical datasets.
+
+    :param target_db: The type of database to retrieve. Must be one of ``'canonical'``, ``'non-canonical'``, or ``'both'``.
+    :type target_db: str
+    :param verbose: If ``True``, prints information during download.
+    :type verbose: bool
+    :param return_path: If ``True``, also returns the path to the local database file.
+    :type return_path: bool
+    :raises ImportError: If `gdown` is not installed and download is required.
+    :return: The negative sample database as a DataFrame, optionally with its file path.
+    :rtype: pd.DataFrame or Tuple[pd.DataFrame, str]
+    """
     db_dir = osp.join(osp.dirname(__file__), '..', 'data', 'dbs')
     if not osp.isdir(db_dir):
         os.makedirs(db_dir, exist_ok=True)
@@ -101,6 +123,40 @@ def add_negatives_from_db(
     n_jobs: int = cpu_count(),
     random_state: int = 1
 ) -> pd.DataFrame:
+    """
+    Augments a dataset with negative samples from a target database to achieve a desired negative/positive ratio.
+
+    The function groups the input data and the negative database using a sampling strategy
+    (e.g. molecular weight or sequence length), then balances each group individually
+    by adding an appropriate number of negative samples.
+
+    :param df: The input DataFrame containing positive samples.
+    :type df: pd.DataFrame
+    :param target_db: Either the name of a precompiled negative database or a custom DataFrame. Valid string values are:
+                      ``'canonical'``, ``'non-canonical'``, ``'both'``.
+    :type target_db: Union[str, pd.DataFrame]
+    :param sequence_field: Name of the column in ``df`` containing sequences to process.
+    :type sequence_field: str
+    :param activities_to_exclude: A list of column names in the database to filter out active entries.
+    :type activities_to_exclude: List[str]
+    :param label_field: Column name to use for labels. If ``None``, defaults to ``'label'`` and assumes all input samples are positive (label=1).
+    :type label_field: str, optional
+    :param desired_ratio: The desired positive:negative ratio to achieve. For example, 1.0 adds one negative for each positive.
+    :type desired_ratio: float
+    :param verbose: Whether to print warnings and progress messages.
+    :type verbose: bool
+    :param sample_by: The feature used to group and sample negatives. Options:
+                      - ``'mw'``: Molecular weight (computed via RDKit).
+                      - ``'length'``: Sequence length.
+    :type sample_by: str
+    :param n_jobs: Number of parallel workers to use for feature computation.
+    :type n_jobs: int
+    :param random_state: Random seed for reproducibility during sampling.
+    :type random_state: int
+    :raises ValueError: If input parameters are invalid or required columns are missing.
+    :return: A new DataFrame with the added negative samples.
+    :rtype: pd.DataFrame
+    """
     if label_field is not None and label_field not in df.columns:
         raise ValueError(f"Label field {label_field} not in DataFrame.")
     if sequence_field not in df.columns:
