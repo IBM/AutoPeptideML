@@ -18,6 +18,7 @@ requirements = [
     'transformers',
     'lightgbm',
     'xgboost',
+    'seaborn',
     # 'catboost',
     'hestia-good',
     'onnxmltools',
