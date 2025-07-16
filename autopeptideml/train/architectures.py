@@ -17,23 +17,73 @@ ALL_MODELS = SKLEARN_MODELS + ['lightgbm', 'xgboost']
 
 
 class OnnxModel:
+    """
+    A wrapper around an ONNX model for inference using ONNX Runtime.
+
+    Assumes that the ONNX model expects a single input named `"float_input"` of type float32.
+
+    :param path: File path to the ONNX model.
+    :type path: str
+    """
     def __init__(self, path: str):
         self.session = rt.InferenceSession(
             path, providers=['CPUExecutionProvider']
         )
 
     def predict(self, x: np.ndarray):
+        """
+        Runs inference on input data and returns raw predictions (e.g., class labels or regression outputs).
+
+        :param x: Input array of shape (n_samples, n_features).
+                Must match the input shape expected by the ONNX model.
+        :type x: np.ndarray
+        :return: Predicted values from the ONNX model.
+        :rtype: np.ndarray
+        """
         input_dict = {"float_input": x.astype(np.float32)}
         preds = self.session.run(None, input_dict)
         return preds[0]
 
     def predict_proba(self, x: np.ndarray):
+        """
+        Runs inference on input data and returns class probabilities.
+
+        This method assumes the ONNX model returns two outputs:
+        - The first output (ignored here) is typically raw predictions or class indices.
+        - The second output is a list of probability vectors, where each entry is a list of probabilities
+        for each class. This method returns the probability for the positive class (index 1) only.
+
+        :param x: Input array of shape (n_samples, n_features).
+                Must match the input shape expected by the ONNX model.
+        :type x: np.ndarray
+        :return: Array of predicted probabilities for the positive class (shape: [n_samples]).
+        :rtype: np.ndarray
+        """
         input_dict = {"float_input": x.astype(np.float32)}
         preds = self.session.run(None, input_dict)
         return np.array([i[1] for i in preds[1]])
 
 
 class VotingEnsemble:
+    """
+    A model ensemble that combines predictions from multiple sub-models trained on different feature representations.
+
+    The ensemble averages predictions and provides both the mean and standard deviation across models.
+
+    Supported model types for ONNX export include:
+
+    - Scikit-learn: 'knn', 'svm', 'rf', 'gradboost'
+    - Gradient Boosting: 'lightgbm', 'xgboost'
+
+    Models must be compatible with skl2onnx, onnxmltools, or appropriate ONNX converters.
+
+    Input format during prediction must match the reps provided at initialization.
+
+    :param models: List of trained models, each conforming to a scikit-learn-style API (with `.predict` and `.predict_proba`).
+    :type models: List[Callable]
+    :param reps: List of string identifiers corresponding to the representation keys for each model.
+    :type reps: List[str]
+    """
     models: List[Callable]
     reps: List[str]
     dims: Dict[str, int] = None
@@ -43,18 +93,29 @@ class VotingEnsemble:
         self.reps = reps
 
     def _stack_results(self, out: List[np.ndarray]) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Computes mean and standard deviation across model predictions.
+
+        :param out: List of prediction arrays from individual models.
+        :type out: List[np.ndarray]
+        :return: Tuple of mean and standard deviation across models.
+        :rtype: Tuple[np.ndarray, np.ndarray]
+        """
         pred = np.stack(out)
         out_mean = np.mean(pred, axis=0)
         out_std = np.std(pred, axis=0)
         return out_mean, out_std
 
     def predict(self, x: Union[np.ndarray, Dict[str, np.ndarray]]) -> Tuple[np.ndarray, np.ndarray]:
-        """_summary_
+        """
+        Predicts class labels or regression values using ensemble of models. Returns both mean and standard deviation.
 
-        :param x: _description_
-        :type x: np.ndarray
-        :return: Mean, standard deviation
-        :rtype: [np.ndarray, np.ndarray]
+        :param x: Input data. Can be:
+                - A NumPy array if all models use the same representation.
+                - A dictionary of representation name to NumPy array if models use different representations.
+        :type x: Union[np.ndarray, Dict[str, np.ndarray]]
+        :return: Tuple of (mean predictions, standard deviation across models).
+        :rtype: Tuple[np.ndarray, np.ndarray]
         """
         out = []
         self.dims = {rep: x[rep].shape[1] for rep in self.reps}
@@ -70,12 +131,15 @@ class VotingEnsemble:
         return self._stack_results(out)
 
     def predict_proba(self, x: Union[np.ndarray, Dict[str, np.ndarray]]) -> Tuple[np.ndarray, np.ndarray]:
-        """_summary_
+        """
+        Predicts class probabilities using ensemble of models. Returns both mean and standard deviation.
 
-        :param x: _description_
-        :type x: np.ndarray
-        :return: Mean, standard deviation
-        :rtype: [np.ndarray, np.ndarray]
+        :param x: Input data. Can be:
+                - A NumPy array if all models use the same representation.
+                - A dictionary of representation name to NumPy array if models use different representations.
+        :type x: Union[np.ndarray, Dict[str, np.ndarray]]
+        :return: Tuple of (mean probabilities, standard deviation across models).
+        :rtype: Tuple[np.ndarray, np.ndarray]
         """
         out = []
         self.dims = {rep: x[rep].shape[1] for rep in self.reps}
@@ -91,6 +155,16 @@ class VotingEnsemble:
         return self._stack_results(out)
 
     def save(self, path: str) -> None:
+        """
+        Saves each model in the ensemble to ONNX format in the specified directory.
+
+        The method infers input dimensions from prior calls to `predict` or `predict_proba`.
+
+        :param path: Path to a directory where ONNX models will be saved. Must not point to a file.
+        :type path: str
+        :raises RuntimeError: If `predict` or `predict_proba` has not been called to determine input dimensions.
+        :raises FileExistsError: If the given path is a file.
+        """
         if self.dims is None:
             raise RuntimeError("The `predict` or `predict_proba` method has to be called before saving the model.")
 
@@ -129,6 +203,19 @@ class VotingEnsemble:
 
     @classmethod
     def load(self, path) -> "VotingEnsemble":
+        """
+        Loads an ensemble from a directory of ONNX model files.
+
+        Expects each file in the directory to be named as ``{index}_{rep}.onnx``,
+        where ``rep`` is the representation used by that model.
+
+        :param path: Path to a directory containing saved ONNX models.
+        :type path: str
+        :raises NotADirectoryError: If the path does not point to a valid directory.
+        :raises RuntimeError: If any file in the directory is not an ONNX model.
+        :return: A `VotingEnsemble` instance with models restored from ONNX.
+        :rtype: VotingEnsemble
+        """
         if not osp.isdir(path):
             raise NotADirectoryError(f"Path: {path} is not a directory.")
         models, reps = [], []

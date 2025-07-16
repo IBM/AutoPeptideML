@@ -221,56 +221,51 @@ class BaseTrainer:
 
 class OptunaTrainer(BaseTrainer):
     """
-    Class `OptunaTrainer` implements a hyperparameter optimization (HPO) framework using Optuna.
-    It builds on `BaseTrainer` to perform model selection and tuning based on user-defined
-    hyperparameter spaces and optimization strategies.
+    Implements hyperparameter optimization using Optuna for a variety of ML models and tasks.
 
-    Attributes:
-        :type name: str
-        :param name: The name of the trainer. Default is `'optuna'`.
+    Inherits from `BaseTrainer` and supports both fixed and ensemble hyperparameter search spaces.
+    The trainer searches for the best configuration using cross-validation or train/validation split.
 
-    Example Usage:
-        ```python
-        trainer = OptunaTrainer(hpspace=my_hpspace, optim_strategy=my_strategy)
-        best_model = trainer.hpo(train_folds, x, y)
-        ```
-    Example Schema for `hpspace`:
-        ```python
-        hpspace = {
-            'models': {
-                'type': 'fixed',  # Options: 'fixed', 'ensemble'
-                'elements': {
-                    'svm': [
-                        {'C': {'type': 'float', 'min': 0.1, 'max': 10, 'log': True}},
-                        {'kernel': {'type': 'categorical', 'values': ['linear', 'rbf']}},
-                        {'probability': {'type': 'fixed', 'value': True}}
-                    ],
-                    'xgboost': [
-                        {'n_estimators': {'type': 'int', 'min': 50, 'max': 200, 'log': False}},
-                        {'learning_rate': {'type': 'float', 'min': 0.01, 'max': 0.1, 'log': True}},
-                        {'max_depth': {'type': 'int', 'min': 3, 'max': 10, 'log': False}}
-                    ]
-                }
-            },
-            'reps': ['representation1', 'representation2']
-        }
-        ```
-    Example Schema for `optim_strategy`:
+    :param task: The machine learning task. Must be one of {"class", "reg", "multiclass"}.
+    :type task: str
+    :param direction: The direction of optimization. Either "maximize" or "minimize".
+    :type direction: str
+    :param metric: The evaluation metric. If None, defaults based on task.
+    :type metric: Optional[str]
+    :param ensemble: Whether to use ensemble modeling during optimization.
+    :type ensemble: bool
 
-        ```python
-        optim_strategy = {
-            'task': 'class',
-            'direction': 'maximize',
-            'metric': 'mcc',
-            'patience': 15,
-            'n_steps': 75,
-            'n_jobs': 1
-        }
-        ```
+    :ivar name: Name of the trainer (default: "optuna").
+    :vartype name: str
+    :ivar best_model: The best ensemble or model found during HPO.
+    :vartype best_model: Optional[Callable]
+    :ivar best_metric: Best performance achieved during optimization.
+    :vartype best_metric: float
+    :ivar best_config: The hyperparameter configuration corresponding to best_model.
+    :vartype best_config: dict
+    :ivar history: DataFrame with full optimization history.
+    :vartype history: pd.DataFrame
+    :ivar study: Optuna study object.
+    :vartype study: optuna.study.Study
     """
     name = 'optuna'
 
     def _get_hpspace(self, models: List[str], custom_hpspace: dict) -> dict:
+        """
+        Constructs the full hyperparameter search space dictionary by combining
+        custom and default model configurations.
+
+        :param models: List of model names for which to build the hyperparameter space.
+            If None, uses all available models.
+            Typical values: ['svm', 'xgboost', 'lightgbm', 'catboost', 'cnn']
+        :type models: List[str]
+
+        :param custom_hpspace: Dictionary containing user-defined hyperparameter search spaces.
+        :type custom_hpspace: dict
+
+        :return: A dictionary representing the structured hyperparameter space.
+        :rtype: dict
+        """
         file_dir = osp.abspath(osp.dirname(__file__))
         config_dir = osp.join(file_dir, '..', 'data', 'h_param_search')
         full_hpspace = {
@@ -299,13 +294,17 @@ class OptunaTrainer(BaseTrainer):
         return full_hpspace
 
     def _prepare_hpspace(self, trial) -> dict:
-        """Prepares the hyperparameter space for a given Optuna trial.
+        """
+        Prepares the hyperparameter space for a single Optuna trial.
 
+        Selects model(s), representations, and hyperparameter values based on the trial object.
+        Supports both fixed and ensemble model types with conditional parameters.
+
+        :param trial: An Optuna trial object from which hyperparameters are suggested.
         :type trial: optuna.trial.Trial
-            :param trial: An Optuna trial object used to suggest hyperparameter values.
 
+        :return: List of selected models with their hyperparameters and representation.
         :rtype: dict
-            :return: A dictionary containing the hyperparameter configurations for the models.
 
         :raises KeyError: If the hyperparameter space is not properly defined.
         """
@@ -401,16 +400,19 @@ class OptunaTrainer(BaseTrainer):
         return full_hpspace
 
     def _hpo_step(self, trial) -> dict:
-        """Executes a single HPO step by evaluating a configuration from the hyperparameter space.
+        """
+        Executes one hyperparameter optimization step using a configuration proposed by Optuna.
 
+        Evaluates the selected model(s) across folds, tracks results, and updates best model if applicable.
+
+        :param trial: The Optuna trial suggesting the hyperparameter configuration.
         :type trial: optuna.trial.Trial
-            :param trial: An Optuna trial object.
 
+        :return: Evaluation score computed from the selected metric (e.g., 'mcc', 'f1_weighted', 'mse').
         :rtype: float
-            :return: The performance metric for the evaluated configuration.
 
-        :raises ValueError: If the hyperparameter space is improperly defined.
-        :raises KeyError: If required fields are missing in the hyperparameter space.
+        :raises ValueError: If the hyperparameter space is malformed or missing required fields.
+        :raises KeyError: If conditional dependencies fail during configuration evaluation.
         """
         try:
             hpspace = self._prepare_hpspace(trial)
@@ -491,6 +493,41 @@ class OptunaTrainer(BaseTrainer):
         db_file: str = None,
         study_name: str = None
     ) -> Union[Callable, List[Callable]]:
+        """
+        Runs Optuna-based hyperparameter optimization using the provided data and model list.
+
+        :param x: Dictionary of representation names to feature arrays (shape: [n_samples, n_features]).
+        :type x: Dict[str, np.ndarray]
+        :param y: Target values.
+        :type y: np.ndarray
+        :param models: List of model names to optimize. Defaults to ALL_MODELS.
+        :type models: List[str]
+        :param n_folds: Number of cross-validation folds. Ignored if `train_val_ratio` is specified.
+        :type n_folds: int
+        :param train_val_ratio: Proportion of training data to use for validation split (e.g., 0.2).
+        :type train_val_ratio: float
+        :param n_trials: Maximum number of Optuna trials to run.
+        :type n_trials: int
+        :param patience: Number of trials with no improvement before early stopping. Defaults to n_trials // 5.
+        :type patience: int
+        :param random_state: Seed for reproducibility.
+        :type random_state: int
+        :param n_jobs: Number of parallel jobs (used in model training if supported).
+        :type n_jobs: int
+        :param verbose: Verbosity level (0: silent, 1: warnings only, 2: show progress bar).
+        :type verbose: int
+        :param custom_hpspace: Custom hyperparameter space for specific models.
+        :type custom_hpspace: dict
+        :param db_file: Path to Optuna SQLite DB file for persistent study storage.
+        :type db_file: Optional[str]
+        :param study_name: Name for the Optuna study.
+        :type study_name: Optional[str]
+
+        :return: The best model or ensemble model found during HPO.
+        :rtype: Union[Callable, List[Callable]]
+
+        :raises ImportError: If Optuna is not installed.
+        """
         try:
             import optuna
         except ImportError:
@@ -542,6 +579,21 @@ class OptunaTrainer(BaseTrainer):
         self, path: str, task: str,
         study_name: str
     ) -> "OptunaTrainer":
+        """
+        Loads an existing Optuna study from a SQLite database file.
+
+        :param path: Path to the SQLite database file.
+        :type path: str
+        :param task: Task type used to initialize the trainer ("class", "reg", or "multiclass").
+        :type task: str
+        :param study_name: Name of the saved Optuna study.
+        :type study_name: str
+
+        :return: An OptunaTrainer instance with the loaded Optuna study.
+        :rtype: OptunaTrainer
+
+        :raises ImportError: If Optuna is not installed.
+        """
         try:
             import optuna
         except ImportError:
