@@ -86,7 +86,7 @@ def get_pipeline(name: str, **kwargs) -> Pipeline:
 
     - For ``'to-sequences'``:
         - ``substitution`` (str): A character used for cleaning sequences. Default is ``'G'``.
-        - ``keep_analog`` (bool): Whether to substitute non-canonical residues for their natural analog information during SMILES-to-sequence conversion. Default is ``True``.
+        - ``keep_analog`` (bool): Whether to substitute non-canonical residues for their natural information during SMILES-to-sequence conversion. Default is ``True``.
 
     :param name: The name of the pipeline to retrieve. Must be one of: ``'to-smiles'``, ``'to-smiles-fast'``, ``'to-sequences'``.
     :type name: str
@@ -95,3 +95,7 @@ def get_pipeline(name: str, **kwargs) -> Pipeline:
     :return: An instance of the requested processing pipeline.
     :rtype: Pipeline
     """
+    if name in PIPELINES:
+        return PIPELINES[name](**kwargs)
+    else:
+        raise ValueError(f"Pipeline {name} does not exist. Please try: {', '.join(PIPELINES.keys())}")
