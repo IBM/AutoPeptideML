@@ -25,7 +25,9 @@ requirements = [
     'skl2onnx',
     'onnxruntime',
     'rdkit',
-    'quarto'
+    'quarto',
+    'mapchiral',
+    'tabulate'
 ]
 
 
