@@ -44,6 +44,10 @@ class AutoPeptideML:
     """
     df: pd.DataFrame
     metadata: dict = {}
+    parts = None
+    x: dict = {}
+    execution: dict = {}
+    hpo_run: int = 1
 
     def __init__(
         self,
@@ -355,8 +359,9 @@ class AutoPeptideML:
             random_state=random_state,
             n_jobs=n_jobs,
             db_file=osp.join(self.meta_dir, 'database.sql'),
-            study_name='apml-1'
+            study_name=f'apml-{self.hpo_run}'
         )
+        self.hpo_run += 1
         end = time.time()
         self.metadata['status'] = 'trained'
         self.metadata['trainer-metadata'].update({
@@ -365,7 +370,8 @@ class AutoPeptideML:
             'metric': metric,
             'n-trials': n_trials,
             'patience': n_trials // 5,
-            'best-run': int(self.trainer.best_run)
+            'best-run': int(self.trainer.best_run),
+            'hpo-run': self.hpo_run
         })
         input_trial = {rep: self.x[rep][:1]
                        for rep in self.trainer.best_model.reps}
@@ -383,7 +389,15 @@ class AutoPeptideML:
         n_jobs: int,
         verbose: bool
     ):
-        self.x, execution = {}, {}
+        all_available = True
+        for rep in reps:
+            if rep not in self.x:
+                all_available = False
+                break
+
+        if all_available:
+            return
+        reps = [r for r in reps if r not in self.x]
         prot, mol = False, False
 
         for rep in reps:
@@ -404,11 +418,11 @@ class AutoPeptideML:
 
         if isinstance(reps, dict):
             for name, repengine in reps.items():
-                execution[name] = {'start': time.time()}
+                self.execution[name] = {'start': time.time()}
                 self.x[name] = repengine.compute_reps(
                     self.df[self.sequence_field], verbose=verbose, batch_size=16
                 )
-                execution[name]['end'] = time.time()
+                self.execution[name]['end'] = time.time()
             reps = list(reps.keys())
         else:
             for rep in reps:
@@ -417,7 +431,7 @@ class AutoPeptideML:
 
                 if rep in PLMs or rep in CLMs:
                     from autopeptideml.reps.lms import RepEngineLM
-                    execution[rep] = {'start': time.time()}
+                    self.execution[rep] = {'start': time.time()}
 
                     repengine = RepEngineLM(rep, average_pooling=True,
                                             fp16=True)
@@ -429,7 +443,7 @@ class AutoPeptideML:
                         rep = f'{rep}-8-2048'
                     elif len(rep.split('-')) == 2:
                         rep = f"{rep.split('-')[0]}-{rep.split('-')[1]}-2048"
-                    execution[rep] = {'start': time.time()}
+                    self.execution[rep] = {'start': time.time()}
                     repengine = RepEngineFP(
                         rep=rep.split('-')[0],
                         radius=int(rep.split('-')[1]),
@@ -437,21 +451,21 @@ class AutoPeptideML:
                     )
                 elif rep == 'one-hot':
                     from autopeptideml.reps.seq_based import RepEngineOnehot
-                    execution[rep] = {'start': time.time()}
+                    self.execution[rep] = {'start': time.time()}
 
                     repengine = RepEngineOnehot(max_length=50)
 
                 batch_size = 128 if repengine.get_num_params() < 2e7 else 16
                 if rep in PLMs or rep == 'one-hot':
                     if 'to-sequences' in self.metadata['pipeline-1']['name']:
-                        execution[rep] = {'start': time.time()}
+                        self.execution[rep] = {'start': time.time()}
 
                         self.x[rep] = repengine.compute_reps(
                             self.df[f'{self.sequence_field}'], verbose=verbose,
                             batch_size=batch_size
                         )
                     else:
-                        execution[rep] = {'start': time.time()}
+                        self.execution[rep] = {'start': time.time()}
 
                         self.x[rep] = repengine.compute_reps(
                             self.df[f'{self.sequence_field}-2'], verbose=verbose,
@@ -459,29 +473,34 @@ class AutoPeptideML:
                         )
                 elif rep in CLMs or rep.split('-')[0] in FPs:
                     if 'to-smiles' in self.metadata['pipeline-1']['name']:
-                        execution[rep] = {'start': time.time()}
+                        self.execution[rep] = {'start': time.time()}
 
                         self.x[rep] = repengine.compute_reps(
                             self.df[f'{self.sequence_field}'], verbose=verbose,
                             batch_size=batch_size
                         )
                     else:
-                        execution[rep] = {'start': time.time()}
+                        self.execution[rep] = {'start': time.time()}
 
                         self.x[rep] = repengine.compute_reps(
-                            self.df[f'{self.sequence_field}-2'], verbose=verbose,
+                            self.df[f'{self.sequence_field}-2'],
+                            verbose=verbose,
                             batch_size=batch_size
                         )
-                execution[rep]['end'] = time.time()
+                self.execution[rep]['end'] = time.time()
 
-        self.x = {rep: np.array(value) for rep, value in self.x.items()}
+        self.x.update({rep: np.array(value) for rep, value in self.x.items()})
         path = osp.join(self.meta_dir, 'reps.pckl')
         pickle.dump(self.x, open(path, 'wb'))
         self.metadata['status'] = 'represented'
-        self.metadata['reps-metadata'] = {'reps': list(self.x.keys())}
+        if 'reps-metadata' in self.metadata:
+            self.metadata['reps-metadata'].update({'reps': list(self.x.keys())})
+        else:
+            self.metadata['reps-metadata'] = {'reps':  list(self.x.keys())}
+
         self.metadata['reps-metadata'].update({
             f'{rep}-execution-time':
-            execution[rep]['end'] - execution[rep]['start']
+            self.execution[rep]['end'] - self.execution[rep]['start']
             for rep in self.x.keys()})
         self.save_metadata()
 
@@ -501,7 +520,10 @@ class AutoPeptideML:
             part_path = osp.join(self.outputdir, 'parts.pckl')
             parts = {k: v for k, v in partitions.items()}
             pickle.dump(parts, open(part_path, 'wb'))
-            self.parts = parts
+            self.parts = partitions
+            return
+        if self.parts is not None:
+            return
 
         SPLIT_STRATEGIES = ['random', 'min', 'good', None]
         self.metadata['status'] = 'partitioning'
