@@ -273,6 +273,8 @@ class AutoPeptideML:
                 "Please try: `min`",
                 "`good` strategy will be implemented in future releases."
             )
+        if os.isdir(osp.join(self.outputdir, 'ensemble')):
+            shutil.rmtree(osp.join(self.outputdir, 'ensemble'))
         self._partitioning(
             split_strategy=split_strategy,
             hestia_generator=hestia_generator,
