@@ -83,9 +83,6 @@ def config_helper(config_path: str) -> dict:
     else:
         task = 'reg'
 
-    config['pipeline'] = 'to-smiles'
-    config['task'] = task
-
     dataset = Prompt().input(
         "What is the path to the dataset with your data",
         validate=lambda x: osp.exists(x)
@@ -159,6 +156,8 @@ def config_helper(config_path: str) -> dict:
         validate=_is_int
     )
     config.update({
+        'pipeline': 'to-smiles',
+        'task': task,
         'n-trials': int(n_steps),
         'direction': "maximize",
         'task': task,
