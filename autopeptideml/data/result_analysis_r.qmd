@@ -32,7 +32,7 @@ Please note that the generation of this report is completely heuristic and does 
 
 If you have found AutoPeptideML useful, consider helping us improve by filling a quick survey:
 
-[https://forms.gle/ntmsSnDFMBYtTeJJ6](https://forms.gle/ntmsSnDFMBYtTeJJ6)
+[https://forms.gle/FapEYtbzm8xtivdf6](https://forms.gle/FapEYtbzm8xtivdf6)
 
 For more details check the following papers:
 
