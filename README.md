@@ -28,7 +28,7 @@
 
 - **Documentation:**  <a href="https://ibm.github.io/AutoPeptideML/" target="_blank">https://ibm.github.io/AutoPeptideML</a>
 - **Source Code:** <a href="https://github.com/IBM/AutoPeptideML" target="_blank">https://github.com/IBM/AutoPeptideML</a>
-- **Webserver:** <a href="http://peptide.ucd.ie/AutoPeptideML" target="_blank">http://peptide.ucd.ie/AutoPeptideML</a>
+- **Webserver:** <a href="http://peptide.ucd.ie/autopeptideml" target="_blank">http://peptide.ucd.ie/autopeptideml</a>
 - **Google Collaboratory Notebook:** <a href="https://colab.research.google.com/github/IBM/AutoPeptideML/blob/main/examples/AutoPeptideML_Collab.ipynb" target="_blank">AutoPeptideML_Collab.ipynb</a>
 - **Blog post:** <a href="https://portal.valencelabs.com/blogs/post/autopeptideml-building-peptide-bioactivity-predictors-automatically-IZZKbJ3Un0qjo4i" target="_blank">Portal - AutoPeptideML v. 1.0 Tutorial</a>
 - **Papers:** 
