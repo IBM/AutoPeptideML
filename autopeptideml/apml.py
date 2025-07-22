@@ -24,7 +24,7 @@ from .train.metrics import evaluate
 from .reps import RepEngineBase, PLMs, CLMs, FPs
 
 
-__version__ = '2.0.2'
+__version__ = '2.0.3'
 
 
 class AutoPeptideML:
