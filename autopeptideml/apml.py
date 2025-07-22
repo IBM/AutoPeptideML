@@ -209,6 +209,7 @@ class AutoPeptideML:
         self.metadata['size'] = len(self.df)
         self.metadata['status'] = 'negatives-sampled'
         path = osp.join(self.outputdir, 'data.tsv')
+        self.df.reset_index(drop=True, inplace=True)
         self.df.to_csv(path, sep='\t', index=False)
         self.p_it += 1
         self.save_metadata()
