@@ -2,6 +2,7 @@ import os.path as osp
 import yaml
 
 from copy import deepcopy
+from os import makedirs
 
 import pandas as pd
 
@@ -115,16 +116,17 @@ def config_helper(config_path: str) -> dict:
         elif neg_db == "DB of both bioactive and non-bioactive peptides":
             neg_path = 'both'
         else:
-            print(neg_db)
+            neg_path = None
 
-        neg_feat_field, columns_to_exclude = define_dataset(
-            neg_path, task, neg=True
-        )
-        neg_db = {
-            'path': neg_path,
-            'feat-fields': neg_feat_field,
-            'activities-to-exclude': columns_to_exclude
-            }
+        if neg_path is not None:
+            neg_feat_field, columns_to_exclude = define_dataset(
+                neg_path, task, neg=True
+            )
+            neg_db = {
+                'path': neg_path,
+                'feat-fields': neg_feat_field,
+                'activities-to-exclude': columns_to_exclude
+                }
 
     config['datasets'] = {
         'main': {
@@ -168,5 +170,6 @@ def config_helper(config_path: str) -> dict:
         'models': models,
         'n-jobs': -1
     })
+    makedirs(osp.dirname(config_path), exist_ok=True)
     yaml.safe_dump(deepcopy(config), open(config_path, 'w'))
     return config
