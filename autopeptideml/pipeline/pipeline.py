@@ -2,9 +2,9 @@ import json
 import yaml
 
 from copy import deepcopy
-from typing import *
+from typing import Any, List, Dict, Optional, Union
 
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from multiprocessing import cpu_count
 from tqdm import tqdm
 
@@ -22,9 +22,13 @@ class BaseElement:
         :type properties: Dict[str, Any]
         :param properties: A dictionary of additional properties for the processing element.
                             Default is an empty dictionary.
+
+        :type parallel: str
+        :param parallel: Type of parallelism to use. Default is threading.
     """
     name: str
     properties: Dict[str, Any] = {}
+    parallel: str = 'threading'
 
     def __call__(self, mol: Union[str, List[str]],
                  n_jobs: int = cpu_count(),
@@ -106,9 +110,11 @@ class BaseElement:
 
         :raises RuntimeError: If any parallel job raises an exception.
         """
+        print(self.parallel)
         if n_jobs > 1:
+            pool_exec = ThreadPoolExecutor if self.parallel == 'threading' else ProcessPoolExecutor
             jobs, out = [], []
-            with ProcessPoolExecutor(n_jobs) as exec:
+            with pool_exec(n_jobs) as exec:
                 for item in mol:
                     job = exec.submit(self._single_call, item)
                     jobs.append(job)

@@ -88,6 +88,7 @@ class SequenceToSmiles(BaseElement):
         :param name: The name of the element. Default is `'sequence-to-smiles'`.
     """
     name = 'sequence-to-smiles'
+    parallel = 'processing'
 
     def _single_call(self, mol):
         """
@@ -111,6 +112,7 @@ class SequenceToSmiles(BaseElement):
 class SmilesToSequence(BaseElement):
 
     name = 'smiles-to-sequence'
+    parallel = 'processing'
 
     def __init__(self, keep_analog: bool = True):
         """
