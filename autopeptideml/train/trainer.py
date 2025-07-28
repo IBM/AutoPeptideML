@@ -479,7 +479,7 @@ class OptunaTrainer(BaseTrainer):
 
     def hpo(
         self,
-        x: Dict[str, np.ndarray],
+        x: Union[Dict[str, np.ndarray], np.ndarray],
         y: np.ndarray,
         models: List[str] = ALL_MODELS,
         n_folds: int = 5,
@@ -497,7 +497,8 @@ class OptunaTrainer(BaseTrainer):
         Runs Optuna-based hyperparameter optimization using the provided data and model list.
 
         :param x: Dictionary of representation names to feature arrays (shape: [n_samples, n_features]).
-        :type x: Dict[str, np.ndarray]
+            It could also be an array.
+        :type x: Union[Dict[str, np.ndarray], np.ndarray]
         :param y: Target values.
         :type y: np.ndarray
         :param models: List of model names to optimize. Defaults to ALL_MODELS.
@@ -537,6 +538,9 @@ class OptunaTrainer(BaseTrainer):
             optuna.logging.set_verbosity(optuna.logging.ERROR)
         elif verbose < 3:
             optuna.logging.set_verbosity(optuna.logging.WARNING)
+
+        if isinstance(x, np.ndarray):
+            x = {'default': x}
 
         # Trainer parameters
         self.best_model = None
