@@ -110,7 +110,6 @@ class BaseElement:
 
         :raises RuntimeError: If any parallel job raises an exception.
         """
-        print(self.parallel)
         if n_jobs > 1:
             pool_exec = ThreadPoolExecutor if self.parallel == 'threading' else ProcessPoolExecutor
             jobs, out = [], []
