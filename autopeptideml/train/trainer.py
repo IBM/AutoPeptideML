@@ -104,24 +104,6 @@ class BaseTrainer:
         self.metric = metric
         self.ensemble = ensemble
 
-        # self.models = models
-        # self.hpspace = {
-        #     'models': {
-        #         'elements': {
-        #             **hpspace[model] if model in hpspace
-        #                 else get_hpspace(model)
-        #             for model in models
-        #         }
-        #     }
-        # }
-        # self.hpspace = hpspace
-        # self.optim_strategy = optim_strategy
-        # self.properties = copy.deepcopy(self.__dict__)
-        # self.models = self._import_models(
-        #     optim_strategy['task'],
-        #     hpspace['models']['elements'].keys()
-        # )
-
     def _define_folds(self, x: np.ndarray, y: np.ndarray,
                       n_folds: int, train_val_ratio: float) -> List[tuple]:
         if train_val_ratio is not None:
@@ -564,6 +546,10 @@ class OptunaTrainer(BaseTrainer):
         self.x, self.y = x, y
 
         # Optuna definition
+        if db_file is None:
+            from time import time
+            db_file = f'{time()}'
+
         db_file = f'sqlite:///{db_file}'
         self.study = optuna.create_study(
             direction=self.direction,
