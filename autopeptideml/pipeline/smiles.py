@@ -347,13 +347,77 @@ def break_into_monomers(smiles: str) -> Tuple[List[str], List[Chem.Mol]]:
     # Re-extract sanitized fragments with new properties
     updated_frag_mols = Chem.GetMolFrags(frags, asMols=True,
                                          sanitizeFrags=True)
+    ordered_frags = order_monomers(updated_frag_mols)
 
     final_pep, all_frags = [], []
-    for frag in updated_frag_mols:
+    for frag in ordered_frags:
         best_aa, _ = find_closest_monomer(frag)
         final_pep.append(best_aa)
         all_frags.append(frag)
     return final_pep, all_frags
+
+
+def order_monomers(monomers: List[Chem.Mol]) -> List[Chem.Mol]:
+    """
+    Orders peptide monomers from N-terminal to C-terminal.
+    Supports cyclic peptides by detecting an artificial break.
+
+    Args:
+        monomers: List of RDKit Mol objects representing peptide monomers,
+                  with dummy atoms carrying matching molAtomMapNumber
+                  for their connection points.
+
+    Returns:
+        Ordered list of RDKit Mol objects in sequence order.
+    """
+
+    # Step 1: Build adjacency from dummy atom labels
+    connections = {}
+    for i, mol in enumerate(monomers):
+        for atom in mol.GetAtoms():
+            if atom.GetAtomicNum() == 0 and atom.HasProp("molAtomMapNumber"):
+                label = atom.GetIntProp("molAtomMapNumber")
+                if label not in connections:
+                    connections[label] = []
+                connections[label].append(i)
+
+    # Step 2: Build graph of monomer connections
+    graph = {i: set() for i in range(len(monomers))}
+    for mol_ids in connections.values():
+        if len(mol_ids) == 2:
+            a, b = mol_ids
+            graph[a].add(b)
+            graph[b].add(a)
+
+    # Step 3: Find N-terminal (monomer with free amine and only one neighbor)
+    start_idx = None
+    for idx, mol in enumerate(monomers):
+        if len(graph[idx]) == 1:  # terminal candidate
+            smi = Chem.MolToSmiles(mol)
+            if "N" in smi and "[OH]" not in smi:  # crude free amine detection
+                start_idx = idx
+                break
+
+    # If cyclic peptide, pick arbitrary start
+    if start_idx is None:
+        start_idx = 0
+
+    # Step 4: Traverse graph to get sequence order
+    ordered = []
+    visited = set()
+    current = start_idx
+    prev = None
+    while True:
+        ordered.append(current)
+        visited.add(current)
+        neighbors = graph[current] - ({prev} if prev is not None else set())
+        if not neighbors:
+            break  # reached free C-terminal
+        prev, current = current, neighbors.pop()
+        if current in visited:
+            break  # cyclic peptide complete
+
+    return [monomers[i] for i in ordered]
 
 
 def find_closest_monomer(frag: Chem.Mol) -> Tuple[str, float]:

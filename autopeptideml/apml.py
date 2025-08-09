@@ -138,6 +138,7 @@ class AutoPeptideML:
             'n-jobs': n_jobs,
             'execution-time': end - start
         }
+        self.p_it += 1
         self.save_metadata()
 
     def sample_negatives(
@@ -475,6 +476,7 @@ class AutoPeptideML:
                             batch_size=batch_size
                         )
                 elif rep in CLMs or rep.split('-')[0] in FPs:
+                    print(self.metadata['pipeline-1'])
                     if 'to-smiles' in self.metadata['pipeline-1']['name']:
                         self.execution[rep] = {'start': time.time()}
 
