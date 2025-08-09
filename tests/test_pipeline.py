@@ -25,6 +25,7 @@ def test_canonical_filter():
         ('N[C@H](Cc1ccc(C(F)(F)F)cc1)C(=O)N[C@@H](CC(=O)O)C(=O)COC(=O)c1c(C(F)(F)F)cccc1C(F)(F)F', 'FD'),
         ('N[C@@H](C)C(=O)N[C@@H](CS)C(=O)N[C@@H](C(O)C)C(=O)O', "ACT"),
         ('Cc1cccc(C[C@H](N)C(=O)N[C@@H](Cc2c(Br)[nH]c3ccccc23)C(=O)O)c1', "FW"),
+        ('CC(C)C[C@H](NC(=O)[C@@H](NC(=O)[C@H](Cc1ccccc1)NC(=O)[C@H](C)NC(=O)[C@H](CC(C)C)NC(=O)[C@@H](N)Cc1c[nH]c2ccccc12)C(C)C)C(=O)N[C@H](C(=O)O)C(C)C', 'WLAFVLV'),
     ]
 )
 def test_to_sequence(smiles, seq_out):
@@ -40,7 +41,7 @@ def test_to_sequence(smiles, seq_out):
         ('Cc1cccc(C[C@H](N)C(=O)N[C@@H](Cc2c(Br)[nH]c3ccccc23)C(=O)O)c1', "X1186-X1772"),
         ('Nc1nc2c(ncn2C2OC(COP(=O)(O)O)C(O)C2O)c(=O)[nH]1', "X"),
         ('N[C@H](Cc1ccc(C(F)(F)F)cc1)C(=O)N[C@@H](CC(=O)O)C(=O)COC(=O)c1c(C(F)(F)F)cccc1C(F)(F)F', 'X933-X2777'),
-        ('CC(=O)N[C@@H](Cc1c[nH]c2ccccc12)C(=O)N[C@@H](Cc1ccc(O)cc1)C(=O)N[C@@H](CS)C(=O)NCC(N)=O', 'ac-W-Y-C-G-am')
+        ('CC(=O)N[C@@H](Cc1c[nH]c2ccccc12)C(=O)N[C@@H](Cc1ccc(O)cc1)C(=O)N[C@@H](CS)C(=O)NCC(N)=O', 'am-G-C-Y-W-ac')
     ]
 )
 def test_to_biln(smiles, seq_out):
