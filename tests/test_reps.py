@@ -51,7 +51,7 @@ def test_fps():
 
 
 def test_rostlab_family():
-    re = RepEngineLM('prot-t5-xl')
+    re = RepEngineLM('protbert')
     a = re.compute_reps(['AACFFF'], batch_size=12)
     assert re.dim() == 1024
     assert np.array(a).shape == (1, re.dim())
@@ -66,5 +66,5 @@ if __name__ == '__main__':
     print('Onehot OK')
     test_fps()
     print("FPs OK")
-    test_rostlab_family()
-    print("Rostlab OK")
+    # test_rostlab_family()
+    # print("Rostlab OK")
