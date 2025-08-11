@@ -463,6 +463,7 @@ class OptunaTrainer(BaseTrainer):
         self,
         x: Union[Dict[str, np.ndarray], np.ndarray],
         y: np.ndarray,
+        folds: List[Tuple[np.ndarray, np.ndarray]] = None,
         models: List[str] = ALL_MODELS,
         n_folds: int = 5,
         train_val_ratio: float = None,
@@ -541,8 +542,11 @@ class OptunaTrainer(BaseTrainer):
                             else float('-inf'))
 
         # Data preparation
-        self.train_folds = self._define_folds(x[list(x.keys())[0]], y,
-                                              n_folds, train_val_ratio)
+        if folds is not None:
+            self.train_folds = folds
+        else:
+            self.train_folds = self._define_folds(x[list(x.keys())[0]], y,
+                                                  n_folds, train_val_ratio)
         self.x, self.y = x, y
 
         # Optuna definition

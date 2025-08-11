@@ -8,7 +8,7 @@ import pickle
 
 from datetime import datetime
 from multiprocessing import cpu_count
-from typing import Dict, List, Union
+from typing import Dict, List, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -86,6 +86,7 @@ class AutoPeptideML:
         self.metadata['sequence-field'] = self.sequence_field
         self.metadata['label-field'] = self.label_field
         self.metadata['removed-entries'] = len(data) - len(self.df)
+        self.metadata['original-size'] = self.metadata['size']
         self.metadata['status'] = 'started'
         self.p_it = 1
         self.save_metadata()
@@ -225,6 +226,7 @@ class AutoPeptideML:
         hestia_generator: HestiaGenerator = None,
         model_configs: Dict[str, dict] = {},
         partitions: Dict[str, np.ndarray] = None,
+        folds: List[Tuple[np.ndarray, np.ndarray]] = None,
         n_folds_cv: int = 5,
         verbose: bool = True,
         n_trials: int = 100,
@@ -295,6 +297,7 @@ class AutoPeptideML:
             task=task,
             ensemble=ensemble,
             models=models,
+            folds=folds,
             n_folds=n_folds_cv,
             random_state=random_state,
             n_jobs=n_jobs,
@@ -320,6 +323,7 @@ class AutoPeptideML:
         self,
         task: str,
         ensemble: str,
+        folds: List[Tuple[np.ndarray, np.ndarray]],
         models: Union[str, List[str]],
         model_configs: Dict[str, dict],
         n_folds: int,
@@ -355,6 +359,7 @@ class AutoPeptideML:
         self.trainer.hpo(
             x=train_x,
             y=train_y,
+            folds=folds,
             models=models,
             n_folds=n_folds,
             n_trials=n_trials,
@@ -381,6 +386,8 @@ class AutoPeptideML:
                        for rep in self.trainer.best_model.reps}
         history_path = osp.join(self.meta_dir, 'hpo_history.tsv')
         self.trainer.history.to_csv(history_path, index=False, sep='\t')
+        pickle.dump(open(osp.join(self.meta_dir, 'cv-folds.pckl'), 'wb'),
+                    self.trainer.train_folds)
         self.trainer.best_model.predict(input_trial)
         self.trainer.best_model.save(osp.join(self.outputdir, 'ensemble'))
         self.ensemble = self.trainer.best_model
