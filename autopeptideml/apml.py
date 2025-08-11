@@ -300,15 +300,15 @@ class AutoPeptideML:
         n_jobs: int = cpu_count(),
         verbose: bool = True
     ):
-        mols = self._use_pipeline(mols, 'to-smiles', n_jobs=n_jobs,
-                                  verbose=verbose)
-        seqs = self._use_pipeline(mols, 'to-sequences', n_jobs=n_jobs,
-                                  verbose=verbose)
         repengine = self.repengines[rep]
         if rep in PLMs or rep == 'one-hot':
+            seqs = self._use_pipeline(mols, 'to-sequences', n_jobs=n_jobs,
+                                    verbose=verbose)
             x = {rep: repengine.compute_reps(seqs, verbose=verbose,
                                              batch_size=32)}
         else:
+            mols = self._use_pipeline(mols, 'to-smiles', n_jobs=n_jobs,
+                                    verbose=verbose)
             x = {rep: repengine.compute_reps(mols, verbose=verbose,
                                              batch_size=32)}
         return x
