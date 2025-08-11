@@ -17,7 +17,7 @@ from hestia import HestiaGenerator, SimArguments
 from hestia import __version__ as hestia_version
 
 from .db import add_negatives_from_db
-from .pipeline import get_pipeline, Pipeline
+from .pipeline import get_pipeline
 from .train import OptunaTrainer
 from .train.architectures import ALL_MODELS
 from .train.metrics import evaluate
@@ -99,48 +99,16 @@ class AutoPeptideML:
         path = osp.join(self.meta_dir, 'metadata.yml')
         yaml.safe_dump(self.metadata, open(path, 'w'))
 
-    def preprocess_data(
+    def _use_pipeline(
         self,
-        pipeline: Union[str, Pipeline],
+        mols: List[str],
+        pipeline: str,
         n_jobs: int = cpu_count(),
-        verbose: bool = True,
+        verbose: bool = True
     ):
-        """
-        Apply a preprocessing pipeline to the input sequences.
-
-        :param pipeline: Pipeline object or string identifier of a predefined pipeline.
-        :type pipeline: Union[str, Pipeline]
-        :param n_jobs: Number of parallel jobs to use.
-        :type n_jobs: int
-        :param verbose: If True, prints detailed progress.
-        :type verbose: bool
-        :rtype: None
-    """
-        self.metadata['status'] = f'preprocessing-{self.p_it}'
-        if isinstance(pipeline, str):
-            pipeline = get_pipeline(pipeline)
-
-        self.metadata[f'pipeline-{self.p_it}'] = pipeline.to_dict()
-        self.save_metadata()
-        start = time.time()
-        if self.p_it == 1:
-            self.df[self.sequence_field] = pipeline(
-                self.df[self.sequence_field], n_jobs=n_jobs, verbose=verbose
-            )
-        else:
-            self.df[f'{self.sequence_field}-{self.p_it}'] = pipeline(
-                self.df[self.sequence_field], n_jobs=n_jobs, verbose=verbose
-            )
-        end = time.time()
-        self.df.to_csv(osp.join(self.outputdir, 'data.tsv'), index=False,
-                       sep='\t')
-        self.metadata['status'] = 'preprocessed'
-        self.metadata[f'preprocessing-metadata-{self.p_it}'] = {
-            'n-jobs': n_jobs,
-            'execution-time': end - start
-        }
-        self.p_it += 1
-        self.save_metadata()
+        pipe = get_pipeline(pipeline)
+        mols = pipe(mols, n_jobs=n_jobs, verbose=verbose)
+        return mols
 
     def sample_negatives(
         self,
@@ -191,7 +159,7 @@ class AutoPeptideML:
         self.df = add_negatives_from_db(
             df=self.df,
             label_field=self.label_field,
-            sequence_field=self.sequence_field,
+            sequence_field='apml-smiles',
             target_db=target_db,
             activities_to_exclude=activities_to_exclude,
             desired_ratio=desired_ratio,
@@ -230,6 +198,7 @@ class AutoPeptideML:
         n_folds_cv: int = 5,
         verbose: bool = True,
         n_trials: int = 100,
+        sim_args: SimArguments = None,
         device: str = 'cpu',
         random_state: int = 1,
         n_jobs: int = cpu_count()
@@ -279,9 +248,15 @@ class AutoPeptideML:
             )
         if osp.isdir(osp.join(self.outputdir, 'ensemble')):
             shutil.rmtree(osp.join(self.outputdir, 'ensemble'))
+
+        self._preprocessing_data(
+            n_jobs=n_jobs,
+            verbose=verbose
+        )
         self._partitioning(
             split_strategy=split_strategy,
             hestia_generator=hestia_generator,
+            sim_args=SimArguments,
             verbose=verbose,
             n_jobs=n_jobs,
             random_state=random_state,
@@ -290,7 +265,6 @@ class AutoPeptideML:
         self._representing(
             reps=reps,
             device=device,
-            n_jobs=n_jobs,
             verbose=verbose
         )
         self._hpo(
@@ -318,6 +292,26 @@ class AutoPeptideML:
         shutil.copyfile(tmp_path, final_path)
         sp.run(['quarto', 'render', final_path])
         os.remove(final_path)
+
+    def represent(
+        self,
+        mols: List[str],
+        rep: str,
+        n_jobs: int = cpu_count(),
+        verbose: bool = True
+    ):
+        mols = self._use_pipeline(mols, 'to-smiles', n_jobs=n_jobs,
+                                  verbose=verbose)
+        seqs = self._use_pipeline(mols, 'to-sequences', n_jobs=n_jobs,
+                                  verbose=verbose)
+        repengine = self.repengines[rep]
+        if rep in PLMs or rep == 'one-hot':
+            x = {rep: repengine.compute_reps(seqs, verbose=verbose,
+                                             batch_size=32)}
+        else:
+            x = {rep: repengine.compute_reps(mols, verbose=verbose,
+                                             batch_size=32)}
+        return x
 
     def _hpo(
         self,
@@ -386,8 +380,8 @@ class AutoPeptideML:
                        for rep in self.trainer.best_model.reps}
         history_path = osp.join(self.meta_dir, 'hpo_history.tsv')
         self.trainer.history.to_csv(history_path, index=False, sep='\t')
-        pickle.dump(open(osp.join(self.meta_dir, 'cv-folds.pckl'), 'wb'),
-                    self.trainer.train_folds)
+        pickle.dump(self.trainer.train_folds,
+                    open(osp.join(self.meta_dir, 'cv-folds.pckl'), 'wb'))
         self.trainer.best_model.predict(input_trial)
         self.trainer.best_model.save(osp.join(self.outputdir, 'ensemble'))
         self.ensemble = self.trainer.best_model
@@ -397,7 +391,6 @@ class AutoPeptideML:
         self,
         reps: Union[str, List[str], Dict[str, RepEngineBase]],
         device: str,
-        n_jobs: int,
         verbose: bool
     ):
         all_available = True
@@ -409,25 +402,14 @@ class AutoPeptideML:
         if all_available:
             return
         reps = [r for r in reps if r not in self.x]
-        prot, mol = False, False
-
-        for rep in reps:
-            if rep in PLMs and not prot:
-                prot = True
-            elif (rep in CLMs or rep in FPs) and not mol:
-                mol = True
-
-        if 'to-sequences' in self.metadata['pipeline-1']['name'] and mol:
-            self.preprocess_data('to-smiles', n_jobs=n_jobs,
-                                 verbose=verbose)
-        if 'to-smiles' in self.metadata['pipeline-1']['name'] and prot:
-            self.preprocess_data('to-sequences', n_jobs=n_jobs,
-                                 verbose=verbose)
+        self.repengines = {}
 
         self.metadata['status'] = 'representing'
         self.save_metadata()
 
         if isinstance(reps, dict):
+            self.repengines = reps
+
             for name, repengine in reps.items():
                 self.execution[name] = {'start': time.time()}
                 self.x[name] = repengine.compute_reps(
@@ -465,39 +447,21 @@ class AutoPeptideML:
                     self.execution[rep] = {'start': time.time()}
 
                     repengine = RepEngineOnehot(max_length=50)
+                self.repengines[rep] = repengine
 
                 batch_size = 128 if repengine.get_num_params() < 2e7 else 16
                 if rep in PLMs or rep == 'one-hot':
-                    if 'to-sequences' in self.metadata['pipeline-1']['name']:
-                        self.execution[rep] = {'start': time.time()}
-
-                        self.x[rep] = repengine.compute_reps(
-                            self.df[f'{self.sequence_field}'], verbose=verbose,
-                            batch_size=batch_size
-                        )
-                    else:
-                        self.execution[rep] = {'start': time.time()}
-
-                        self.x[rep] = repengine.compute_reps(
-                            self.df[f'{self.sequence_field}-2'], verbose=verbose,
-                            batch_size=batch_size
-                        )
-                elif rep in CLMs or rep.split('-')[0] in FPs:
-                    if 'to-smiles' in self.metadata['pipeline-1']['name']:
-                        self.execution[rep] = {'start': time.time()}
-
-                        self.x[rep] = repengine.compute_reps(
-                            self.df[f'{self.sequence_field}'], verbose=verbose,
-                            batch_size=batch_size
-                        )
-                    else:
-                        self.execution[rep] = {'start': time.time()}
-
-                        self.x[rep] = repengine.compute_reps(
-                            self.df[f'{self.sequence_field}-2'],
-                            verbose=verbose,
-                            batch_size=batch_size
-                        )
+                    self.execution[rep] = {'start': time.time()}
+                    self.x[rep] = repengine.compute_reps(
+                        self.df['apml-seqs'], verbose=verbose,
+                        batch_size=batch_size
+                    )
+                else:
+                    self.execution[rep] = {'start': time.time()}
+                    self.x[rep] = repengine.compute_reps(
+                        self.df['apml-smiles'], verbose=verbose,
+                        batch_size=batch_size
+                    )
                 self.execution[rep]['end'] = time.time()
 
         self.x.update({rep: np.array(value) for rep, value in self.x.items()})
@@ -519,6 +483,7 @@ class AutoPeptideML:
         self,
         split_strategy: str,
         hestia_generator: HestiaGenerator,
+        sim_args: SimArguments,
         verbose: bool,
         n_jobs: int,
         random_state: int,
@@ -539,6 +504,7 @@ class AutoPeptideML:
         SPLIT_STRATEGIES = ['random', 'min', 'good', None]
         self.metadata['status'] = 'partitioning'
         self.save_metadata()
+        self.df.reset_index(inplace=True, drop=True)
 
         start = time.time()
         if split_strategy not in SPLIT_STRATEGIES:
@@ -554,7 +520,7 @@ class AutoPeptideML:
             self.parts['train'] = self.df[~self.df.index.isin(self.parts['test'])].index.to_numpy()
             sim_args = {}
             min_part = 'NA'
-        elif 'to-smiles' in self.metadata['pipeline-1']['name']:
+        elif sim_args is None:
             sim_args = SimArguments(
                 data_type='small molecule',
                 fingerprint='mapc' if len(self.df) < 10_000 else 'ecfp',
@@ -576,17 +542,7 @@ class AutoPeptideML:
             elif split_strategy == 'good':
                 self.parts = hdg.get_partitions(filter=0.185, return_dict=True)
                 min_part, _ = hdg.get_partition('min', filter=0.185)
-        elif 'to-sequences' in self.metadata['pipeline-1']['name']:
-            sim_args = SimArguments(
-                data_type='sequence',
-                field_name=self.sequence_field,
-                min_threshold=0.1,
-                alignment_algorithm='mmseqs',
-                prefilter=True,
-                denominator='shortest',
-                threads=n_jobs,
-                verbose=verbose
-            )
+        else:
             hdg = HestiaGenerator(self.df, verbose=verbose)
             hdg.calculate_partitions(sim_args, label_name=self.label_field,
                                      min_threshold=0.2, threshold_step=0.1,
@@ -639,4 +595,60 @@ class AutoPeptideML:
         }
         self.metadata['test-metadata']['execution-time'] = end - start
         self.metadata['status'] = 'evaluated'
+        self.save_metadata()
+
+    def _preprocessing_data(
+        self,
+        n_jobs: int = cpu_count(),
+        verbose: bool = True,
+    ):
+        """
+        Apply a preprocessing pipeline to the input sequences.
+
+        :param pipeline: Pipeline object or string identifier of a predefined pipeline.
+        :type pipeline: Union[str, Pipeline]
+        :param n_jobs: Number of parallel jobs to use.
+        :type n_jobs: int
+        :param verbose: If True, prints detailed progress.
+        :type verbose: bool
+        :rtype: None
+    """
+        self.metadata['status'] = 'preprocessing-1'
+        self.metadata['pipeline-1'] = get_pipeline('to-smiles').to_dict()
+        self.save_metadata()
+        start = time.time()
+        self.df['apml-smiles'] = self._use_pipeline(
+            mols=self.df[self.sequence_field],
+            pipeline='to-smiles',
+            n_jobs=n_jobs,
+            verbose=verbose
+        )
+        end = time.time()
+        self.df.to_csv(osp.join(self.outputdir, 'data.tsv'), index=False,
+                       sep='\t')
+        self.metadata['status'] = 'preprocessed-1'
+        self.metadata['preprocessing-metadata-1'] = {
+            'n-jobs': n_jobs,
+            'execution-time': end - start
+        }
+        self.save_metadata()
+
+        self.metadata['status'] = 'preprocessing-2'
+        self.metadata['pipeline-2'] = get_pipeline('to-sequences').to_dict()
+        self.save_metadata()
+        start = time.time()
+        self.df['apml-seqs'] = self._use_pipeline(
+            mols=self.df[self.sequence_field],
+            pipeline='to-sequences',
+            n_jobs=n_jobs,
+            verbose=verbose
+        )
+        end = time.time()
+        self.df.to_csv(osp.join(self.outputdir, 'data.tsv'), index=False,
+                       sep='\t')
+        self.metadata['status'] = 'preprocessed-2'
+        self.metadata['preprocessing-metadata-2'] = {
+            'n-jobs': n_jobs,
+            'execution-time': end - start
+        }
         self.save_metadata()
