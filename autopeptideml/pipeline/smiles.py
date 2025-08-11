@@ -11,12 +11,10 @@ from .pipeline import BaseElement
 try:
     import rdkit.Chem.rdmolfiles as rdm
     import rdkit.Chem.rdmolops as rdops
-    from rdkit import Chem
-    from rdkit.Chem import DataStructs
-    from rdkit.Chem import rdFingerprintGenerator
-    from rdkit.Chem import RWMol
-    from rdkit.Chem.rdchem import Mol
-    from rdkit import rdBase
+
+    from rdkit import Chem, rdBase
+    from rdkit.Chem import DataStructs, MolFromSmiles, MolToSmiles, RWMol, Mol
+    from rdkit.Chem.AllChem import GetMorganFingerprintAsBitVect
 except ImportError:
     raise ImportError("You need to install rdkit to use this method.",
                       "Try: `pip install rdkit`")
@@ -252,7 +250,7 @@ def is_smiles(mol: str):
     )
 
 
-def add_dummy_atoms(mol: Chem.Mol) -> Chem.Mol:
+def add_dummy_atoms(mol: Mol) -> Mol:
     mol = Chem.AddHs(mol)
     mol = Chem.RWMol(mol)
 
@@ -298,12 +296,58 @@ def add_dummy_atoms(mol: Chem.Mol) -> Chem.Mol:
     return mol
 
 
+def find_lone_nitrogen_fragments(fragments: List[Mol]):
+    """
+    Given a list of RDKit Mol objects (fragments),
+    returns a list of (index, fragment) where the fragment
+    is essentially a 'lone nitrogen' or dummy-capped nitrogen.
+    """
+    lone_n_list = []
+    for idx, frag in enumerate(fragments):
+        atoms = frag.GetAtoms()
+        # Count real atoms (exclude dummies, atomicNum=0)
+        real_atoms = [a for a in atoms if a.GetAtomicNum() != 0]
+        n_atoms = [a for a in real_atoms if a.GetAtomicNum() == 7]
+
+        # "Lone nitrogen" = fragment has exactly 1 real atom and it’s nitrogen
+        # OR only nitrogen + dummy atoms
+        if len(real_atoms) == 1 and len(n_atoms) == 1:
+            lone_n_list.append(idx)
+
+    return lone_n_list
+
+
+def reattach_n(fragments: List[Mol]):
+    blocker = rdBase.BlockLogs()
+    new_fragments, avoid = [], []
+    lone_n = find_lone_nitrogen_fragments(fragments)
+    for n in lone_n:
+        n_frag = fragments[n]
+        for idx, frag in enumerate(fragments):
+            if idx == n:
+                continue
+
+            if find_closest_monomer(frag)[0] in ('N', 'Q', 'E', 'D'):
+                new_frag = rdops.molzip(n_frag, frag)
+                if len(MolToSmiles(new_frag).split('.')) == 1:
+                    new_fragments.append(new_frag)
+                    avoid.append(idx)
+                    avoid.append(lone_n)
+                    break
+
+    for idx, frag in enumerate(fragments):
+        if idx not in avoid:
+            new_fragments.append(frag)
+
+    return new_fragments
+
+
 def break_into_monomers(smiles: str) -> Tuple[List[str], List[Chem.Mol]]:
     """
     Breaks a peptide SMILES into its monomers and assigns matching molAtomMapNumber
     to each pair of dummy atoms resulting from bond breaking.
     """
-    mol = Chem.MolFromSmiles(smiles, sanitize=True)
+    mol = MolFromSmiles(smiles, sanitize=True)
     if mol is None:
         raise RuntimeError(f'Molecule: {smiles} could not be read by RDKit.',
                            'Maybe introduce a filtering step in your pipeline')
@@ -347,11 +391,12 @@ def break_into_monomers(smiles: str) -> Tuple[List[str], List[Chem.Mol]]:
     # Re-extract sanitized fragments with new properties
     updated_frag_mols = Chem.GetMolFrags(frags, asMols=True,
                                          sanitizeFrags=True)
-    ordered_frags = order_monomers(updated_frag_mols)
+    n_fixed_frags = reattach_n(updated_frag_mols)
+    ordered_frags = order_monomers(n_fixed_frags)
 
     final_pep, all_frags = [], []
     for frag in ordered_frags:
-        best_aa, _ = find_closest_monomer(frag)
+        best_aa, sim = find_closest_monomer(frag)
         final_pep.append(best_aa)
         all_frags.append(frag)
     return final_pep, all_frags
@@ -393,7 +438,7 @@ def order_monomers(monomers: List[Chem.Mol]) -> List[Chem.Mol]:
     start_idx = None
     for idx, mol in enumerate(monomers):
         if len(graph[idx]) == 1:  # terminal candidate
-            smi = Chem.MolToSmiles(mol)
+            smi = MolToSmiles(mol)
             if "N" in smi and "[OH]" not in smi:  # crude free amine detection
                 start_idx = idx
                 break
@@ -422,32 +467,58 @@ def order_monomers(monomers: List[Chem.Mol]) -> List[Chem.Mol]:
 
 def find_closest_monomer(frag: Chem.Mol) -> Tuple[str, float]:
     global CACHE
-    fpgen = rdFingerprintGenerator.GetMorganGenerator(
-        radius=2, fpSize=4096, includeChirality=True,
-        countSimulation=True
-    )
+    blocker = rdBase.BlockLogs()
     max_sim, best_aa = 0.7, 'X'
 
     mol1 = add_dummy_atoms(frag)
-    fp1 = fpgen.GetFingerprint(mol1)
-
-    for aa, monomer in AA_DICT.items():
-        smiles2, _ = monomer
-        smiles2 = smiles2.split(' ')[0]
-        if smiles2 in CACHE:
-            fp2 = CACHE[smiles2]
-        else:
-            mol2 = Chem.MolFromSmiles(smiles2, sanitize=True)
-            fp2 = fpgen.GetFingerprint(mol2)
-            CACHE[smiles2] = fp2
-        smiles_similarity = DataStructs.TanimotoSimilarity(fp1, fp2)
+    fp1 = GetMorganFingerprintAsBitVect(
+        mol1, radius=2, useFeatures=True, nBits=1024, useChirality=True
+    )
+    for aa in AAs:
+        monomer = AA_DICT[aa]
+        smiles_similarity, _ = compare(monomer, aa, fp1)
         if smiles_similarity > max_sim:
             max_sim = smiles_similarity
             best_aa = aa
         if max_sim == 1.0:
-            break
+            return best_aa, max_sim
+
+    for aa, monomer in AA_DICT.items():
+        if aa in AAs:
+            continue
+        smiles_similarity, smiles2 = compare(monomer, aa, fp1)
+
+        if smiles_similarity > max_sim:
+            max_sim = smiles_similarity
+            best_aa = aa
+        if max_sim == 1.0:
+            max_sim = smiles_similarity
+            best_aa = aa
+
+            mol2 = MolFromSmiles(smiles2)
+            atoms1 = set([a.GetAtomicNum() for a in mol1.GetAtoms()])
+            atoms2 = set([a.GetAtomicNum() for a in mol2.GetAtoms()])
+            if len(atoms1.intersection(atoms2)) == len(atoms1):
+                break
 
     return best_aa, max_sim
+
+
+def compare(monomer, aa, fp1):
+    global CACHE
+    smiles2, _ = monomer
+    smiles2 = smiles2.split(' ')[0]
+
+    if smiles2 in CACHE:
+        fp2 = CACHE[smiles2]
+    else:
+        mol2 = MolFromSmiles(smiles2, sanitize=True)
+        fp2 = GetMorganFingerprintAsBitVect(
+            mol2, radius=2, useFeatures=True, nBits=1024, useChirality=True
+        )
+        CACHE[smiles2] = fp2
+    smiles_similarity = DataStructs.TanimotoSimilarity(fp1, fp2)
+    return smiles_similarity, smiles2
 
 
 def build_peptide(monomerlist: List[Tuple[str, str]]) -> Tuple[str, List[str]]:
@@ -468,10 +539,10 @@ def build_peptide(monomerlist: List[Tuple[str, str]]) -> Tuple[str, List[str]]:
     monomers = []
     for idx, monomer in enumerate(monomerlist):
         monomers.append(monomer[0])
-        mol = Chem.MolFromSmiles(monomer[1])
+        mol = MolFromSmiles(monomer[1])
         if mol is None:
             try:
-                mol = Chem.MolFromSmiles(monomer[1], sanitize=False)
+                mol = MolFromSmiles(monomer[1], sanitize=False)
                 if mol is None:
                     raise ValueError("MolFromSmiles returned None")
                 Chem.SanitizeMol(mol)
