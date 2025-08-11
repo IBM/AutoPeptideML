@@ -256,7 +256,7 @@ class AutoPeptideML:
         self._partitioning(
             split_strategy=split_strategy,
             hestia_generator=hestia_generator,
-            sim_args=SimArguments,
+            sim_args=sim_args,
             verbose=verbose,
             n_jobs=n_jobs,
             random_state=random_state,
