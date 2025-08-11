@@ -258,13 +258,23 @@ def add_dummy_atoms(mol: Mol) -> Mol:
     for atom in mol.GetAtoms():
         # Nitrogens in C-NH2
         if atom.GetAtomicNum() == 7:
+            if atom.GetAtomicNum() == 7:
+                # Skip if nitrogen has any double bonds
+                if atom.GetIsAromatic():
+                    continue
             neighbors = atom.GetNeighbors()
             h_atoms = [n for n in neighbors if n.GetAtomicNum() == 1]
             dummy_atoms = [n for n in neighbors if n.GetAtomicNum() == 0]
             h_count = len(h_atoms)
             dummy_count = len(dummy_atoms)
+            for n in neighbors:
+                n_subn = 0
+                for n2 in n.GetNeighbors():
+                    n_subn += int(n2.GetAtomicNum() == 7)
+                if n_subn == 3:
+                    break
 
-            if h_count >= 2 and dummy_count == 0:
+            if h_count >= 1 and dummy_count == 0 and n_subn != 3:
                 for h in h_atoms:
                     mol.RemoveAtom(h.GetIdx())
                     break
@@ -398,6 +408,7 @@ def break_into_monomers(smiles: str) -> Tuple[List[str], List[Chem.Mol]]:
     final_pep, all_frags = [], []
     for frag in ordered_frags:
         best_aa, sim = find_closest_monomer(frag)
+        print(best_aa)
         final_pep.append(best_aa)
         all_frags.append(frag)
     return final_pep, all_frags
@@ -417,54 +428,98 @@ def order_monomers(monomers: List[Chem.Mol]) -> List[Chem.Mol]:
         Ordered list of RDKit Mol objects in sequence order.
     """
 
-    # Step 1: Build adjacency from dummy atom labels
-    connections = {}
-    for i, mol in enumerate(monomers):
+    # Step 1: Map from dummy atom labels (molAtomMapNumber) to monomer indices
+    connection_map = {}
+    for idx, mol in enumerate(monomers):
         for atom in mol.GetAtoms():
             if atom.GetAtomicNum() == 0 and atom.HasProp("molAtomMapNumber"):
                 label = atom.GetIntProp("molAtomMapNumber")
-                if label not in connections:
-                    connections[label] = []
-                connections[label].append(i)
+                connection_map.setdefault(label, []).append(idx)
 
-    # Step 2: Build graph of monomer connections
+    # Step 2: Build adjacency graph of monomer connections
     graph = {i: set() for i in range(len(monomers))}
-    for mol_ids in connections.values():
-        if len(mol_ids) == 2:
-            a, b = mol_ids
+    for label, indices in connection_map.items():
+        if len(indices) == 2:
+            a, b = indices
             graph[a].add(b)
             graph[b].add(a)
+        # If length != 2, connection is dangling or cyclic break
 
-    # Step 3: Find N-terminal (monomer with free amine and only one neighbor)
+    # Helper functions to detect free termini
+    def is_free_n_terminal(mol):
+        # Check for nitrogen atoms without dummy atoms attached
+        for atom in mol.GetAtoms():
+            if atom.GetAtomicNum() == 7:  # Nitrogen
+                # neighbors dummy atoms?
+                dummy_neighbors = [nbr for nbr in atom.GetNeighbors() if nbr.GetAtomicNum() == 0 and nbr.HasProp("molAtomMapNumber")]
+                if len(dummy_neighbors) == 1:
+                    return False
+        return True
+
+    def is_free_c_terminal(mol):
+        # Check for carbon atoms with free carboxylate group (C=O and C-OH) and no dummy atoms
+        for atom in mol.GetAtoms():
+            if atom.GetAtomicNum() == 6:  # Carbon
+                dummy_neighbors = [nbr for nbr in atom.GetNeighbors() if nbr.GetAtomicNum() == 0 and nbr.HasProp("molAtomMapNumber")]
+                if len(dummy_neighbors) == 0:
+                    oxygens = [nbr for nbr in atom.GetNeighbors() if nbr.GetAtomicNum() == 8]
+                    if len(oxygens) >= 2:
+                        has_double_bonded_oxygen = False
+                        has_hydroxyl_oxygen = False
+                        for o in oxygens:
+                            bond = mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx())
+                            if bond is None:
+                                continue
+                            if bond.GetBondType().name == 'DOUBLE':
+                                has_double_bonded_oxygen = True
+                            elif bond.GetBondType().name == 'SINGLE':
+                                # Check if hydroxyl oxygen (has H neighbor)
+                                if any(n.GetAtomicNum() == 1 for n in o.GetNeighbors()):
+                                    has_hydroxyl_oxygen = True
+                        if has_double_bonded_oxygen and has_hydroxyl_oxygen:
+                            return True
+        return False
+
+    # Step 3: Identify N-terminal monomer candidate
     start_idx = None
     for idx, mol in enumerate(monomers):
-        if len(graph[idx]) == 1:  # terminal candidate
-            smi = MolToSmiles(mol)
-            if "N" in smi and "[OH]" not in smi:  # crude free amine detection
-                start_idx = idx
-                break
 
-    # If cyclic peptide, pick arbitrary start
+        if len(graph[idx]) <= 1 and is_free_n_terminal(mol):
+            start_idx = idx
+            break
+
+    # If no free N-terminal (cyclic peptide), pick arbitrary start
     if start_idx is None:
         start_idx = 0
 
-    # Step 4: Traverse graph to get sequence order
-    ordered = []
+    # Step 4: Traverse graph from start to end
+    ordered_indices = []
     visited = set()
     current = start_idx
     prev = None
+
     while True:
-        ordered.append(current)
+        ordered_indices.append(current)
         visited.add(current)
-        neighbors = graph[current] - ({prev} if prev is not None else set())
-        if not neighbors:
-            break  # reached free C-terminal
-        prev, current = current, neighbors.pop()
-        if current in visited:
-            break  # cyclic peptide complete
 
-    return [monomers[i] for i in ordered]
+        neighbors = graph[current] - {prev} if prev is not None else graph[current]
 
+        # If no next neighbor or only visited neighbors -> stop
+        unvisited_neighbors = neighbors - visited
+        if len(unvisited_neighbors) == 1:
+            prev, current = current, unvisited_neighbors.pop()
+        elif len(unvisited_neighbors) == 0:
+            # Check if current is free C-terminal, else cyclic end
+            if is_free_c_terminal(monomers[current]):
+                break
+            else:
+                # cyclic peptide or no clear C-terminal, stop traversal
+                break
+        else:
+            # More than one unvisited neighbor means ambiguous branching, break to avoid infinite loop
+            break
+
+    return [monomers[i] for i in ordered_indices]
 
 def find_closest_monomer(frag: Chem.Mol) -> Tuple[str, float]:
     global CACHE
@@ -478,11 +533,13 @@ def find_closest_monomer(frag: Chem.Mol) -> Tuple[str, float]:
     for aa in AAs:
         monomer = AA_DICT[aa]
         smiles_similarity, _ = compare(monomer, aa, fp1)
+        print(aa, smiles_similarity, monomer[0], MolToSmiles(mol1))
 
         if smiles_similarity > max_sim:
             max_sim = smiles_similarity
             best_aa = aa if aa != 'H2' else 'H'
         if max_sim == 1.0:
+            print()
             return best_aa, max_sim
 
     for aa, monomer in AA_DICT.items():
@@ -493,14 +550,17 @@ def find_closest_monomer(frag: Chem.Mol) -> Tuple[str, float]:
         if smiles_similarity > max_sim:
             max_sim = smiles_similarity
             best_aa = aa
+            print(aa, smiles_similarity, smiles2)
         if max_sim == 1.0:
             max_sim = smiles_similarity
             best_aa = aa
+            print(aa, smiles_similarity, smiles2)
             mol2 = MolFromSmiles(smiles2)
             atoms1 = set([a.GetAtomicNum() for a in mol1.GetAtoms()])
             atoms2 = set([a.GetAtomicNum() for a in mol2.GetAtoms()])
             if len(atoms1.intersection(atoms2)) == len(atoms1):
                 break
+    print()
     return best_aa, max_sim
 
 
