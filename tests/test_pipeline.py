@@ -26,7 +26,8 @@ def test_canonical_filter():
         ('N[C@@H](C)C(=O)N[C@@H](CS)C(=O)N[C@@H](C(O)C)C(=O)O', "ACT"),
         ('Cc1cccc(C[C@H](N)C(=O)N[C@@H](Cc2c(Br)[nH]c3ccccc23)C(=O)O)c1', "FW"),
         ('CC(C)C[C@H](NC(=O)[C@@H](NC(=O)[C@H](Cc1ccccc1)NC(=O)[C@H](C)NC(=O)[C@H](CC(C)C)NC(=O)[C@@H](N)Cc1c[nH]c2ccccc12)C(C)C)C(=O)N[C@H](C(=O)O)C(C)C', 'WLAFVLV'),
-        ('CC(C)C[C@H](NC(=O)[C@@H](N)CCC(N)=O)C(=O)N1CCC[C@H]1C(=O)N[C@@H](Cc1ccccc1)C(=O)N1CCC[C@H]1C(=O)N[C@@H](CCC(N)=O)C(=O)N[C@@H](CCC(N)=O)C(=O)N1CCC[C@H]1C(=O)N[C@@H](CCC(N)=O)C(=O)O', 'QLPFPQQPQ')
+        ('CC(C)C[C@H](NC(=O)[C@@H](N)CCC(N)=O)C(=O)N1CCC[C@H]1C(=O)N[C@@H](Cc1ccccc1)C(=O)N1CCC[C@H]1C(=O)N[C@@H](CCC(N)=O)C(=O)N[C@@H](CCC(N)=O)C(=O)N1CCC[C@H]1C(=O)N[C@@H](CCC(N)=O)C(=O)O', 'QLPFPQQPQ'),
+        ('CC(C)C[C@H](NC(=O)[C@@H](N)CC(C)C)C(=O)N[C@@H](C)C(=O)N[C@@H](Cc1c[nH]cn1)C(=O)O', 'LLAH')
     ]
 )
 def test_to_sequence(smiles, seq_out):
