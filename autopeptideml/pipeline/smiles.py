@@ -69,11 +69,12 @@ def read_chembl_library(path: str) -> Dict[str, Tuple[str, str]]:
     return monomers
 
 
-AAs = ['A', 'C', 'D', 'E', 'F', 'G', 'H', 'L', 'M',
+AAs = ['A', 'C', 'D', 'E', 'F', 'G', 'H', 'H2', 'L', 'M',
        'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W']
 AA_DICT = read_chembl_library(osp.join(
     osp.dirname(__file__), '..', 'data', 'chembl_monomer_library.xml')
 )
+AA_DICT.update({'H2': ('[*]N[C@@H](Cc1c[nH]cn1)C([*])=O |$_R1;;;;;;;;;;_R2;$|', 'H')})
 CACHE = {}
 
 
@@ -477,10 +478,13 @@ def find_closest_monomer(frag: Chem.Mol) -> Tuple[str, float]:
     for aa in AAs:
         monomer = AA_DICT[aa]
         smiles_similarity, _ = compare(monomer, aa, fp1)
+        print(aa, smiles_similarity, monomer[0], MolToSmiles(mol1))
+
         if smiles_similarity > max_sim:
             max_sim = smiles_similarity
-            best_aa = aa
+            best_aa = aa if aa != 'H2' else 'H'
         if max_sim == 1.0:
+            print()
             return best_aa, max_sim
 
     for aa, monomer in AA_DICT.items():
@@ -491,16 +495,17 @@ def find_closest_monomer(frag: Chem.Mol) -> Tuple[str, float]:
         if smiles_similarity > max_sim:
             max_sim = smiles_similarity
             best_aa = aa
+            print(aa, smiles_similarity, smiles2)
         if max_sim == 1.0:
             max_sim = smiles_similarity
             best_aa = aa
-
+            print(aa, smiles_similarity, smiles2)
             mol2 = MolFromSmiles(smiles2)
             atoms1 = set([a.GetAtomicNum() for a in mol1.GetAtoms()])
             atoms2 = set([a.GetAtomicNum() for a in mol2.GetAtoms()])
             if len(atoms1.intersection(atoms2)) == len(atoms1):
                 break
-
+    print()
     return best_aa, max_sim
 
 
