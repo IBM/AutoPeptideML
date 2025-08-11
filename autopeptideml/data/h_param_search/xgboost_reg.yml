@@ -24,7 +24,7 @@ min_child_weight:
 
 gamma:
   type: float
-  min: 0.0
+  min: 0.0000001
   max: 5.0
   log: True
 

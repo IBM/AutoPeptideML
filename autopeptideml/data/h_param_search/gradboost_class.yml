@@ -35,16 +35,10 @@ min_samples_leaf:
   log: True
 
 max_features:
-  type: categorical
-  values:
-    - sqrt
-    - log2
-
-loss:
-  type: categorical
-  values:
-    - log_loss
-    - exponential
+  type: float
+  min: 0.25
+  max: 1.0
+  log: False
 
 criterion:
   type: categorical
