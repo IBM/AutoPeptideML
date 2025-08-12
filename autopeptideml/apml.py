@@ -54,7 +54,8 @@ class AutoPeptideML:
         data: Union[pd.DataFrame, List[str]],
         outputdir: str,
         sequence_field: str = None,
-        label_field: str = None
+        label_field: str = None,
+        remove_duplicates: bool = True
     ):
         outputdir = osp.join(outputdir, self._get_current_timestamp())
         self.outputdir = outputdir.replace(' ', '_')
@@ -78,7 +79,8 @@ class AutoPeptideML:
         self.df.to_csv(osp.join(self.meta_dir, 'start-data.tsv'),
                        index=False,
                        sep='\t')
-        self.df.drop_duplicates(subset=self.sequence_field, inplace=True)
+        if remove_duplicates:
+            self.df.drop_duplicates(subset=self.sequence_field, inplace=True)
         self.metadata['start-time'] = self._get_current_timestamp()
         self.metadata['outputdir'] = self.outputdir
         self.metadata['autopeptideml-version'] = __version__
@@ -86,7 +88,7 @@ class AutoPeptideML:
         self.metadata['sequence-field'] = self.sequence_field
         self.metadata['label-field'] = self.label_field
         self.metadata['removed-entries'] = len(data) - len(self.df)
-        self.metadata['original-size'] = self.metadata['size']
+        self.metadata['original-size'] = len(data)
         self.metadata['status'] = 'started'
         self.p_it = 1
         self.save_metadata()
@@ -201,6 +203,7 @@ class AutoPeptideML:
         sim_args: SimArguments = None,
         device: str = 'cpu',
         random_state: int = 1,
+        extra_x: np.ndarray = None,
         n_jobs: int = cpu_count()
     ):
         """
@@ -265,7 +268,8 @@ class AutoPeptideML:
         self._representing(
             reps=reps,
             device=device,
-            verbose=verbose
+            verbose=verbose,
+            extra_x=extra_x
         )
         self._hpo(
             task=task,
@@ -391,7 +395,8 @@ class AutoPeptideML:
         self,
         reps: Union[str, List[str], Dict[str, RepEngineBase]],
         device: str,
-        verbose: bool
+        verbose: bool,
+        extra_x: np.ndarray
     ):
         all_available = True
         for rep in reps:
@@ -463,6 +468,9 @@ class AutoPeptideML:
                         batch_size=batch_size
                     )
                 self.execution[rep]['end'] = time.time()
+        for rep, array in self.x.items():
+            print(array.shape, extra_x.shape)
+            self.x[rep] = np.concatenate([array, extra_x], axis=1)
 
         self.x.update({rep: np.array(value) for rep, value in self.x.items()})
         path = osp.join(self.meta_dir, 'reps.pckl')
