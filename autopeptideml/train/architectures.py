@@ -118,13 +118,15 @@ class VotingEnsemble:
         :rtype: Tuple[np.ndarray, np.ndarray]
         """
         out = []
-        self.dims = {rep: x[rep].shape[1] for rep in self.reps}
 
         if isinstance(x, dict):
+            self.dims = {rep: x[rep].shape[1] for rep in self.reps}
             for rep, model in zip(self.reps, self.models):
                 t_pred = model.predict(x[rep])
                 out.append(t_pred)
         else:
+            self.dims = {rep: x.shape[1]}
+
             for model in self.models:
                 t_pred = model.predict(x)
                 out.append(t_pred)
