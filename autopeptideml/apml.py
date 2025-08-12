@@ -469,7 +469,6 @@ class AutoPeptideML:
                     )
                 self.execution[rep]['end'] = time.time()
         for rep, array in self.x.items():
-            print(array.shape, extra_x.shape)
             self.x[rep] = np.concatenate([array, extra_x], axis=1)
 
         self.x.update({rep: np.array(value) for rep, value in self.x.items()})
