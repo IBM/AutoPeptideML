@@ -468,8 +468,10 @@ class AutoPeptideML:
                         batch_size=batch_size
                     )
                 self.execution[rep]['end'] = time.time()
-        for rep, array in self.x.items():
-            self.x[rep] = np.concatenate([array, extra_x], axis=1)
+
+        if extra_x is not None:
+            for rep, array in self.x.items():
+                self.x[rep] = np.concatenate([array, extra_x], axis=1)
 
         self.x.update({rep: np.array(value) for rep, value in self.x.items()})
         path = osp.join(self.meta_dir, 'reps.pckl')
