@@ -1,4 +1,4 @@
-from autopeptideml import AutoPeptideML
+from autopeptideml_1 import AutoPeptideML
 
 
 def test_load():

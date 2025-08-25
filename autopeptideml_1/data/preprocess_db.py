@@ -8,7 +8,7 @@ import gdown
 import pandas as pd
 from pandarallel import pandarallel
 
-from autopeptideml.data.residues import is_canonical
+from autopeptideml_1.data.residues import is_canonical
 
 
 def welcome():

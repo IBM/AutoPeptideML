@@ -1,4 +1,4 @@
-from autopeptideml import RepresentationEngine
+from autopeptideml_1 import RepresentationEngine
 import numpy as np
 
 
