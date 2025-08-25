@@ -27,10 +27,10 @@ requirements = [
 ]
 
 test_requirements = requirements
-files = [f'autopeptideml/data/peptipedia/{file}' for file in
-         os.listdir('autopeptideml/data/peptipedia')]
-files.append('autopeptideml/data/bioactivities.txt')
-files.append('autopeptideml/data/readme_ex.md')
+files = [f'autopeptideml_1/data/peptipedia/{file}' for file in
+         os.listdir('autopeptideml_1/data/peptipedia')]
+files.append('autopeptideml_1/data/bioactivities.txt')
+files.append('autopeptideml_1/data/readme_ex.md')
 setup(
     author="Raul Fernandez-Diaz",
     author_email='raulfd@ibm.com',
@@ -40,11 +40,11 @@ setup(
     description="AutoML system for building trustworthy peptide bioactivity predictors",
     entry_points={
         'console_scripts': [
-            'apml=autopeptideml.main:_build_model',
-            'apml-predict=autopeptideml.main:_predict',
-            'autopeptideml=autopeptideml.main:_build_model',
-            'autopeptideml-predict=autopeptideml.main:_predict',
-            'autopeptideml-setup=autopeptideml.data.preprocess_db:main'
+            'apml=autopeptideml_1.main:_build_model',
+            'apml-predict=autopeptideml_1.main:_predict',
+            'autopeptideml=autopeptideml_1.main:_build_model',
+            'autopeptideml-predict=autopeptideml_1.main:_predict',
+            'autopeptideml-setup=autopeptideml_1.data.preprocess_db:main'
         ],
     },
     install_requires=requirements,
