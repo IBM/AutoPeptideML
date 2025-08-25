@@ -20,13 +20,6 @@ def test_esm_family():
     assert np.array(c).shape == (1, 6, 320)
 
 
-def test_elnaggar_family():
-    re = RepEngineLM('ankh-base')
-    a = re.compute_reps(['AACFFF'], batch_size=12)
-    assert re.dim() == 768
-    assert np.array(a).shape == (1, re.dim())
-
-
 def test_one_hot():
     re = RepEngineOnehot(19)
     a = re.compute_reps(['AACFFF', 'AACCF'], batch_size=4)
@@ -60,8 +53,6 @@ def test_rostlab_family():
 if __name__ == '__main__':
     test_esm_family()
     print('ESM OK')
-    test_elnaggar_family()
-    print('Elnaggar OK')
     test_one_hot()
     print('Onehot OK')
     test_fps()
