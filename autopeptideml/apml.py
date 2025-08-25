@@ -91,12 +91,13 @@ class AutoPeptideML:
         self.metadata['original-size'] = len(data)
         self.metadata['status'] = 'started'
         self.p_it = 1
-        self.save_metadata()
+        self.preprocessed = False
+        self._save_metadata()
 
     def _get_current_timestamp(self) -> str:
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    def save_metadata(self):
+    def _save_metadata(self):
         self.metadata['last-update'] = self._get_current_timestamp()
         path = osp.join(self.meta_dir, 'metadata.yml')
         yaml.safe_dump(self.metadata, open(path, 'w'))
@@ -146,6 +147,8 @@ class AutoPeptideML:
             target_db.to_csv(path, sep='\t', index=False)
         else:
             path = target_db
+        if not self.preprocessed:
+            self._preprocessing_data(n_jobs=n_jobs)
 
         self.metadata['status'] = 'sampling-negatives'
         self.metadata['negative-sampling-metadata'] = {
@@ -156,7 +159,7 @@ class AutoPeptideML:
             'sample-by': sample_by,
             'target-db': path
         }
-        self.save_metadata()
+        self._save_metadata()
         start = time.time()
         self.df = add_negatives_from_db(
             df=self.df,
@@ -184,7 +187,7 @@ class AutoPeptideML:
         self.df.reset_index(drop=True, inplace=True)
         self.df.to_csv(path, sep='\t', index=False)
         self.p_it += 1
-        self.save_metadata()
+        self._save_metadata()
 
     def build_models(
         self,
@@ -343,7 +346,7 @@ class AutoPeptideML:
             'n-jobs': n_jobs,
             'task': task
         }
-        self.save_metadata()
+        self._save_metadata()
         self.trainer = OptunaTrainer(
             task=task,
             direction='maximize',
@@ -389,7 +392,7 @@ class AutoPeptideML:
         self.trainer.best_model.predict(input_trial)
         self.trainer.best_model.save(osp.join(self.outputdir, 'ensemble'))
         self.ensemble = self.trainer.best_model
-        self.save_metadata()
+        self._save_metadata()
 
     def _representing(
         self,
@@ -410,7 +413,7 @@ class AutoPeptideML:
         self.repengines = {}
 
         self.metadata['status'] = 'representing'
-        self.save_metadata()
+        self._save_metadata()
 
         if isinstance(reps, dict):
             self.repengines = reps
@@ -486,7 +489,7 @@ class AutoPeptideML:
             f'{rep}-execution-time':
             self.execution[rep]['end'] - self.execution[rep]['start']
             for rep in self.x.keys()})
-        self.save_metadata()
+        self._save_metadata()
 
     def _partitioning(
         self,
@@ -512,7 +515,7 @@ class AutoPeptideML:
 
         SPLIT_STRATEGIES = ['random', 'min', 'good', None]
         self.metadata['status'] = 'partitioning'
-        self.save_metadata()
+        self._save_metadata()
         self.df.reset_index(inplace=True, drop=True)
 
         start = time.time()
@@ -579,11 +582,11 @@ class AutoPeptideML:
             'test-size': len(self.parts['test'])
         }
         self.metadata['status'] = 'partitioned'
-        self.save_metadata()
+        self._save_metadata()
 
     def _evaluating(self, task: str):
         self.metadata['status'] = 'evaluating'
-        self.save_metadata()
+        self._save_metadata()
 
         start = time.time()
         test_x = {rep: val[self.parts['test']]
@@ -604,7 +607,7 @@ class AutoPeptideML:
         }
         self.metadata['test-metadata']['execution-time'] = end - start
         self.metadata['status'] = 'evaluated'
-        self.save_metadata()
+        self._save_metadata()
 
     def _preprocessing_data(
         self,
@@ -624,7 +627,7 @@ class AutoPeptideML:
     """
         self.metadata['status'] = 'preprocessing-1'
         self.metadata['pipeline-1'] = get_pipeline('to-smiles').to_dict()
-        self.save_metadata()
+        self._save_metadata()
         start = time.time()
         self.df['apml-smiles'] = self._use_pipeline(
             mols=self.df[self.sequence_field],
@@ -640,11 +643,11 @@ class AutoPeptideML:
             'n-jobs': n_jobs,
             'execution-time': end - start
         }
-        self.save_metadata()
+        self._save_metadata()
 
         self.metadata['status'] = 'preprocessing-2'
         self.metadata['pipeline-2'] = get_pipeline('to-sequences').to_dict()
-        self.save_metadata()
+        self._save_metadata()
         start = time.time()
         self.df['apml-seqs'] = self._use_pipeline(
             mols=self.df[self.sequence_field],
@@ -660,4 +663,5 @@ class AutoPeptideML:
             'n-jobs': n_jobs,
             'execution-time': end - start
         }
-        self.save_metadata()
+        self._save_metadata()
+        self.preprocessed = True
