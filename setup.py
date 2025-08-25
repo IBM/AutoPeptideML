@@ -54,7 +54,7 @@ setup(
     data_files=[('', files)],
     include_package_data=True,
     keywords='autopeptideml',
-    name='autopeptideml',
+    name='autopeptideml_1',
     packages=find_packages(exclude=['examples']),
     url='https://ibm.github.io/AutoPeptideML/',
     version='1.0.6',
