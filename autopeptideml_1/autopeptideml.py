@@ -962,4 +962,4 @@ class AutoPeptideML:
         
         os.system(f"mdpdf -o {summary_path}.pdf {summary_path}.md")
         os.remove(f"{summary_path}.md")
-        os.remove("mdpdf.log")
+        # os.remove("mdpdf.log")
