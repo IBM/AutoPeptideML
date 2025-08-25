@@ -91,7 +91,6 @@ def build_model(
             sequence_field=config['datasets']['main']['feat-fields'],
             label_field=config['datasets']['main']['label-field']
         )
-    apml.preprocess_data(config['pipeline'], n_jobs=cpu_count())
 
     if 'neg-db' in config['datasets']:
         apml.sample_negatives(
