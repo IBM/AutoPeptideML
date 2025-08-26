@@ -38,7 +38,7 @@ def _tosmiles_fast(substitution: str = 'G') -> Pipeline:
 
 
 def _to_sequences(
-    substitution: str = 'G',
+    substitution: str = 'X',
     keep_analog: bool = True
 ) -> Pipeline:
     from .smiles import FilterSmiles, SmilesToSequence
