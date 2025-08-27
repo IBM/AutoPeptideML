@@ -82,7 +82,7 @@ class RepEngineFP(RepEngineBase):
         for i in batch:
             mol = rdm.MolFromSmiles(i)
             if mol is None:
-                fp = np.zeros((1, self.nbits))
+                fp = np.zeros((self.nbits, ))
             else:
                 fp = self.generator.GetCountFingerprintAsNumPy(mol)
             out.append(fp)
