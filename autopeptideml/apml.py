@@ -173,6 +173,9 @@ class AutoPeptideML:
             n_jobs=n_jobs,
             random_state=random_state
         )
+        self.df['apml-seqs'] = self._use_pipeline(self.df['apml-smiles'],
+                                                  'to-sequences',
+                                                  n_jobs=n_jobs)
         end = time.time()
         neg = (self.df[self.label_field] == 0).sum()
         pos = (self.df[self.label_field] == 1).sum()
@@ -254,11 +257,11 @@ class AutoPeptideML:
             )
         if osp.isdir(osp.join(self.outputdir, 'ensemble')):
             shutil.rmtree(osp.join(self.outputdir, 'ensemble'))
-
-        self._preprocessing_data(
-            n_jobs=n_jobs,
-            verbose=verbose
-        )
+        if 'apml-seqs' not in self.df or 'apml-smiles' not in self.df:
+            self._preprocessing_data(
+                n_jobs=n_jobs,
+                verbose=verbose
+            )
         self._partitioning(
             split_strategy=split_strategy,
             hestia_generator=hestia_generator,
@@ -309,8 +312,8 @@ class AutoPeptideML:
     ):
         repengine = self.repengines[rep]
         if rep in PLMs or rep == 'one-hot':
-            if 'apml-sequences' in self.df:
-                seqs = self.df['apml-sequences']
+            if 'apml-seqs' in self.df:
+                seqs = self.df['apml-seqs']
             else:
                 seqs = self._use_pipeline(mols, 'to-sequences', n_jobs=n_jobs,
                                           verbose=verbose)
@@ -567,7 +570,7 @@ class AutoPeptideML:
                                      valid_size=0., random_state=random_state)
             sim_args = sim_args.to_dict()
             if split_strategy == 'min':
-                th, self.parts = hdg.get_partition('min', filter=0.185)
+                min_part, self.parts = hdg.get_partition('min', filter=0.185)
             elif split_strategy == 'good':
                 self.parts = hdg.get_partitions(filter=0.185, return_dict=True)
 
