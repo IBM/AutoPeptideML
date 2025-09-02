@@ -33,7 +33,7 @@
 - **Blog post:** <a href="https://portal.valencelabs.com/blogs/post/autopeptideml-building-peptide-bioactivity-predictors-automatically-IZZKbJ3Un0qjo4i" target="_blank">Portal - AutoPeptideML v. 1.0 Tutorial</a>
 - **Papers:** 
   - [AutoPeptideML (v. 1.0)](https://doi.org/10.1093/bioinformatics/btae555)
-  - [ML Generalization from canonical to non-canonical peptides](https://doi.org/10.26434/chemrxiv-2025-ggp8n)
+  - [ML Generalization from standard to modified peptides](https://chemrxiv.org/engage/chemrxiv/article-details/687cfbff23be8e43d62a05f0)
 
 AutoPeptideML allows researchers without prior knowledge of machine learning to build models that are:
 
