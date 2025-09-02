@@ -210,7 +210,7 @@ def add_negatives_from_db(
                                            n_jobs=n_jobs, verbose=False)
     df[sample_by] = disc.transform(df[sample_by].to_numpy().reshape(-1, 1))
 
-    all_samples, all_wts = [], []
+    all_samples, all_wts, all_seqs = [], [], []
     for (b, g_df), (_, g_db) in zip(df.groupby(sample_by),
                                     db.groupby(sample_by)):
         pos = (g_df[label_field] == 1).sum()
@@ -220,11 +220,14 @@ def add_negatives_from_db(
         if len(samples) > 0:
             all_samples.extend(samples['smiles'].tolist())
             all_wts.extend(samples[sample_by].tolist())
+            all_seqs.extend(samples['sequence'].tolist())
 
-    neg_df = pd.DataFrame([{'smiles': s, label_field: 0, sample_by: wt}
-                           for s, wt in zip(all_samples, all_wts)])
-    neg_df[sequence_field] = neg_df['smiles']
-    neg_df = neg_df[[sequence_field, sample_by]]
+    neg_df = pd.DataFrame([{'apml-smiles': s, label_field: 0, sample_by: wt,
+                            'apml-seqs': seq}
+                           for s, wt, seq in zip(all_samples, all_wts,
+                                                 all_seqs)])
+    neg_df[sequence_field] = neg_df['apml-smiles']
+    neg_df = neg_df[[sequence_field, sample_by, 'apml-seqs']]
     neg_df[label_field] = 0
     original_columns = df.columns.tolist()
     df = pd.concat([df, neg_df]).sample(frac=1).reset_index()
