@@ -205,7 +205,7 @@ def add_negatives_from_db(
             n_bins = 10
     if 'sequence' not in db:
         from autopeptideml.pipeline import get_pipeline
-        pipe = get_pipeline('to-sequence')
+        pipe = get_pipeline('to-sequences')
         db['sequence'] = pipe(db['smiles'], n_jobs=n_jobs, verbose=verbose)
         db.to_csv(path, index=False)
     db[sample_by], disc = discretizer(db[sample_by].to_numpy(),
