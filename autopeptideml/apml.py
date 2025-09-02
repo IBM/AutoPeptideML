@@ -173,9 +173,6 @@ class AutoPeptideML:
             n_jobs=n_jobs,
             random_state=random_state
         )
-        self.df['apml-seqs'] = self._use_pipeline(self.df['apml-smiles'],
-                                                  'to-sequences',
-                                                  n_jobs=n_jobs)
         end = time.time()
         neg = (self.df[self.label_field] == 0).sum()
         pos = (self.df[self.label_field] == 1).sum()
