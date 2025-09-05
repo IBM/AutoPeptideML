@@ -8,6 +8,7 @@ import pandas as pd
 
 from ItsPrompt.prompt import Prompt
 
+from .dataset_parsing import read_data
 from ..db.negative_sampling import get_neg_db
 from ..train.architectures import ALL_MODELS
 
@@ -22,7 +23,7 @@ def _is_int(text: str) -> bool:
 
 def define_dataset(dataset: str, task: str, neg: bool = False):
     if dataset.endswith('.csv') or dataset.endswith('.tsv'):
-        df = pd.read_csv(dataset)
+        df = read_data(dataset)
         print("These are the contents of the file you selected\n")
         print(df.head())
         print()
@@ -52,6 +53,7 @@ def define_dataset(dataset: str, task: str, neg: bool = False):
             )
     elif dataset.endswith('.fasta'):
         feat_field, label_field = 'sequences', None
+        df = read_data(dataset)
     else:
         if neg:
             n_df = get_neg_db(target_db=dataset, verbose=False)

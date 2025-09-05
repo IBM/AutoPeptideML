@@ -231,8 +231,7 @@ def add_negatives_from_db(
                             'apml-seqs': seq}
                            for s, wt, seq in zip(all_samples, all_wts,
                                                  all_seqs)])
-    neg_df[sequence_field] = neg_df['apml-smiles']
-    neg_df = neg_df[[sequence_field, sample_by, 'apml-seqs']]
+    neg_df = neg_df[['apml-seqs', 'apml-smiles', sample_by]]
     neg_df[label_field] = 0
     original_columns = df.columns.tolist()
     df = pd.concat([df, neg_df]).sample(frac=1).reset_index()
