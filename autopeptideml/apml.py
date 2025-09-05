@@ -447,9 +447,9 @@ class AutoPeptideML:
                 elif rep.split('-')[0] in FPs:
                     from autopeptideml.reps.fps import RepEngineFP
                     if len(rep.split('-')) == 1:
-                        rep = f'{rep}-8-2048'
+                        rep = f'{rep}-8-1024'
                     elif len(rep.split('-')) == 2:
-                        rep = f"{rep.split('-')[0]}-{rep.split('-')[1]}-2048"
+                        rep = f"{rep.split('-')[0]}-{rep.split('-')[1]}-1024"
                     self.execution[rep] = {'start': time.time()}
                     repengine = RepEngineFP(
                         rep=rep.split('-')[0],
@@ -543,9 +543,9 @@ class AutoPeptideML:
                 data_type='small molecule',
                 fingerprint='mapc' if len(self.df) < 10_000 else 'ecfp',
                 sim_function='jaccard' if len(self.df) < 10_000 else 'tanimoto',
-                bits=2048,
+                bits=1024,
                 radius=4,
-                field_name=self.sequence_field,
+                field_name='apml-smiles',
                 min_threshold=0.1,
                 threads=n_jobs,
                 verbose=3 if verbose else 0,
