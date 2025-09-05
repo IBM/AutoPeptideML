@@ -1,7 +1,7 @@
 import copy
 import os.path as osp
-import re
 
+from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
 
 import xml.etree.ElementTree as ET
@@ -127,11 +127,14 @@ class SmilesToSequence(BaseElement):
 
     def _single_call(self, mol):
         final_pep = break_into_monomers(mol)[0]
+
         if not isinstance(final_pep, list):
             raise ValueError(mol, final_pep)
 
         if self.keep_analog:
-            final_pep = [AA_DICT[r][1] if r != 'X' else r for r in final_pep]
+            final_pep = [AA_DICT[r][1] if r not in ['X', 'ac', 'am'] else r
+                         for r in final_pep]
+            final_pep = [r for r in final_pep if r not in ['ac', 'am']]
         else:
             final_pep = [r if r in AAs else 'X' for r in final_pep]
         return ''.join(final_pep)
@@ -142,8 +145,20 @@ class SmilesToBiln(BaseElement):
 
     def _single_call(self, mol):
         final_pep = break_into_monomers(mol)[0]
-
-        return '-'.join(final_pep)
+        new_pep = []
+        prev = '<start>'
+        for m in final_pep:
+            print(m, prev, new_pep)
+            if prev in ['am', 'ac']:
+                new_pep.append(m + prev)
+            elif m in ['am', 'ac'] and prev != '<start>':
+                new_pep.pop(-1)
+                new_pep.append(prev + m)
+            elif m not in ['am', 'ac']:
+                new_pep.append(m)
+            prev = m
+        print(new_pep)
+        return '-'.join(new_pep)
 
 
 class BilnToSmiles(BaseElement):
@@ -358,7 +373,12 @@ def break_into_monomers(smiles: str) -> Tuple[List[str], List[Chem.Mol]]:
     Breaks a peptide SMILES into its monomers and assigns matching molAtomMapNumber
     to each pair of dummy atoms resulting from bond breaking.
     """
-    mol = MolFromSmiles(smiles, sanitize=True)
+    if isinstance(smiles, str):
+        mol = MolFromSmiles(smiles, sanitize=True)
+
+    else:
+        mol = smiles
+
     if mol is None:
         raise RuntimeError(f'Molecule: {smiles} could not be read by RDKit.',
                            'Maybe introduce a filtering step in your pipeline')
@@ -366,10 +386,13 @@ def break_into_monomers(smiles: str) -> Tuple[List[str], List[Chem.Mol]]:
     # Patterns for peptide and disulfide bonds
     patt = 'N[C](=O)C'
     patt2 = "CSSC"
+    patt3 = "CSC"
     pep_bond = Chem.MolFromSmarts(patt)
     disulfide_bond = Chem.MolFromSmarts(patt2)
+    csc_bond = Chem.MolFromSmarts(patt3)
     pep_matches = mol.GetSubstructMatches(pep_bond)
     ss_matches = mol.GetSubstructMatches(disulfide_bond)
+    csc_matches = mol.GetSubstructMatches(csc_bond)
 
     bond_indices_pep = [
         mol.GetBondBetweenAtoms(n_idx, c_idx).GetIdx()
@@ -381,15 +404,22 @@ def break_into_monomers(smiles: str) -> Tuple[List[str], List[Chem.Mol]]:
         for _, s1_idx, s2_idx, _ in ss_matches
         if mol.GetBondBetweenAtoms(s1_idx, s2_idx)
     ]
-    bond_indices = bond_indices_pep + bond_indices_ss
+    bond_indices_csc = [
+        mol.GetBondBetweenAtoms(s1_idx, c).GetIdx()
+        for _, s1_idx, c in csc_matches
+        if mol.GetBondBetweenAtoms(s1_idx, c)
+    ]
+    bond_indices = bond_indices_pep + bond_indices_ss + bond_indices_csc
 
     if not bond_indices:
         best_aa, _ = find_closest_monomer(mol)
         return [best_aa], [mol]
     # Fragment and retain dummy atom pairs
-    frags = rdops.FragmentOnBonds(mol, bond_indices, addDummies=True,
-                                  dummyLabels=[[i+1, i+1] for i in range(len(bond_indices))])
-
+    frags = rdops.FragmentOnBonds(
+        mol, bond_indices,
+        addDummies=True,
+        dummyLabels=[[i+1, i+1] for i in range(len(bond_indices))]
+    )
     # Assign matching molAtomMapNumber to dummy pairs
     for bond_num, bond_idx in enumerate(bond_indices, start=1):
         dummy_atoms = [atom for atom in frags.GetAtoms()
@@ -403,8 +433,8 @@ def break_into_monomers(smiles: str) -> Tuple[List[str], List[Chem.Mol]]:
     updated_frag_mols = Chem.GetMolFrags(frags, asMols=True,
                                          sanitizeFrags=True)
     n_fixed_frags = reattach_n(updated_frag_mols)
-    ordered_frags = order_monomers(n_fixed_frags)
-
+    # ordered_frags = order_monomers(n_fixed_frags)
+    ordered_frags = order_fragments(n_fixed_frags)
     final_pep, all_frags = [], []
     for frag in ordered_frags:
         best_aa, sim = find_closest_monomer(frag)
@@ -413,112 +443,114 @@ def break_into_monomers(smiles: str) -> Tuple[List[str], List[Chem.Mol]]:
     return final_pep, all_frags
 
 
-def order_monomers(monomers: List[Chem.Mol]) -> List[Chem.Mol]:
+def order_fragments(mols):
     """
-    Orders peptide monomers from N-terminal to C-terminal.
-    Supports cyclic peptides by detecting an artificial break.
+    Order peptide fragments from N- to C-terminal based on dummy atom AtomMapNum.
+    If cyclic, ordering starts from an arbitrary fragment.
+    Handles branching by exploring all branches systematically.
 
-    Args:
-        monomers: List of RDKit Mol objects representing peptide monomers,
-                  with dummy atoms carrying matching molAtomMapNumber
-                  for their connection points.
+    Parameters
+    ----------
+    mols : list of rdkit.Chem.Mol
+        Each fragment molecule with dummy atoms labeled with AtomMapNum.
 
-    Returns:
-        Ordered list of RDKit Mol objects in sequence order.
+    Returns
+    -------
+    list of rdkit.Chem.Mol
+        Ordered list of fragments.
     """
-
-    # Step 1: Map from dummy atom labels (molAtomMapNumber) to monomer indices
-    connection_map = {}
-    for idx, mol in enumerate(monomers):
-        for atom in mol.GetAtoms():
-            if atom.GetAtomicNum() == 0 and atom.HasProp("molAtomMapNumber"):
-                label = atom.GetIntProp("molAtomMapNumber")
-                connection_map.setdefault(label, []).append(idx)
-
-    # Step 2: Build adjacency graph of monomer connections
-    graph = {i: set() for i in range(len(monomers))}
-    for label, indices in connection_map.items():
-        if len(indices) == 2:
-            a, b = indices
-            graph[a].add(b)
-            graph[b].add(a)
-        # If length != 2, connection is dangling or cyclic break
-
-    # Helper functions to detect free termini
     def is_free_n_terminal(mol):
-        # Check for nitrogen atoms without dummy atoms attached
+        """Detect if fragment has a free N-terminal (free amine not attached to peptide bond)."""
+        mol = Chem.AddHs(mol)
         for atom in mol.GetAtoms():
-            if atom.GetAtomicNum() == 7:  # Nitrogen
-                # neighbors dummy atoms?
-                dummy_neighbors = [nbr for nbr in atom.GetNeighbors() if nbr.GetAtomicNum() == 0 and nbr.HasProp("molAtomMapNumber")]
-                if len(dummy_neighbors) == 1:
-                    return False
-        return True
-
-    def is_free_c_terminal(mol):
-        # Check for carbon atoms with free carboxylate group (C=O and C-OH) and no dummy atoms
-        for atom in mol.GetAtoms():
-            if atom.GetAtomicNum() == 6:  # Carbon
-                dummy_neighbors = [nbr for nbr in atom.GetNeighbors() if nbr.GetAtomicNum() == 0 and nbr.HasProp("molAtomMapNumber")]
-                if len(dummy_neighbors) == 0:
-                    oxygens = [nbr for nbr in atom.GetNeighbors() if nbr.GetAtomicNum() == 8]
-                    if len(oxygens) >= 2:
-                        has_double_bonded_oxygen = False
-                        has_hydroxyl_oxygen = False
-                        for o in oxygens:
-                            bond = mol.GetBondBetweenAtoms(atom.GetIdx(), o.GetIdx())
-                            if bond is None:
-                                continue
-                            if bond.GetBondType().name == 'DOUBLE':
-                                has_double_bonded_oxygen = True
-                            elif bond.GetBondType().name == 'SINGLE':
-                                # Check if hydroxyl oxygen (has H neighbor)
-                                if any(n.GetAtomicNum() == 1 for n in o.GetNeighbors()):
-                                    has_hydroxyl_oxygen = True
-                        if has_double_bonded_oxygen and has_hydroxyl_oxygen:
+            if atom.GetAtomicNum() == 7: # Nitrogen
+                neighbors = atom.GetNeighbors()
+                carbon_neighbors = [n for n in neighbors if n.GetAtomicNum() == 6]
+                dummy_neighbors = [n for n in neighbors if n.GetAtomicNum() == 0]
+                for c_neighbor in carbon_neighbors:
+                    for c in c_neighbor.GetNeighbors():
+                        if c.GetAtomicNum() != 6:
+                            continue
+                        # Check if carbon has a double bonded oxygen (carbonyl)
+                        has_carbonyl = any(b.GetOtherAtom(c).GetAtomicNum() == 8
+                                        for b in c.GetBonds())
+                        if has_carbonyl and len(dummy_neighbors) == 0:
                             return True
         return False
 
-    # Step 3: Identify N-terminal monomer candidate
-    start_idx = None
-    for idx, mol in enumerate(monomers):
+    n_terminals = [is_free_n_terminal(mol) for mol in mols]
+    if sum(n_terminals) < 1:
+        return mols
 
-        if len(graph[idx]) <= 1 and is_free_n_terminal(mol):
-            start_idx = idx
+    fragments = []
+    for i, mol in enumerate(mols):
+        dummies = [atom.GetAtomMapNum() for atom in mol.GetAtoms() if atom.GetAtomicNum() == 0]
+        fragments.append({"id": i, "mol": mol, "dummies": dummies})
+
+    # Build adjacency list (graph)
+    graph = defaultdict(list)
+    dummy_to_frag = defaultdict(list)
+
+    for frag in fragments:
+        for d in frag['dummies']:
+            dummy_to_frag[d].append(frag['id'])
+
+    # Connect fragments by shared dummy atom numbers
+    for frags in dummy_to_frag.values():
+        if len(frags) == 2:  # valid cleavage between 2 fragments
+            a, b = frags
+            graph[a].append(b)
+            graph[b].append(a)
+
+    # Find start node
+    start = None
+    for node, neighbors in graph.items():
+        if len(neighbors) == 1 and is_free_n_terminal(mols[node]):  # terminal fragment
+            start = node
             break
+    if start is None:
+        # cycle → just pick an arbitrary fragment
+        start = next(iter(graph))
 
-    # If no free N-terminal (cyclic peptide), pick arbitrary start
-    if start_idx is None:
-        start_idx = 0
-
-    # Step 4: Traverse graph from start to end
-    ordered_indices = []
+    # Traverse path with backtracking for branches
+    ordered_ids = []
     visited = set()
-    current = start_idx
-    prev = None
 
-    while True:
-        ordered_indices.append(current)
+    def dfs_traverse(current, path):
+        """
+        Depth-first search with backtracking to handle branching points.
+        """
+        path.append(current)
         visited.add(current)
 
-        neighbors = graph[current] - {prev} if prev is not None else graph[current]
+        # Get unvisited neighbors
+        unvisited_neighbors = [n for n in graph[current] if n not in visited]
 
-        # If no next neighbor or only visited neighbors -> stop
-        unvisited_neighbors = neighbors - visited
-        if len(unvisited_neighbors) == 1:
-            prev, current = current, unvisited_neighbors.pop()
-        elif len(unvisited_neighbors) == 0:
-            # Check if current is free C-terminal, else cyclic end
-            if is_free_c_terminal(monomers[current]):
-                break
-            else:
-                # cyclic peptide or no clear C-terminal, stop traversal
-                break
-        else:
-            # More than one unvisited neighbor means ambiguous branching, break to avoid infinite loop
-            break
+        if not unvisited_neighbors:
+            # No more neighbors - we've reached a dead end
+            # This path segment is complete
+            return
 
-    return [monomers[i] for i in ordered_indices]
+        # If there are multiple unvisited neighbors, we have a branch point
+        # Explore each branch
+        for neighbor in unvisited_neighbors:
+            if neighbor not in visited:  # Double check since visited set may change
+                dfs_traverse(neighbor, path)
+
+    # Start traversal
+    dfs_traverse(start, ordered_ids)
+
+    # Handle any disconnected components (shouldn't happen in well-formed peptides)
+    remaining_nodes = set(graph.keys()) - visited
+    for node in remaining_nodes:
+        if node not in visited:
+            dfs_traverse(node, ordered_ids)
+
+    # Map back to mol objects
+    ordered_mols = [fragments[i]["mol"] for i in ordered_ids]
+
+    return ordered_mols
+
 
 def find_closest_monomer(frag: Chem.Mol) -> Tuple[str, float]:
     global CACHE

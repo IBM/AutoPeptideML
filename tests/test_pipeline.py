@@ -29,6 +29,7 @@ def test_canonical_filter():
         ('CC(C)C[C@H](NC(=O)[C@@H](N)CCC(N)=O)C(=O)N1CCC[C@H]1C(=O)N[C@@H](Cc1ccccc1)C(=O)N1CCC[C@H]1C(=O)N[C@@H](CCC(N)=O)C(=O)N[C@@H](CCC(N)=O)C(=O)N1CCC[C@H]1C(=O)N[C@@H](CCC(N)=O)C(=O)O', 'QLPFPQQPQ'),
         ('CC(C)C[C@H](NC(=O)[C@@H](N)CC(C)C)C(=O)N[C@@H](C)C(=O)N[C@@H](Cc1c[nH]cn1)C(=O)O', 'LLAH'),
         ('N=C(N)NCCC[C@H](NC(=O)[C@H](CCCNC(=N)N)NC(=O)[C@H](CCCCN)NC(=O)[C@@H](N)Cc1ccccc1)C(=O)O', 'FKRR'),
+        ('CC(=O)N[C@@H](Cc1c[nH]c2ccccc12)C(=O)N[C@@H](Cc1ccc(O)cc1)C(=O)N[C@@H](CS)C(=O)NCC(N)=O', 'WYCG'),
         ('CC(C)[C@H](NC(=O)[C@H](Cc1ccc(O)cc1)NC(=O)[C@H](CO)NC(=O)[C@@H]1CCCN1)C(=O)O', 'PSYV')
     ]
 )
@@ -45,12 +46,14 @@ def test_to_sequence(smiles, seq_out):
         ('Cc1cccc(C[C@H](N)C(=O)N[C@@H](Cc2c(Br)[nH]c3ccccc23)C(=O)O)c1', "X1186-X1772"),
         ('Nc1nc2c(ncn2C2OC(COP(=O)(O)O)C(O)C2O)c(=O)[nH]1', "X"),
         ('N[C@H](Cc1ccc(C(F)(F)F)cc1)C(=O)N[C@@H](CC(=O)O)C(=O)COC(=O)c1c(C(F)(F)F)cccc1C(F)(F)F', 'X933-X'),
-        ('CC(=O)N[C@@H](Cc1c[nH]c2ccccc12)C(=O)N[C@@H](Cc1ccc(O)cc1)C(=O)N[C@@H](CS)C(=O)NCC(N)=O', 'ac-W-Y-C-G-am'),
+        ('CC(=O)N[C@@H](Cc1c[nH]c2ccccc12)C(=O)N[C@@H](Cc1ccc(O)cc1)C(=O)N[C@@H](CS)C(=O)NCC(N)=O', 'Wac-Y-C-Gam'),
+        ('CC[C@H](C)[C@@H]1NC(=O)[C@H](CCCNC(=N)N)NC(=O)[C@@H]2CSCCC(=O)N3CN(CN(C3)C(=O)CCSC[C@@H](C(=O)N[C@@H](C)C(N)=O)NC(=O)[C@H](CC(C)C)NC(=O)[C@H](CCCCN)NC1=O)C(=O)CCSC[C@H](NC(=O)[C@H](C)N)C(=O)NCC(=O)N[C@@H](CCCNC(=N)N)C(=O)N[C@@H](CCC(=O)O)C(=O)N[C@@H](CCC(=O)O)C(=O)N[C@@H](CC(C)C)C(=O)N1CCC[C@H]1C(=O)N2', 'A-dAbu-X-X-X-C-R-I-K-L-dAbu-X-Aam-Pam-L-E-E-R-G')
     ]
 )
 def test_to_biln(smiles, seq_out):
     pipe = Pipeline([SmilesToBiln()])
     seq_pred = pipe(smiles)
+    print(seq_pred)
     assert seq_pred == seq_out
 
 
