@@ -127,7 +127,6 @@ class SmilesToSequence(BaseElement):
 
     def _single_call(self, mol):
         final_pep = break_into_monomers(mol)[0]
-
         if not isinstance(final_pep, list):
             raise ValueError(mol, final_pep)
 
@@ -142,13 +141,13 @@ class SmilesToSequence(BaseElement):
 
 class SmilesToBiln(BaseElement):
     name = "smiles-to-biln"
+    parallel = 'procesing'
 
     def _single_call(self, mol):
         final_pep = break_into_monomers(mol)[0]
         new_pep = []
         prev = '<start>'
         for m in final_pep:
-            print(m, prev, new_pep)
             if prev in ['am', 'ac']:
                 new_pep.append(m + prev)
             elif m in ['am', 'ac'] and prev != '<start>':
@@ -157,7 +156,6 @@ class SmilesToBiln(BaseElement):
             elif m not in ['am', 'ac']:
                 new_pep.append(m)
             prev = m
-        print(new_pep)
         return '-'.join(new_pep)
 
 
@@ -415,6 +413,7 @@ def break_into_monomers(smiles: str) -> Tuple[List[str], List[Chem.Mol]]:
         best_aa, _ = find_closest_monomer(mol)
         return [best_aa], [mol]
     # Fragment and retain dummy atom pairs
+    bond_indices = list(set(bond_indices))
     frags = rdops.FragmentOnBonds(
         mol, bond_indices,
         addDummies=True,
@@ -428,7 +427,6 @@ def break_into_monomers(smiles: str) -> Tuple[List[str], List[Chem.Mol]]:
 
         for atom in dummy_atoms:
             atom.SetIntProp("molAtomMapNumber", bond_num)
-
     # Re-extract sanitized fragments with new properties
     updated_frag_mols = Chem.GetMolFrags(frags, asMols=True,
                                          sanitizeFrags=True)
