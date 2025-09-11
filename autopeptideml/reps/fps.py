@@ -11,6 +11,31 @@ except ImportError:
                       " Try: `pip install rdkit`")
 
 
+class PepFunn_Generator:
+    radius: int = 2
+    nBits: int = 1024
+
+    def __init__(self, radius: int = radius, fpSize: int = nBits):
+        try:
+            import warnings
+            warnings.filterwarnings('ignore')
+
+            from pepfunn.similarity import monomerFP
+        except ImportError:
+            raise ImportError("This function requires pepfunn. Try: `pip install git+https://github.com/novonordisk-research/pepfunn.git`")
+        self.radius = radius
+        self.nBits = fpSize
+        self.gen = monomerFP
+
+    def GetFingerprintAsNumPy(self, mol) -> np.ndarray:
+        try:
+            return np.array(self.gen(mol, radius=self.radius, nBits=self.nBits,
+                            add_freq=True,
+                            property_lib='property_ext.txt')[0])
+        except ValueError:
+            return np.zeros((self.nBits, ))
+
+
 class RepEngineFP(RepEngineBase):
     """
     Class `RepEngineFP` is a subclass of `RepEngineBase` designed for computing molecular fingerprints (FPs) 
@@ -54,6 +79,9 @@ class RepEngineFP(RepEngineBase):
         self.nbits = nbits
         self.radius = radius
         self.name = f'{self.engine}-{rep}-{self.nbits}-{self.radius}'
+        self.count = 'count' in rep
+        if self.count:
+            self.name += '-count'
         self.generator = self._load_generator(rep)
 
     def _preprocess_batch(self, batch: List[str]) -> List[str]:
@@ -66,6 +94,10 @@ class RepEngineFP(RepEngineBase):
         :rtype: List[str]
           :return: The same batch of molecular representations as input.
         """
+        if 'pepfunn' in self.name:
+            from ..pipeline.smiles import SmilesToBiln
+            transf = SmilesToBiln()
+            batch = transf(batch, verbose=False)
         return batch
 
     def _rep_batch(self, batch: List[str]) -> List[np.ndarray]:
@@ -80,11 +112,17 @@ class RepEngineFP(RepEngineBase):
         """
         out = []
         for i in batch:
-            mol = rdm.MolFromSmiles(i)
+            if 'pepfunn' not in self.name:
+                mol = rdm.MolFromSmiles(i)
+            else:
+                mol = i
             if mol is None:
                 fp = np.zeros((self.nbits, ))
+            elif not self.count:
+                fp = self.generator.GetFingerprintAsNumPy(mol)
             else:
                 fp = self.generator.GetCountFingerprintAsNumPy(mol)
+
             out.append(fp)
         return out
 
@@ -104,14 +142,17 @@ class RepEngineFP(RepEngineBase):
             return rfp.GetMorganGenerator(radius=self.radius,
                                           includeChirality=True,
                                           fpSize=self.nbits,
-                                          countSimulation='count' in rep)
+                                          countSimulation=self.count)
         elif 'fcfp' in rep:
             invgen = rfp.GetMorganFeatureAtomInvGen()
             return rfp.GetMorganGenerator(radius=self.radius,
                                           fpSize=self.nbits,
                                           includeChirality=True,
                                           atomInvariantsGenerator=invgen,
-                                          countSimulation='count' in rep)
+                                          countSimulation=self.count)
+        elif 'pepfunn' in rep:
+            return PepFunn_Generator(radius=self.radius, fpSize=self.nbits)
+
         else:
             raise NotImplementedError(
                 f'Representation: {rep} is not currently implemented.',

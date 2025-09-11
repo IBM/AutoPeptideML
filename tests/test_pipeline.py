@@ -51,9 +51,8 @@ def test_to_sequence(smiles, seq_out):
     ]
 )
 def test_to_biln(smiles, seq_out):
-    pipe = Pipeline([SmilesToBiln()])
+    pipe = Pipeline([SmilesToBiln(human_readable=True)])
     seq_pred = pipe(smiles)
-    print(seq_pred)
     assert seq_pred == seq_out
 
 
