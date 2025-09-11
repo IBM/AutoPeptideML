@@ -5,9 +5,13 @@ import numpy as np
 
 from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import (matthews_corrcoef,
-                             accuracy_score, f1_score,
+                             accuracy_score, f1_score, log_loss,
                              precision_score, recall_score, mean_squared_error,
                              mean_absolute_error, roc_auc_score, r2_score)
+
+
+def _log_loss(preds, truths):
+    return log_loss(truths, preds, normalize=True)
 
 
 def _pcc(preds, truths):
@@ -50,6 +54,7 @@ CLASSIFICATION_METRICS = {
     'precision': precision_score,
     'recall': _recall,
     'auroc': roc_auc_score,
+    'log_loss': _log_loss,
     'tp': _tp,
     'tn': _tn,
     'fp': _fp,
