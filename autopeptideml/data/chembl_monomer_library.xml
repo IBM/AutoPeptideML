@@ -37526,7 +37526,7 @@
                 <MonomerMolFile>H4sIAAAAAAAAAI1OPQ9AUBDb+yuaMMvdhfB2YiJisBstBoPf7z0SH2HQdOi1uaYgm3FZp5lUMdNUM8mt5AmANB+ScuMF5xwHExGES5LCMjmU9+6q5bPim/j8vVQf/WzR92w0ZF93uxtCanCqtgRiD2wNaXzzDAEAAA==</MonomerMolFile>
                 <MonomerType>Backbone</MonomerType>
                 <PolymerType>PEPTIDE</PolymerType>
-                <NaturalAnalog>X</NaturalAnalog>
+                <NaturalAnalog>am</NaturalAnalog>
                 <MonomerName>C-Terminal amine</MonomerName>
                 <Attachments>
                     <Attachment>
@@ -52253,7 +52253,7 @@
                 <MonomerMolFile>H4sIAAAAAAAAAJ1QMQ7CMAzc/YqTYKWyr4lKZloxFVAHdkYWBgbeTxOqNoUOwMmyLuecdbIA7eX+uN4AU9KcefOsMUIEcEAJaFYTQgg4U1UlvqxgWfnItKjMDayfKnaYr1gueTm29Jp5/9oyZtl8ZOlWP2R5SzCx47dZDGDqM5XpqguqSz1TW6Dbn9LfaAGj0hxqkXUPeQJeVyKDxAEAAA==</MonomerMolFile>
                 <MonomerType>Backbone</MonomerType>
                 <PolymerType>PEPTIDE</PolymerType>
-                <NaturalAnalog>X</NaturalAnalog>
+                <NaturalAnalog>ac</NaturalAnalog>
                 <MonomerName>N-Terminal Acetic Acid</MonomerName>
                 <Attachments>
                     <Attachment>
