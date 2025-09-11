@@ -30,12 +30,15 @@ def test_one_hot():
 
 
 def test_fps():
-    re1 = RepEngineFP('ecfp', 512, 8)
+    re1 = RepEngineFP('ecfp-count', 512, 8)
+    re3 = RepEngineFP('pepfunn', 256, 1)
     a = re1.compute_reps(['C[C@H](N)C(=O)N[C@@H](CCCNC(=N)N)C(=O)N[C@H]'], batch_size=1)
     re2 = RepEngineFP('fcfp', 256, 12)
     b = re2.compute_reps(['C[C@H](N)C(=O)N[C@@H](CCCNC(=N)N)C(=O)N[C@H]'], batch_size=1)
     dict_1, dict_2 = json.loads(str(re1)), json.loads(str(re2))
-    assert dict_1 == {'rep': 'ecfp', 'nbits': 512, 'radius': 8}
+    c = re3.compute_reps(['C[C@H](N)C(=O)N[C@@H](CCCNC(=N)N)C(=O)N[C@H]'])
+    assert c.sum() == 5
+    assert dict_1 == {'rep': 'ecfp-count', 'nbits': 512, 'radius': 8}
     assert dict_2 == {'rep': 'fcfp', 'nbits': 256, 'radius': 12}
     assert re1.dim() == 512
     assert re2.dim() == 256

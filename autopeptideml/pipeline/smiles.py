@@ -140,8 +140,12 @@ class SmilesToSequence(BaseElement):
 
 
 class SmilesToBiln(BaseElement):
-    name = "smiles-to-biln"
-    parallel = 'procesing'
+    name: str = "smiles-to-biln"
+    parallel: str = 'procesing'
+    human_readable: bool = False
+
+    def __init__(self, human_readable: bool = human_readable):
+        self.human_readable = human_readable
 
     def _single_call(self, mol):
         final_pep = break_into_monomers(mol)[0]
@@ -149,10 +153,16 @@ class SmilesToBiln(BaseElement):
         prev = '<start>'
         for m in final_pep:
             if prev in ['am', 'ac']:
-                new_pep.append(m + prev)
+                if self.human_readable:
+                    new_pep.append(m + prev)
+                else:
+                    new_pep.append(m + '-' + prev)
             elif m in ['am', 'ac'] and prev != '<start>':
                 new_pep.pop(-1)
-                new_pep.append(prev + m)
+                if self.human_readable:
+                    new_pep.append(prev + m)
+                else:
+                    new_pep.append(prev + '-' + m)
             elif m not in ['am', 'ac']:
                 new_pep.append(m)
             prev = m
