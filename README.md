@@ -60,10 +60,10 @@ To use version 1.0, which may be necessary for retrocompatibility with previousl
 
 ## Model builder <a name="helper"></a>
 
-In order to build a new model, AutoPeptideML (v.2.0), introduces a new utility to automatically prepare an experiment configuration file, to i) improve the reproducibility of the pipeline and ii) to keep a user-friendly interface despite the much increased flexibility.
+In order to build a new model, AutoPeptideML (v.2.0) guides you through the process through a series of prompts.
 
 ```bash
-autopeptideml prepare-config --config-path <config-path>
+autopeptideml build-model
 ```
 This launches an interactive CLI that walks you through:
 
@@ -71,7 +71,6 @@ This launches an interactive CLI that walks you through:
 - Loading and parsing datasets (csv, tsv, or fasta)
 - Picking models and representations
 - Automatically sampling negatives
-
 
 You’ll be prompted to answer various questions like:
 
@@ -86,13 +85,13 @@ You’ll be prompted to answer various questions like:
 And so on. The final config is written to:
 
 ```
-<config-path>.yml
+<outputdir>/setup-config.yml
 ```
 
 This config file allows for easy reproducibility of the results, so that anyone can repeat the training processes. You can check the configuration file and make any changes you deem necessary. Finally, you can build the model by simply running:
 
 ```
-autopeptideml build-model --outdir <outdir> --config-path <outputdir>/config.yml
+autopeptideml build-model --outdir <outdir> --config-path <outputdir>/setup-config.yml
 ```
 
 ## Prediction <a name="prediction"></a>
@@ -120,6 +119,7 @@ Installing in a conda environment is recommended. For creating the environment, 
 ```bash
 conda create -n autopeptideml python
 conda activate autopeptideml
+conda install quarto -c conda-forge
 ```
 
 ### 1. Python Package
@@ -188,45 +188,6 @@ To use PeptideCLM:
 
 ```bash
 pip install smilesPE
-```
-
-## Documentation <a name="documentation"></a>
-
-### Configuration file
-
-
-```yaml
-datasets:
-  main:
-    feat-fields: # Column with peptide sequence/SMILES
-    label-field: # Column with labels/ "Assume all entries are positives"
-    path: # Path to dataset
-  neg-db:
-    activities-to-exclude: # List of activities to exclude
-      - activity-1
-      - activity-2
-      ...
-    feat-fields: null # Column with peptide sequence/SMILES (only if using custom database)
-    path: # Path to custom database or choose: canonical, non-canonical, both
-device: # Device for computing representations. Choose: cpu, mps, cuda
-direction: # Direction of optimization. Choose: maximize or minimize
-metric: # Metric for optimization. mse, mae require direction minimize
-models: # List of machine learning algorithms to explore. List:
-        # knn, svm, rf, gradboost, xgboost, lightgbm
-  - model-1
-  - model-2
-  ...
-n-trials: # Number of optimization steps. Recommended 100-200
-pipeline: to-smiles # Pipeline for preprocessing. Choose: to-smiles, to-sequences
-reps: # List of peptide representations to explore. List:
-      # ecfp, chemberta-2, molformer-xl, peptide-clm, esm2-8m, ...
-  - rep-1
-  - rep-2
-  ...
-
-split-strategy: min # Strategy for splitting train/test. Choose: min, random. 
-task: class # Machine learning type of problem. Choose: class or reg.
-n-jobs: # Number of processes to launch. -1 uses all possible CPU cores.
 ```
 
 ### More details about API
