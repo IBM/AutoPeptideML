@@ -29,11 +29,11 @@
 - **Documentation:**  <a href="https://ibm.github.io/AutoPeptideML/" target="_blank">https://ibm.github.io/AutoPeptideML</a>
 - **Source Code:** <a href="https://github.com/IBM/AutoPeptideML" target="_blank">https://github.com/IBM/AutoPeptideML</a>
 - **Webserver:** <a href="http://peptide.ucd.ie/autopeptideml" target="_blank">http://peptide.ucd.ie/autopeptideml</a>
-- **Google Collaboratory Notebook:** <a href="https://colab.research.google.com/github/IBM/AutoPeptideML/blob/main/examples/AutoPeptideML_Collab.ipynb" target="_blank">AutoPeptideML_Collab.ipynb</a>
+- **Google Collaboratory Notebook:** <a href="https://colab.research.google.com/github/IBM/AutoPeptideML/blob/main/examples/AutoPeptideML2.ipynb" target="_blank">AutoPeptideML_Collab.ipynb</a>
 - **Blog post:** <a href="https://portal.valencelabs.com/blogs/post/autopeptideml-building-peptide-bioactivity-predictors-automatically-IZZKbJ3Un0qjo4i" target="_blank">Portal - AutoPeptideML v. 1.0 Tutorial</a>
 - **Papers:** 
   - [AutoPeptideML (v. 1.0)](https://doi.org/10.1093/bioinformatics/btae555)
-  - [ML Generalization from canonical to non-canonical peptides](https://doi.org/10.26434/chemrxiv-2025-ggp8n)
+  - [ML Generalization from standard to modified peptides](https://chemrxiv.org/engage/chemrxiv/article-details/687cfbff23be8e43d62a05f0)
 
 AutoPeptideML allows researchers without prior knowledge of machine learning to build models that are:
 
