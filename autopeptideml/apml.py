@@ -148,7 +148,7 @@ class AutoPeptideML:
         else:
             path = target_db
         if not self.preprocessed:
-            self._preprocessing_data(n_jobs=n_jobs)
+            self._preprocessing_data(n_jobs=n_jobs, verbose=verbose)
 
         self.metadata['status'] = 'sampling-negatives'
         self.metadata['negative-sampling-metadata'] = {
@@ -245,6 +245,10 @@ class AutoPeptideML:
         if task not in ['class', 'reg']:
             raise ValueError(f"Task: {task} is not valid.",
                              "Choose one: `class, reg`")
+        if task == 'class':
+            from .utils.dataset_parsing import _is_string_series
+            if _is_string_series(self.df[self.label_field]):
+                raise ValueError("The target column contains textual values, please substitute for '1' for the positive class and '0' for the negative.")
 
         if split_strategy == 'good':
             raise NotImplementedError(
@@ -283,6 +287,7 @@ class AutoPeptideML:
             random_state=random_state,
             n_jobs=n_jobs,
             n_trials=n_trials,
+            verbose=verbose,
             model_configs=model_configs
         )
         self._evaluating(
@@ -309,19 +314,13 @@ class AutoPeptideML:
     ):
         repengine = self.repengines[rep]
         if rep in PLMs or rep == 'one-hot':
-            if 'apml-seqs' in self.df:
-                seqs = self.df['apml-seqs']
-            else:
-                seqs = self._use_pipeline(mols, 'to-sequences', n_jobs=n_jobs,
-                                          verbose=verbose)
+            seqs = self._use_pipeline(mols, 'to-sequences', n_jobs=n_jobs,
+                                      verbose=verbose)
             x = {rep: repengine.compute_reps(seqs, verbose=verbose,
                                              batch_size=32)}
         else:
-            if 'apml-smiles' in self.df:
-                mols = self.df['apml-smiles']
-            else:
-                mols = self._use_pipeline(mols, 'to-smiles', n_jobs=n_jobs,
-                                          verbose=verbose)
+            mols = self._use_pipeline(mols, 'to-smiles', n_jobs=n_jobs,
+                                      verbose=verbose)
             x = {rep: repengine.compute_reps(mols, verbose=verbose,
                                              batch_size=32)}
         return x
@@ -336,6 +335,7 @@ class AutoPeptideML:
         n_folds: int,
         n_jobs: int,
         n_trials: int,
+        verbose: bool,
         random_state: int
     ):
         if task == 'class':
@@ -372,6 +372,7 @@ class AutoPeptideML:
             n_trials=n_trials,
             patience=n_trials//5,
             custom_hpspace=model_configs,
+            verbose=2 if verbose else 0,
             random_state=random_state,
             n_jobs=n_jobs,
             db_file=osp.join(self.meta_dir, 'database.sql'),

@@ -32,6 +32,7 @@ AVAILABLE_MODELS = {
     'ankh-large': 1536,
     'MoLFormer-XL-both-10pct': 768,
     'ChemBERTa-77M-MLM': 384,
+    'ChemBERTa-100M-MLM': 768,
     'PeptideCLM-23M-all': 768
 }
 
@@ -53,8 +54,8 @@ SYNONYMS = {
     'ankh-large': 'ankh-large',
     'molformer-xl': 'MoLFormer-XL-both-10pct',
     'chemberta-2': 'ChemBERTa-77M-MLM',
+    'chemberta-3': 'ChemBERTa-100M-MLM',
     'peptideclm': 'PeptideCLM-23M-all'
-
 }
 
 
@@ -149,17 +150,22 @@ class RepEngineLM(RepEngineBase):
             return 1022
         elif self.lab.lower() == 'evolutionaryscale':
             return 2046
+        elif self.lab.lower() == 'deepchem':
+            return 512
         else:
             return 2046
 
-    def get_num_params(self) -> int:
+    def get_num_params(self, human_readable: bool = False) -> int:
         """
         Returns the total number of parameters in the model.
 
         :rtype: int
           :return: The number of parameters in the model.
         """
-        return sum(p.numel() for p in self.model.parameters())
+        if not human_readable:
+            return sum(p.numel() for p in self.model.parameters())
+        else:
+            return f"{sum(p.numel() for p in self.model.parameters())/1e6:,.3f}M"
 
     def _load_model(self, model: str):
         """
@@ -239,7 +245,7 @@ class RepEngineLM(RepEngineBase):
                 self.tokenizer = self.model.tokenizer
             else:
                 self.tokenizer = AutoTokenizer.from_pretrained(
-                    f'{self.lab}/{model}', trust_remote_code=True
+                    f'{self.lab}/{model}', trust_remote_code=True,
                 )
 
         self.dimension = AVAILABLE_MODELS[model]
@@ -277,6 +283,8 @@ class RepEngineLM(RepEngineBase):
         :rtype: List[np.ndarray]
           :return: A list of numpy arrays representing the embeddings of each input sequence.
         """
+        batch = [b if len(b) <= self.max_len() else b[:self.max_len()]
+                 for b in batch]
         inputs = self.tokenizer(batch, add_special_tokens=True,
                                 truncation=True,
                                 padding="longest", return_tensors="pt")
