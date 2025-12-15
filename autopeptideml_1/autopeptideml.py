@@ -796,9 +796,9 @@ class AutoPeptideML:
         else:
             for idx, clf in enumerate(best_model['estimators']):
                 if 'class' in str(clf).lower():
-                    name = f'{idx}_class.onnx'
+                    name = f'{idx}_class.joblib'
                 else:
-                    name = f'{idx}_reg.onnx'
+                    name = f'{idx}_reg.joblib'
                 joblib.dump(clf, open(osp.join(raw_data_path, name)), 'wb')
 
     def _onnx_prediction(
