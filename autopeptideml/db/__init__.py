@@ -1,1 +1,1 @@
-from .negative_sampling import add_negatives_from_db
+from .negative_sampling import add_negatives_from_db, setup_databases

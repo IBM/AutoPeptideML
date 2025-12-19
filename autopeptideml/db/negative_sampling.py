@@ -43,6 +43,34 @@ TARGET_DBs = ['canonical', 'non-canonical', 'both']
 MATCHING = {'mw': _mw, 'length': _length}
 
 
+def setup_databases():
+    try:
+        import gdown
+    except ImportError:
+        raise ImportError("This module requires gdown. Try: `pip install gdown`")
+
+    db_dir = osp.join(osp.dirname(__file__), '..', 'data', 'dbs')
+    if not osp.isdir(db_dir):
+        os.makedirs(db_dir, exist_ok=True)
+
+    verbose = True
+
+    print("Downloading canonical database...")
+    path = osp.join(db_dir, 'canonical.csv')
+    FILE_ID = "189VtkbQ2bVpQlAe2UMBSzt_O4F7EyBWl"
+    gdown.download(id=FILE_ID, output=path, quiet=verbose)
+
+    print("Downloading non-canonical database...")
+    path = osp.join(db_dir, 'non-canonical.csv')
+    FILE_ID = "1U4RXDNx_aijVDJ1oTaRKjo78Yakd3Mg4"
+    gdown.download(id=FILE_ID, output=path, quiet=verbose)
+
+    print("Downloading negative database...")
+    path = osp.join(db_dir, 'both.csv')
+    FILE_ID = "189VtkbQ2bVpQlAe2UMBSzt_O4F7EyBWl"
+    gdown.download(id=FILE_ID, output=path, quiet=verbose)
+
+
 def get_neg_db(target_db: str, verbose: bool, return_path: bool = False) -> pd.DataFrame:
     """
     Retrieves a precompiled database of negative samples.
