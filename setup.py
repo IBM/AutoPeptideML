@@ -27,7 +27,8 @@ requirements = [
     'rdkit',
     'quarto',
     'mapchiral',
-    'tabulate'
+    'tabulate',
+    'ItsPrompt'
 ]
 
 
