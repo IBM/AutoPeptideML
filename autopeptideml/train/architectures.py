@@ -26,8 +26,11 @@ class OnnxModel:
     :type path: str
     """
     def __init__(self, path: str):
+        so = rt.SessionOptions()
+        so.log_severity_level = 3  # 0 = verbose, 1 = info, 2 = warning, 3 = error, 4 = fatal
         self.session = rt.InferenceSession(
-            path, providers=['CPUExecutionProvider']
+            path, providers=['CPUExecutionProvider'],
+            sess_options=so
         )
 
     def predict(self, x: np.ndarray):
@@ -237,13 +240,14 @@ def load_sklearn_models(task: str) -> Dict[str, Callable]:
         raise ImportError("This function requires scikit-learn",
                           "Please try: `pip install scikit-learn`")
 
-    from sklearn import (svm, ensemble, neighbors)
+    from sklearn import (svm, ensemble, neighbors, linear_model)
     if 'class' in task:
         arch = {
             'knn': neighbors.KNeighborsClassifier,
             'svm': svm.SVC,
             'rf': ensemble.RandomForestClassifier,
             'gradboost': ensemble.GradientBoostingClassifier,
+            'logreg': linear_model.LogisticRegression
 
         }
     elif 'reg' in task:
@@ -252,7 +256,8 @@ def load_sklearn_models(task: str) -> Dict[str, Callable]:
             'svm': svm.SVR,
             'rf': ensemble.RandomForestRegressor,
             'adaboost': ensemble.AdaBoostRegressor,
-            'gradboost': ensemble.GradientBoostingRegressor
+            'gradboost': ensemble.GradientBoostingRegressor,
+            'linreg': linear_model.LinearRegression
         }
     else:
         raise NotImplementedError(

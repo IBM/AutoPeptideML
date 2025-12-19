@@ -1,0 +1,31 @@
+penalty:
+  type: fixed
+  value: l2
+
+solver:
+  type: categorical
+  values:
+    - liblinear
+    - lbfgs
+    - saga
+    - newton-cg
+
+C:
+  type: float
+  min: 1e-3
+  max: 1e3
+  log: True
+
+fit_intercept:
+  type: categorical
+  values:
+    - True
+    - False
+
+max_iter:
+  type: fixed
+  value: 1000
+
+tol:
+  type: fixed
+  value: 1e-4
