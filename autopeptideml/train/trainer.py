@@ -260,11 +260,10 @@ class OptunaTrainer(BaseTrainer):
         if models is None:
             models = ALL_MODELS
         for model in models:
+            config_path = osp.join(config_dir, f'{model}_{self.task}.yml')
+            hpspace = yaml.safe_load(open(config_path))
             if model in custom_hpspace:
-                hpspace = custom_hpspace[model]
-            else:
-                config_path = osp.join(config_dir, f'{model}_{self.task}.yml')
-                hpspace = yaml.safe_load(open(config_path))
+                hpspace.update(custom_hpspace[model])
             if 'n_jobs' in hpspace:
                 hpspace['n_jobs'] = {'type': 'fixed', 'value': self.n_jobs}
             if 'random_state' in hpspace:
@@ -417,7 +416,6 @@ class OptunaTrainer(BaseTrainer):
                 if self.task == 'reg' and h_m['name'] == 'svm':
                     if 'probability' in h_m['variables']:
                         del h_m['variables']['probability']
-
                 arch = arch(**h_m['variables'])
                 train_x, train_y = x[h_m['representation']][train_idx], y[train_idx]
                 arch.fit(train_x, train_y)
