@@ -12,7 +12,7 @@ from skl2onnx.common.data_types import FloatTensorType
 from skl2onnx import to_onnx
 
 
-SKLEARN_MODELS = ['knn', 'svm', 'rf', 'gradboost']
+SKLEARN_MODELS = ['knn', 'svm', 'rf', 'gradboost', 'logreg', 'linreg']
 ALL_MODELS = SKLEARN_MODELS + ['lightgbm', 'xgboost']
 
 
