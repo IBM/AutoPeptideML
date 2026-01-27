@@ -1,0 +1,3 @@
+tol:
+  type: fixed
+  value: 1e-4
