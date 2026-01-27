@@ -76,8 +76,8 @@ class RepEngineFP(RepEngineBase):
         :rtype: None
         """
         super().__init__(rep, nbits=nbits, radius=radius)
-        self.nbits = nbits
-        self.radius = radius
+        self.nbits = nbits if isinstance(nbits, int) else int(nbits)
+        self.radius = radius if isinstance(radius, int) else int(radius)
         self.name = f'{self.engine}-{rep}-{self.nbits}-{self.radius}'
         self.count = 'count' in rep
         if self.count:
