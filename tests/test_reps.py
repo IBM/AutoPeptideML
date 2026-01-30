@@ -53,6 +53,13 @@ def test_rostlab_family():
     assert np.array(a).shape == (1, re.dim())
 
 
+def test_molformer_family():
+    re = RepEngineLM('molformer-xl')
+    a = re.compute_reps(['C[C@H](N)C(=O)N[C@@H](CCCNC(=N)N)C(=O)N[C@H]'], batch_size=12)
+    assert re.dim() == 768
+    assert np.array(a).shape == (1, re.dim())
+
+
 if __name__ == '__main__':
     test_esm_family()
     print('ESM OK')

@@ -4,9 +4,11 @@ from contextlib import nullcontext
 os.environ['TOKENIZERS_PARALLELISM'] = 'False'
 
 import numpy as np
+from packaging.version import parse as V
 import torch
 import transformers
 from transformers import AutoModel, AutoTokenizer, T5Tokenizer, T5EncoderModel
+
 from typing import *
 
 from .engine import RepEngineBase
@@ -200,7 +202,8 @@ class RepEngineLM(RepEngineBase):
         elif 'ankh' in model.lower():
             self.lab = 'ElnaggarLab'
         elif 'molformer' in model.lower():
-            print("Warning: Molformer does not support transformers>=5.0.0, we recommend using an earlier version, e.g., transformers==4.41.2")
+            if V(transformers.__version__) >= V('5.0.0'):
+                print("Warning: Molformer does not support transformers>=5.0.0, we recommend using an earlier version, e.g., transformers==4.41.2")
             self.lab = 'ibm'
         elif 'chemberta' in model.lower():
             self.lab = 'DeepChem'
