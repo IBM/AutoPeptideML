@@ -33,7 +33,8 @@ AVAILABLE_MODELS = {
     'MoLFormer-XL-both-10pct': 768,
     'ChemBERTa-77M-MLM': 384,
     'ChemBERTa-100M-MLM': 768,
-    'PeptideCLM-23M-all': 768
+    'PeptideCLM-23M-all': 768,
+    'PeptideMTR_lg': 1024,
 }
 
 SYNONYMS = {
@@ -55,7 +56,8 @@ SYNONYMS = {
     'molformer-xl': 'MoLFormer-XL-both-10pct',
     'chemberta-2': 'ChemBERTa-77M-MLM',
     'chemberta-3': 'ChemBERTa-100M-MLM',
-    'peptideclm': 'PeptideCLM-23M-all'
+    'peptideclm': 'PeptideCLM-23M-all',
+    'peptidemtr': "PeptideMTR_lg",
 }
 
 
@@ -198,10 +200,12 @@ class RepEngineLM(RepEngineBase):
         elif 'ankh' in model.lower():
             self.lab = 'ElnaggarLab'
         elif 'molformer' in model.lower():
+            print("Warning: Molformer does not support transformers>=5.0.0, we recommend using an earlier version, e.g., transformers==4.41.2")
             self.lab = 'ibm'
         elif 'chemberta' in model.lower():
             self.lab = 'DeepChem'
-        elif 'clm' in model.lower():
+        elif (('clm' in model.lower() or 'mtr' in model.lower()) and
+              'peptide' in model.lower()):
             self.lab = 'aaronfeller'
         if 't5' in model.lower():
             self.tokenizer = T5Tokenizer.from_pretrained(f'Rostlab/{model}',
@@ -309,7 +313,10 @@ class RepEngineLM(RepEngineBase):
                         attention_mask=inputs['attention_mask'],
                         decoder_input_ids=inputs['input_ids']
                     ).last_hidden_state
+                elif 'peptidemtr' in self.model_name.lower():
+                    embd_rpr = self.model(**inputs)['last_layer']
                 else:
+                    print(self.model(**inputs))
                     embd_rpr = self.model(**inputs).last_hidden_state
         output = []
         for idx in range(len(batch)):
