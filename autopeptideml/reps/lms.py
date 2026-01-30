@@ -316,7 +316,6 @@ class RepEngineLM(RepEngineBase):
                 elif 'peptidemtr' in self.model_name.lower():
                     embd_rpr = self.model(**inputs)['last_layer']
                 else:
-                    print(self.model(**inputs))
                     embd_rpr = self.model(**inputs).last_hidden_state
         output = []
         for idx in range(len(batch)):
