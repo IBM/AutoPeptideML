@@ -40,7 +40,7 @@ AutoPeptideML allows researchers without prior knowledge of machine learning to 
 - **Reproducible:** Output contains all necessary information for other researchers to reproduce the training and verify the results.
 - **State-of-the-art:** Models generated with this system are competitive with state-of-the-art handcrafted approaches.
 
-To use version 1.0, which may be necessary for retrocompatibility with previously built models, please defer to the branch: [AutoPeptideML v.1.0.6](https://github.com/IBM/AutoPeptideML/tree/apml-1.0.6)
+To use version 1.0, which may be necessary for retrocompatibility with previously built models, please defer to the branch: [AutoPeptideML v.1](https://github.com/IBM/AutoPeptideML/tree/apml-1)
 
 ## Contents
 
