@@ -43,8 +43,12 @@ class OnnxModel:
         :return: Predicted values from the ONNX model.
         :rtype: np.ndarray
         """
-        input_dict = {"float_input": x.astype(np.float32)}
-        preds = self.session.run(None, input_dict)
+        try:
+            input_dict = {"float_input": x.astype(np.float32)}
+            preds = self.session.run(None, input_dict)
+        except ValueError:
+            input_dict = {"X": x.astype(np.float32)}
+            preds = self.session.run(None, input_dict)
         return preds[0]
 
     def predict_proba(self, x: np.ndarray):
@@ -62,8 +66,12 @@ class OnnxModel:
         :return: Array of predicted probabilities for the positive class (shape: [n_samples]).
         :rtype: np.ndarray
         """
-        input_dict = {"float_input": x.astype(np.float32)}
-        preds = self.session.run(None, input_dict)
+        try:
+            input_dict = {"float_input": x.astype(np.float32)}
+            preds = self.session.run(None, input_dict)
+        except ValueError:
+            input_dict = {"X": x.astype(np.float32)}
+            preds = self.session.run(None, input_dict)
         return np.array([i[1] for i in preds[1]])
 
 
@@ -230,6 +238,7 @@ class VotingEnsemble:
                 raise RuntimeError(f"File: {filepath} in path: {path} is not ONNX model.")
             models.append(OnnxModel(filepath))
             reps.append(osp.basename(filepath).split("_")[1].split('.')[0])
+        reps = [r if r != 'class' else 'esm2-8m' for r in reps]
         return VotingEnsemble(models, reps)
 
 
