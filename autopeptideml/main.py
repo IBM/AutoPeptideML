@@ -239,17 +239,18 @@ def predict(result_dir: str, features_path: str,
     if n_jobs == -1:
         n_jobs = cpu_count()
 
-    if not osp.isfile(metadata_path):
-        raise RuntimeError("No metadata file was found. Check you're using the correct AutoPeptideML version.",
-                           "Try: pip install autopeptideml<=2.0.1",
-                           "Alternatively, check that the result_dir path is properly formatted.")
+    if osp.isfile(metadata_path):
+        metadata = yaml.safe_load(open(metadata_path))
+        print(f"Using model created on {metadata['start-time']} with AutoPeptideML v.{metadata['autopeptideml-version']}")
+
+        # raise RuntimeError("No metadata file was found. Check you're using the correct AutoPeptideML version.",
+        #                    "Try: pip install autopeptideml<=2.0.1",
+        #                    "Alternatively, check that the result_dir path is properly formatted.")
     if not osp.isdir(ensemble_path):
         raise RuntimeError("No ensemble path was found in result_dir.  Check you're using the correct AutoPeptideML version.",
                            "Try: pip install autopeptideml<=2.0.1",
                            "Alternatively, check that the result_dir path is properly formatted.")
 
-    metadata = yaml.safe_load(open(metadata_path))
-    print(f"Using model created on {metadata['start-time']} with AutoPeptideML v.{metadata['autopeptideml-version']}")
     ensemble = VotingEnsemble.load(ensemble_path)
     df = read_data(features_path)
     if feature_field is None:
@@ -281,9 +282,10 @@ def predict(result_dir: str, features_path: str,
                               verbose=True)
     x = {}
     for rep in ensemble.reps:
+        if rep in x:
+            continue
         if rep in PLMs:
             from .reps.lms import RepEngineLM
-
             repengine = RepEngineLM(rep)
             repengine.move_to_device(device)
             x[rep] = repengine.compute_reps(
@@ -292,7 +294,6 @@ def predict(result_dir: str, features_path: str,
 
         elif rep in CLMs:
             from .reps.lms import RepEngineLM
-
             repengine = RepEngineLM(rep)
             repengine.move_to_device(device)
             x[rep] = repengine.compute_reps(
@@ -310,7 +311,7 @@ def predict(result_dir: str, features_path: str,
 
     try:
         preds, std = ensemble.predict_proba(x)
-        preds = preds[:, 1]
+        # preds = preds
     except AttributeError:
         preds, std = ensemble.predict(x)
     if 'pipe-seq' in df:
