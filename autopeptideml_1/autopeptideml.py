@@ -834,7 +834,7 @@ class AutoPeptideML:
             X = np.array(list(id2rep.values())[:5])
         else:
             X = id2rep
-        variable_type = FloatTensorType([None, X.shape[1]])
+        variable_type = onxt.convert.common.data_types.FloatTensorType([None, X.shape[1]])
 
         for idx, model in enumerate(os.listdir(ensemble_path)):
             model_path = osp.join(ensemble_path, model)
