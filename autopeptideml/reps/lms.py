@@ -204,7 +204,7 @@ class RepEngineLM(RepEngineBase):
         elif 'molformer' in model.lower():
             if V(transformers.__version__) >= V('5.0.0'):
                 print("Warning: Molformer does not support transformers>=5.0.0, we recommend using an earlier version, e.g., transformers==4.41.2")
-            self.lab = 'ibm'
+            self.lab = 'ibm-research'
         elif 'chemberta' in model.lower():
             self.lab = 'DeepChem'
         elif (('clm' in model.lower() or 'mtr' in model.lower()) and
