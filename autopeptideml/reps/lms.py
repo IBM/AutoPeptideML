@@ -37,6 +37,7 @@ AVAILABLE_MODELS = {
     'ChemBERTa-100M-MLM': 768,
     'PeptideCLM-23M-all': 768,
     'PeptideMTR_lg': 1024,
+    'nucleotide-transformer-v2-500m-multi-species': 1024
 }
 
 SYNONYMS = {
@@ -60,6 +61,7 @@ SYNONYMS = {
     'chemberta-3': 'ChemBERTa-100M-MLM',
     'peptideclm': 'PeptideCLM-23M-all',
     'peptidemtr': "PeptideMTR_lg",
+    'nt2-500m-ms': "nucleotide-transformer-v2-500m-multi-species"
 }
 
 
@@ -152,7 +154,7 @@ class RepEngineLM(RepEngineBase):
         """
         if self.lab == 'facebook':
             return 1022
-        elif self.lab.lower() == 'evolutionaryscale':
+        elif self.lab.lower() == 'evolutionaryscale' or self.lab.lower() == 'InstaDeepAI':
             return 2046
         elif self.lab.lower() == 'deepchem':
             return 512
@@ -207,6 +209,8 @@ class RepEngineLM(RepEngineBase):
             self.lab = 'ibm-research'
         elif 'chemberta' in model.lower():
             self.lab = 'DeepChem'
+        elif 'nucleotide' in model.lower():
+            self.lab = "InstaDeepAI"
         elif (('clm' in model.lower() or 'mtr' in model.lower()) and
               'peptide' in model.lower()):
             self.lab = 'aaronfeller'
@@ -214,6 +218,15 @@ class RepEngineLM(RepEngineBase):
             self.tokenizer = T5Tokenizer.from_pretrained(f'Rostlab/{model}',
                                                          do_lower_case=False)
             self.model = T5EncoderModel.from_pretrained(f"Rostlab/{model}")
+        elif self.lab == 'InstaDeepAI':
+            from transformers import AutoModelForMaskedLM
+            self.model = AutoModelForMaskedLM.from_pretrained(
+                f'{self.lab}/{model}', trust_remote_code=True
+            )
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                f'{self.lab}/{model}', trust_remote_code=True,
+                max_length=self.max_len(),
+            )
         elif 'feller' in self.lab.lower():
             import os
             import urllib
@@ -318,6 +331,8 @@ class RepEngineLM(RepEngineBase):
                     ).last_hidden_state
                 elif 'peptidemtr' in self.model_name.lower():
                     embd_rpr = self.model(**inputs)['last_layer']
+                elif 'InstaDeepAI' == self.lab:
+                    embd_rpr = self.model(**inputs, output_hidden_states=True)['hidden_states'][-1]
                 else:
                     embd_rpr = self.model(**inputs).last_hidden_state
         output = []
