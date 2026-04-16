@@ -24,7 +24,7 @@ from .train.metrics import evaluate
 from .reps import RepEngineBase, PLMs, CLMs, FPs
 
 
-__version__ = '2.0.6'
+__version__ = '2.0.7'
 
 
 class AutoPeptideML:
@@ -517,6 +517,7 @@ class AutoPeptideML:
             pickle.dump(parts, open(part_path, 'wb'))
             self.parts = partitions
             return
+
         if self.parts is not None:
             return
 
