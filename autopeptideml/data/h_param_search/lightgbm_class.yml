@@ -1,7 +1,7 @@
 n_estimators:
   type: int
-  min: 10
-  max: 500
+  min: 8
+  max: 256
   log: False
 
 class_weight:
@@ -11,13 +11,13 @@ class_weight:
 num_leaves:
   type: int
   min: 8
-  max: 1024
+  max: 256
   log: False
 
 max_depth:
   type: int
   min: 2
-  max: 10
+  max: 8
   log: False
 
 subsample:

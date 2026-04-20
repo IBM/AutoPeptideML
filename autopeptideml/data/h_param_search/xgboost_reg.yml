@@ -1,7 +1,7 @@
 n_estimators:
   type: int
-  min: 10
-  max: 1000
+  min: 8
+  max: 256
   log: True
 
 learning_rate:
