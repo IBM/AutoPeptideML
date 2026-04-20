@@ -517,9 +517,12 @@ class OptunaTrainer(BaseTrainer):
                               "Please try: `pip install optuna`")
         if verbose < 1:
             optuna.logging.set_verbosity(optuna.logging.ERROR)
-        elif verbose < 3:
+        elif verbose == 1:
             optuna.logging.set_verbosity(optuna.logging.WARNING)
-
+        elif verbose == 2:
+            optuna.logging.set_verbosity(optuna.logging.INFO)
+        elif verbose == 3:
+            optuna.logging.set_verbosity(optuna.logging.DEBUG)
         if isinstance(x, np.ndarray):
             x = {'default': x}
 
@@ -567,7 +570,7 @@ class OptunaTrainer(BaseTrainer):
         )
         self.study.optimize(self._hpo_step, n_trials=self.n_trials,
                             callbacks=[callback],
-                            gc_after_trial=True, show_progress_bar=verbose == 2)
+                            gc_after_trial=True, show_progress_bar=verbose >= 2)
 
     @classmethod
     def load_from_db(
