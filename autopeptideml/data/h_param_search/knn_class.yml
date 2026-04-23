@@ -30,13 +30,6 @@ p:
   max: 2
   log: False
 
-metric:
-  type: categorical
-  values:
-    - minkowski
-    - euclidean
-    - manhattan
-
 metric_params:
   type: fixed
   value: null
