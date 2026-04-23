@@ -416,6 +416,10 @@ class OptunaTrainer(BaseTrainer):
                 if self.task == 'reg' and h_m['name'] == 'svm':
                     if 'probability' in h_m['variables']:
                         del h_m['variables']['probability']
+                if 'n_neighbors' in h_m['variables']:
+                    h_m['variables']['n_neighbors'] = min(
+                        len(train_idx), h_m['variables']['n_neighbors']
+                    )
                 arch = arch(**h_m['variables'])
                 train_x, train_y = x[h_m['representation']][train_idx], y[train_idx]
                 arch.fit(train_x, train_y)
@@ -570,7 +574,7 @@ class OptunaTrainer(BaseTrainer):
         )
         self.study.optimize(self._hpo_step, n_trials=self.n_trials,
                             callbacks=[callback],
-                            gc_after_trial=True, show_progress_bar=verbose >= 2)
+                            gc_after_trial=True, show_progress_bar=verbose >= 1)
 
     @classmethod
     def load_from_db(

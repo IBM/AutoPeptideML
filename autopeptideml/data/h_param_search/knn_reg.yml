@@ -1,7 +1,7 @@
 n_neighbors:
   type: int
   min: 1
-  max: 100
+  max: 50
   log: False
 
 weights:
@@ -30,14 +30,6 @@ p:
   max: 2
   log: False
 
-metric:
-  type: categorical
-  values:
-    - minkowski
-    - euclidean
-    - manhattan
-
-metric_params:
   type: fixed
   value: null
 
