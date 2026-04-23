@@ -574,7 +574,7 @@ class OptunaTrainer(BaseTrainer):
         )
         self.study.optimize(self._hpo_step, n_trials=self.n_trials,
                             callbacks=[callback],
-                            gc_after_trial=True, show_progress_bar=verbose >= 2)
+                            gc_after_trial=True, show_progress_bar=verbose >= 1)
 
     @classmethod
     def load_from_db(
