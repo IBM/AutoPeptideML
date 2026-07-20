@@ -29,7 +29,7 @@ jobs:
           pip install uv
           uv pip install flake8 pytest sentencepiece rdkit --system
           uv pip install git+https://github.com/novonordisk-research/pepfunn.git --system
-          uv pip install . --system
+          uv pip install . "transformers<5.14" --system
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
       - name: Lint with flake8
         run: |
