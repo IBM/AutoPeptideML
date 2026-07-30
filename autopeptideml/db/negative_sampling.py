@@ -239,7 +239,7 @@ def add_negatives_from_db(
         if path is not None:
             db.to_csv(path, index=False)
     if not _to_seq:
-        all_seqs = [None for s in range(len(db))]
+        db['sequence'] = [None for s in range(len(db))]
     db[sample_by], disc = discretizer(db[sample_by].to_numpy(),
                                       n_bins=n_bins,
                                       return_discretizer=True)
