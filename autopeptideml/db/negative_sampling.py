@@ -149,7 +149,8 @@ def add_negatives_from_db(
     verbose: bool = True,
     sample_by: str = 'mw',
     n_jobs: int = cpu_count(),
-    random_state: int = 1
+    random_state: int = 1,
+    _to_seq: bool = False
 ) -> pd.DataFrame:
     """
     Augments a dataset with negative samples from a target database to achieve a desired negative/positive ratio.
@@ -206,7 +207,7 @@ def add_negatives_from_db(
 
     if isinstance(target_db, pd.DataFrame):
         db = target_db
-
+        path = None
     else:
         db, path = get_neg_db(target_db, verbose=verbose, return_path=True)
 
@@ -231,11 +232,14 @@ def add_negatives_from_db(
             n_bins = 50
         else:
             n_bins = 10
-    if 'sequence' not in db:
+    if 'sequence' not in db and _to_seq:
         from autopeptideml.pipeline import get_pipeline
         pipe = get_pipeline('to-sequences')
         db['sequence'] = pipe(db['smiles'], n_jobs=n_jobs, verbose=verbose)
-        db.to_csv(path, index=False)
+        if path is not None:
+            db.to_csv(path, index=False)
+    if not _to_seq:
+        db['sequence'] = [None for s in range(len(db))]
     db[sample_by], disc = discretizer(db[sample_by].to_numpy(),
                                       n_bins=n_bins,
                                       return_discretizer=True)
