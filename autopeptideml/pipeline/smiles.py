@@ -110,67 +110,6 @@ _CANONICAL_NAME_MAP = {
 }
 
 
-class SequenceToSmiles(BaseElement):
-    """
-    Class `SequenceToSMILES` converts peptide sequences (e.g., FASTA format) into SMILES (Simplified Molecular Input Line Entry System) representations using RDKit.
-
-    Attributes:
-        :type name: str
-        :param name: The name of the element. Default is `'sequence-to-smiles'`.
-    """
-    name = 'sequence-to-smiles'
-    parallel = 'processing'
-
-    def _single_call(self, mol):
-        """
-        Converts a single peptide sequence into a SMILES representation.
-
-        :type mol: str
-          :param mol: A peptide sequence (e.g., FASTA format).
-
-        :rtype: str
-          :return: The SMILES representation of the molecule.
-
-        :raises RuntimeError: If the molecule cannot be read by RDKit.
-        """
-        rd_mol = rdm.MolFromFASTA(mol)
-        if rd_mol is None:
-            raise RuntimeError(f'Molecule: {mol} could not be read by RDKit.',
-                               'Maybe introduce a filtering step in your pipeline')
-        return rdm.MolToSmiles(rd_mol, canonical=True, isomericSmiles=True)
-
-
-class SmilesToSequence(BaseElement):
-
-    name = 'smiles-to-sequence'
-    parallel = 'processing'
-
-    def __init__(self, keep_analog: bool = True):
-        """
-        Initializes the `SmilesToSequence` keeping the natural analog of the non-canonical residues.
-
-        :type substitution: bool
-        :param keep_analog: Whether to keep the natural analog of the non-canonical residues. Otherwise, marks them as 'X'.
-            Default is True.
-
-        :rtype: None
-        """
-        self.keep_analog = keep_analog
-
-    def _single_call(self, mol):
-        final_pep, _, _chain_sizes = break_into_monomers(mol)
-        if not isinstance(final_pep, list):
-            raise ValueError(mol, final_pep)
-
-        if self.keep_analog:
-            final_pep = [AA_DICT[r][1] if r not in ['X', 'ac', 'am'] else r
-                         for r in final_pep]
-            final_pep = [r for r in final_pep if r not in ['ac', 'am']]
-        else:
-            final_pep = [r if r in AAs else 'X' for r in final_pep]
-        return ''.join(final_pep)
-
-
 # ============================================================================
 # BASIC HELPERS
 # ============================================================================
@@ -236,7 +175,7 @@ def _rgroup_from_label(label: Optional[str]) -> Optional[int]:
 # SEQUENCE <-> SMILES
 # ============================================================================
 
-class SequenceToSMILES(BaseElement):
+class SequenceToSmiles(BaseElement):
     name = "sequence-to-smiles"
     parallel = "processing"
 
@@ -296,6 +235,52 @@ class SmilesToSequence(BaseElement):
 # SMILES -> BILN
 # ============================================================================
 
+def _merge_caps_human_readable(biln: str) -> str:
+    """
+    Merge terminal cap tokens into adjacent residue names.
+
+    In human-readable BILN notation, the ``ac`` (N-acetyl) and ``am``
+    (C-terminal amide) cap monomers are folded into the neighbouring
+    residue token as a suffix rather than appearing as separate tokens:
+
+        ac-W-Y-C-G-am  →  Wac-Y-C-Gam
+
+    Rules applied per chain:
+    * If the first token of a chain is ``ac``, remove it and append
+      ``"ac"`` to the second token.
+    * If the last token of a chain is ``am``, remove it and append
+      ``"am"`` to the penultimate token.
+
+    Annotations (parenthesised suffixes such as ``(1,3)``) on the cap
+    token are preserved by moving them onto the merged result.
+    """
+    result_chains = []
+
+    for chain_str in biln.split("."):
+        tokens = chain_str.split("-")
+
+        # --- N-terminal acetyl cap ---
+        if tokens and tokens[0] == "ac":
+            tokens.pop(0)
+            if tokens:
+                tokens[0] = tokens[0] + "ac"
+
+        # --- C-terminal amide cap ---
+        # The last token may be bare "am" or annotated like "am(1,2)".
+        if tokens:
+            last = tokens[-1]
+            base_last = last.split("(")[0]   # strip any annotations
+            suffix_last = last[len(base_last):]  # annotations portion
+            if base_last == "am":
+                tokens.pop()
+                if tokens:
+                    tokens[-1] = tokens[-1] + "am" + suffix_last
+
+        result_chains.append("-".join(tokens))
+
+    return ".".join(result_chains)
+
+
 class SmilesToBiln(BaseElement):
     """
     Convert a peptide SMILES into topology-aware BILN.
@@ -352,11 +337,16 @@ class SmilesToBiln(BaseElement):
                     f"Input does not appear to be a peptide: {mol!r}"
                 )
 
-        return fragments_to_biln(
+        biln = fragments_to_biln(
             fragments=fragments,
             monomer_names=monomer_names,
             chain_sizes=chain_sizes,
         )
+
+        if self.human_readable:
+            biln = _merge_caps_human_readable(biln)
+
+        return biln
 
 
 # ============================================================================
@@ -959,7 +949,13 @@ class CanonicalizeSmiles(BaseElement):
 
 def is_smiles(mol: str):
     """
-    Lightweight heuristic retained from the original code.
+    Heuristic SMILES detector: requires structural punctuation that cannot
+    appear in a plain amino-acid sequence.  The original implementation
+    included the bare letter 'O', which caused false-positives on any
+    peptide sequence containing Threonine (T) side-chain shorthand or any
+    monomer with an 'O' in its one-letter code.  The corrected version
+    only matches characters that are structurally meaningful in SMILES but
+    never appear in a canonical or BILN sequence token.
     """
     return any(
         char in mol
@@ -969,7 +965,6 @@ def is_smiles(mol: str):
             "[",
             "]",
             "@",
-            "O",
         ]
     )
 
@@ -2107,7 +2102,14 @@ def find_closest_monomer(
             # Apply canonical name mapping (e.g. lalloI → I).
             best_aa = _CANONICAL_NAME_MAP.get(aa, aa)
 
-        if max_sim == 1.0:
+        # When THIS entry scores 1.0, verify element composition.
+        # Feature-based Morgan fingerprints treat halogens as equivalent,
+        # so a Br-substituted fragment and a Cl-substituted library entry
+        # can both score 1.0.  The atom-subset check discriminates them:
+        # only accept and break if the fragment's elements are a subset of
+        # the library entry's elements.  If the check fails, clear best_aa
+        # so the search continues to the correct entry.
+        if smiles_similarity == 1.0:
             mol2 = MolFromSmiles(smiles2)
 
             if mol2 is not None:
@@ -2115,7 +2117,13 @@ def find_closest_monomer(
                 atoms2 = {a.GetAtomicNum() for a in mol2.GetAtoms()}
 
                 if atoms1.issubset(atoms2):
+                    best_aa = _CANONICAL_NAME_MAP.get(aa, aa)
                     break
+                else:
+                    # Wrong elements — undo the tentative assignment and
+                    # keep searching for an element-correct match.
+                    best_aa = "X"
+                    max_sim = 0.699
 
     # ------------------------------------------------------------
     # Achiral fallback: if no match was found above the threshold
