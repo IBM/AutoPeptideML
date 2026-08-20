@@ -977,11 +977,32 @@ def add_dummy_atoms(mol: Mol) -> Mol:
     """
     Convert terminal H/OH groups into dummy atoms so that
     fragment similarity can be compared with monomers.
+
+    Implementation note
+    -------------------
+    The function uses a two-phase approach to avoid the RDKit
+    pre-condition crash that arises when ``GetTotalValence()`` (or
+    any valence query) is called on an atom whose index has been
+    shifted by an earlier ``RemoveAtom`` call in the same loop:
+
+    Phase 1 – read-only scan: iterate all atoms and record each
+              planned substitution as ``(remove_idx, anchor_idx)``.
+    Phase 2 – apply edits: remove atoms in *descending* index order
+              (so no removal shifts a later pending removal's index),
+              then append one dummy atom per substitution and bond it
+              to the anchor.
     """
     mol = Chem.AddHs(mol)
     mol = Chem.RWMol(mol)
 
-    for atom in list(mol.GetAtoms()):
+    # Each entry: (atom_idx_to_remove, anchor_heavy_atom_idx)
+    # 'anchor' is the heavy atom that will receive the dummy bond.
+    edits: List[Tuple[int, int]] = []
+
+    # ----------------------------------------------------------------
+    # Phase 1: read-only scan
+    # ----------------------------------------------------------------
+    for atom in mol.GetAtoms():
 
         # --------------------------------------------------------
         # Nitrogen
@@ -991,7 +1012,7 @@ def add_dummy_atoms(mol: Mol) -> Mol:
             if atom.GetIsAromatic():
                 continue
 
-            neighbors = atom.GetNeighbors()
+            neighbors = list(atom.GetNeighbors())
 
             h_atoms = [
                 n for n in neighbors
@@ -1004,24 +1025,14 @@ def add_dummy_atoms(mol: Mol) -> Mol:
             ]
 
             n_subn = 0
-
             for n in neighbors:
                 if n.GetAtomicNum() == 1:
-                    # Skip H atoms — their only neighbor is the
-                    # current N, which would be counted spuriously.
                     continue
                 for n2 in n.GetNeighbors():
                     if n2.GetIdx() == atom.GetIdx():
                         continue
-                    n_subn += int(
-                        n2.GetAtomicNum() == 7
-                    )
+                    n_subn += int(n2.GetAtomicNum() == 7)
 
-            # Skip guanidinium / amidine N atoms: their carbon
-            # neighbour carries a C=N double bond.  Adding a dummy
-            # to these nitrogens (e.g. in Arg) dramatically inflates
-            # the dummy count relative to the library entry and drops
-            # the Tanimoto similarity below the recognition threshold.
             is_guanidinium_n = any(
                 n.GetAtomicNum() == 6
                 and any(
@@ -1033,12 +1044,6 @@ def add_dummy_atoms(mol: Mol) -> Mol:
                 if n.GetAtomicNum() not in (0, 1)
             )
 
-            # Skip urea N atoms: their carbon neighbour is a carbonyl
-            # C(=O) that is also bonded to another N (i.e. the pattern
-            # N-C(=O)-N).  In capped residues like X2038 the N-terminus
-            # is blocked by an isopropyl-urea group; adding a dummy to
-            # these nitrogens produces 4 R-groups instead of the 2 found
-            # in the library entry, collapsing Tanimoto similarity to ~0.36.
             is_urea_n = any(
                 n.GetAtomicNum() == 6
                 and any(
@@ -1047,8 +1052,7 @@ def add_dummy_atoms(mol: Mol) -> Mol:
                     for b in n.GetBonds()
                 )
                 and sum(
-                    1
-                    for nb in n.GetNeighbors()
+                    1 for nb in n.GetNeighbors()
                     if nb.GetAtomicNum() == 7
                 ) >= 2
                 for n in neighbors
@@ -1062,69 +1066,38 @@ def add_dummy_atoms(mol: Mol) -> Mol:
                 and not is_guanidinium_n
                 and not is_urea_n
             ):
-                h = h_atoms[0]
-
-                mol.RemoveAtom(h.GetIdx())
-
-                dummy_idx = mol.AddAtom(
-                    Chem.Atom(0)
-                )
-
-                mol.AddBond(
-                    atom.GetIdx(),
-                    dummy_idx,
-                    Chem.BondType.SINGLE,
-                )
+                edits.append((h_atoms[0].GetIdx(), atom.GetIdx()))
 
         # --------------------------------------------------------
-        # Carboxylic acid
+        # Carboxylic acid  –OH on a C(=O)(O) carbon
         # --------------------------------------------------------
         elif atom.GetAtomicNum() == 8:
 
-            neighbors = atom.GetNeighbors()
-
+            neighbors = list(atom.GetNeighbors())
             if not neighbors:
                 continue
 
             parent = neighbors[0]
+            if parent.GetAtomicNum() != 6:
+                continue
 
-            if (
-                parent.GetAtomicNum() == 6
-                and parent.GetTotalValence() == 4
-            ):
-                parent_is_carboxy = (
-                    len([
-                        n
-                        for n in parent.GetNeighbors()
-                        if n.GetAtomicNum() == 8
-                    ]) == 2
-                )
+            # Count bonds to determine carboxyl carbon: must have
+            # exactly two O neighbours and no double bond to the
+            # current O (which is the -OH, not the =O).
+            o_neighbors = [
+                n for n in parent.GetNeighbors()
+                if n.GetAtomicNum() == 8
+            ]
+            parent_is_carboxy = len(o_neighbors) == 2
 
-                atom_is_hydroxy = (
-                    len([
-                        n
-                        for n in atom.GetNeighbors()
-                        if n.GetAtomicNum() == 1
-                    ]) == 1
-                )
+            # The current O is the -OH (has exactly one H neighbour).
+            atom_is_hydroxy = sum(
+                1 for n in atom.GetNeighbors()
+                if n.GetAtomicNum() == 1
+            ) == 1
 
-                if (
-                    parent_is_carboxy
-                    and atom_is_hydroxy
-                ):
-                    idx = atom.GetIdx()
-
-                    mol.RemoveAtom(idx)
-
-                    dummy_idx = mol.AddAtom(
-                        Chem.Atom(0)
-                    )
-
-                    mol.AddBond(
-                        parent.GetIdx(),
-                        dummy_idx,
-                        Chem.BondType.SINGLE,
-                    )
+            if parent_is_carboxy and atom_is_hydroxy:
+                edits.append((atom.GetIdx(), parent.GetIdx()))
 
         # --------------------------------------------------------
         # Thiol
@@ -1137,20 +1110,22 @@ def add_dummy_atoms(mol: Mol) -> Mol:
             ]
 
             if len(h_atoms) == 1:
+                edits.append((h_atoms[0].GetIdx(), atom.GetIdx()))
 
-                mol.RemoveAtom(
-                    h_atoms[0].GetIdx()
-                )
-
-                dummy_idx = mol.AddAtom(
-                    Chem.Atom(0)
-                )
-
-                mol.AddBond(
-                    atom.GetIdx(),
-                    dummy_idx,
-                    Chem.BondType.SINGLE,
-                )
+    # ----------------------------------------------------------------
+    # Phase 2: apply edits
+    # Remove atoms highest-index first so earlier removals do not
+    # shift the indices of later ones.  Dummy atoms are always
+    # appended at the end, so their indices are stable.
+    # ----------------------------------------------------------------
+    for remove_idx, anchor_idx in sorted(edits, key=lambda e: e[0], reverse=True):
+        mol.RemoveAtom(remove_idx)
+        # After removal, atoms with original idx > remove_idx have
+        # shifted down by 1.  Adjust anchor_idx if necessary.
+        if anchor_idx > remove_idx:
+            anchor_idx -= 1
+        dummy_idx = mol.AddAtom(Chem.Atom(0))
+        mol.AddBond(anchor_idx, dummy_idx, Chem.BondType.SINGLE)
 
     mol = Chem.RemoveAllHs(mol)
 
@@ -2072,7 +2047,7 @@ def find_closest_monomer(
     )
 
     # ------------------------------------------------------------
-    # Canonical amino acids first (high priority).
+    # Canonical amino acids — chiral pass (high priority).
     # ------------------------------------------------------------
     for aa in AAs:
 
@@ -2088,7 +2063,52 @@ def find_closest_monomer(
             return best_aa, max_sim
 
     # ------------------------------------------------------------
-    # Non-canonical monomers.
+    # Canonical amino acids — achiral confirmation pass.
+    #
+    # Fragments produced by bond-breaking frequently lose stereo on
+    # side-chain carbons (e.g. Thr C-beta loses @@).  When the chiral
+    # pass found a plausible but sub-1.0 match, a targeted achiral check
+    # on that same AA can confirm the identification without introducing
+    # L/D ambiguity.
+    #
+    # Safety guard: before accepting the achiral confirmation, check
+    # whether any non-canonical D-form of best_aa scores >= max_sim
+    # with chirality.  If one does (e.g. dA scores 1.0 for D-Ala input),
+    # the fragment is that D-form — skip the achiral confirmation and let
+    # the non-canonical loop below identify it correctly.
+    # ------------------------------------------------------------
+    fp1_achiral = GetMorganFingerprintAsBitVect(
+        mol1,
+        radius=2,
+        useFeatures=True,
+        nBits=1024,
+        useChirality=False,
+    )
+
+    if best_aa != "X":
+        # Check for a D-form (non-canonical, same natural analog) that
+        # scores at least as well as best_aa in the chiral fingerprint.
+        d_form_found = False
+        for nc_aa, (nc_smiles, nc_analog) in AA_DICT.items():
+            if nc_aa in AAs or nc_analog != best_aa:
+                continue
+            nc_sim, _ = compare(AA_DICT[nc_aa], nc_aa, fp1)
+            if nc_sim >= max_sim:
+                d_form_found = True
+                break
+
+        if not d_form_found:
+            lib_key = "H2" if best_aa == "H" else best_aa
+            monomer = AA_DICT.get(lib_key)
+            if monomer is not None:
+                sim, _ = compare_achiral(monomer, lib_key, fp1_achiral)
+                if sim == 1.0:
+                    # Achiral perfect match, no competing D-form: beta-carbon
+                    # stereo was absent from the fragment; accept as L-form.
+                    return best_aa, 1.0
+
+    # ------------------------------------------------------------
+    # Non-canonical monomers (chiral).
     # ------------------------------------------------------------
     for aa, monomer in AA_DICT.items():
 
@@ -2126,35 +2146,17 @@ def find_closest_monomer(
                     max_sim = 0.699
 
     # ------------------------------------------------------------
-    # Achiral fallback: if no match was found above the threshold
-    # AND the fragment has no specified stereocentres, retry without
-    # chirality.  This recovers residues like Gln/Asn whose library
-    # entries carry [C@@H] but the input SMILES omits stereo marks.
-    # The fallback is skipped for fragments that DO have explicit
-    # chirality so that L/D discrimination is preserved.
+    # Achiral fallback: if still no match above threshold AND the
+    # fragment has no specified stereocentres at all, retry the full
+    # non-canonical library without chirality.  This recovers exotic
+    # monomers whose library entries carry explicit stereo but the
+    # input SMILES omits it entirely.
     # ------------------------------------------------------------
     if best_aa == "X":
         chiral_centres = Chem.FindMolChiralCenters(
             frag, includeUnassigned=False
         )
         if not chiral_centres:
-            fp1_achiral = GetMorganFingerprintAsBitVect(
-                mol1,
-                radius=2,
-                useFeatures=True,
-                nBits=1024,
-                useChirality=False,
-            )
-
-            for aa in AAs:
-                monomer = AA_DICT[aa]
-                sim, _ = compare_achiral(monomer, aa, fp1_achiral)
-                if sim > max_sim:
-                    max_sim = sim
-                    best_aa = "H" if aa == "H2" else aa
-                if max_sim == 1.0:
-                    return best_aa, max_sim
-
             for aa, monomer in AA_DICT.items():
                 if aa in AAs:
                     continue
