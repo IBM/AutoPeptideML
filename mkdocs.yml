@@ -5,48 +5,39 @@ watch: [autopeptideml]
 nav:
 - Home:
   - Overview: index.md
-  - Code reference: autopeptideml/
-- Code reference:
-  - AutoPeptideML:
-      - autopeptideml.md
-  - RepEngineBase:
-      - repenginebase.md
-  - RepEngineFP:
-      - repenginefp.md
-  - RepEngineLM:
-      - repenginelm.md
-  - RepEngineSeqBased:
-      - repengineseqbased.md
+- Code Reference:
+  - AutoPeptideML: autopeptideml.md
+  - Representations:
+    - RepEngineBase: repenginebase.md
+    - RepEngineFP: repenginefp.md
+    - RepEngineLM: repenginelm.md
+    - RepEngineOnehot: repengineseqbased.md
+  - Pipeline: pipeline.md
+  - Negative Sampling: negative_sampling.md
+  - Model Architectures: architectures.md
+  - Metrics: metrics.md
+  - CLI Reference: cli.md
+
 markdown_extensions:
   - attr_list
 theme:
-    name: material
+  name: material
+  features:
+    - content.code.annotate
+    - navigation.tabs
+    - navigation.top
+  palette:
+  - media: "(prefers-color-scheme: light)"
+    scheme: default
+    primary: black
+    accent: purple
     features:
-      - content.code.annotate
-      - navigation.tabs
-      - navigation.top
-    palette:
-    - media: "(prefers-color-scheme: light)"
-      scheme: default
-      primary: black
-      accent: purple
-      # toggle:
-      #   icon: material/weather-sunny
-      #   name: Switch to light mode
-    # - media: "(prefers-color-scheme: dark)"
-    #   scheme: slate
-    #   primary: black
-    #   accent: lime
-      # toggle:
-      #   icon: material/weather-night
-      #   name: Switch to dark mode
-      features:
-        - search.suggest
-        - search.highlight
-        - content.tabs.link
-      icon:
-        repo: fontawesome/brands/github-alt
-      language: en
+      - search.suggest
+      - search.highlight
+      - content.tabs.link
+    icon:
+      repo: fontawesome/brands/github-alt
+    language: en
 repo_name: IBM/AutoPeptideML
 repo_url: https://github.com/IBM/AutoPeptideML
 edit_uri: ''
@@ -58,13 +49,12 @@ plugins:
       python:
         load_external_modules:
         - https://docs.python.org/3/objects.inv
-        - https://installer.readthedocs.io/en/stable/objects.inv  # demonstration purpose in the docs
+        - https://installer.readthedocs.io/en/stable/objects.inv
         - https://mkdocstrings.github.io/autorefs/objects.inv
         options:
           show_source: false
           docstring_style: sphinx
-          docstring_options:
-            # ignore_init_summary: yes
+          docstring_options: {}
           merge_init_into_class: yes
           show_submodules: yes
 - markdownextradata:
