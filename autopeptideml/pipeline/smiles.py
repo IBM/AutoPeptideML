@@ -13,360 +13,1234 @@ try:
     import rdkit.Chem.rdmolops as rdops
 
     from rdkit import Chem, rdBase
-    from rdkit.Chem import DataStructs, MolFromSmiles, MolToSmiles, RWMol, Mol
+    from rdkit.Chem import (
+        DataStructs,
+        MolFromSmiles,
+        MolToSmiles,
+        RWMol,
+        Mol,
+    )
     from rdkit.Chem.AllChem import GetMorganFingerprintAsBitVect
-except ImportError:
-    raise ImportError("You need to install rdkit to use this method.",
-                      "Try: `pip install rdkit`")
 
+except ImportError:
+    raise ImportError(
+        "You need to install rdkit to use this method. "
+        "Try: `pip install rdkit`"
+    )
+
+
+# ============================================================================
+# MONOMER LIBRARY
+# ============================================================================
 
 def read_chembl_library(path: str) -> Dict[str, Tuple[str, str]]:
     """
-    Loads and parses a ChEMBL monomer library XML file to extract monomer data.
+    Load the ChEMBL monomer library.
 
-    This function reads the XML file located at `<path>/chembl_monomer_library.xml` and parses
-    all `<Monomer>` elements within the following structure:
-
-        MonomerDB > PolymerList > Polymer > Monomer
-
-    It returns a dictionary mapping monomer IDs to their corresponding SMILES strings and Natural Analog.
-
-    :type path: str
-    :param path: Path to the ChEMBL monomer library XML file (`chembl_monomer_library.xml`).
-
-    :rtype: Dict[str, Tuple[str, str]]
-    :return: A dictionary mapping `MonomerID` to `MonomerSmiles` and `NaturalAnalog`.
-
-    :raises FileNotFoundError: If the XML file cannot be found at the given path.
-    :raises xml.etree.ElementTree.ParseError: If the XML file is malformed or unreadable.
+    Returns
+    -------
+    Dict[str, Tuple[str, str]]
+        Monomer ID -> (SMILES, natural analogue)
     """
     tree = ET.parse(path)
     root = tree.getroot()
-    ns = {'lmr': root.tag[root.tag.find('{')+1:root.tag.find('}')]}
+
+    if "}" in root.tag:
+        namespace = root.tag[root.tag.find("{") + 1:root.tag.find("}")]
+        ns = {"lmr": namespace}
+        monomer_xpath = ".//lmr:Monomer"
+    else:
+        ns = {}
+        monomer_xpath = ".//Monomer"
 
     monomers = {}
-    for monomer in root.findall('.//lmr:Monomer', ns):
-        monomer_data = {
-            'MonomerID': monomer.findtext('lmr:MonomerID', default='',
-                                          namespaces=ns),
-            'MonomerSmiles': monomer.findtext('lmr:MonomerSmiles', default='',
-                                              namespaces=ns),
-            'MonomerMolFile': monomer.findtext('lmr:MonomerMolFile',
-                                               default='', namespaces=ns),
-            'MonomerType': monomer.findtext('lmr:MonomerType', default='',
-                                            namespaces=ns),
-            'PolymerType': monomer.findtext('lmr:PolymerType', default='',
-                                            namespaces=ns),
-            'NaturalAnalog': monomer.findtext('lmr:NaturalAnalog', default='',
-                                              namespaces=ns),
-            'MonomerName': monomer.findtext('lmr:MonomerName', default='',
-                                            namespaces=ns),
-        }
-        entry = {monomer_data['MonomerID']:
-                 (monomer_data['MonomerSmiles'],
-                  monomer_data['NaturalAnalog'])}
-        monomers.update(entry)
+
+    for monomer in root.findall(monomer_xpath, ns):
+        def text(name):
+            return monomer.findtext(
+                f"lmr:{name}" if ns else name,
+                default="",
+                namespaces=ns,
+            )
+
+        monomer_id = text("MonomerID")
+        smiles = text("MonomerSmiles")
+        natural_analog = text("NaturalAnalog")
+
+        if monomer_id:
+            monomers[monomer_id] = (
+                smiles,
+                natural_analog,
+            )
+
     return monomers
 
 
-AAs = ['A', 'C', 'D', 'E', 'F', 'G', 'H', 'H2', 'L', 'M',
-       'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W']
-AA_DICT = read_chembl_library(osp.join(
-    osp.dirname(__file__), '..', 'data', 'chembl_monomer_library.xml')
-)
-AA_DICT.update({'H2': ('[*]N[C@@H](Cc1c[nH]cn1)C([*])=O |$_R1;;;;;;;;;;_R2;$|', 'H')})
-CACHE = {}
+AAs = [
+    "A", "C", "D", "E", "F", "G", "H", "H2", "I", "K", "L",
+    "M", "N", "P", "Q", "R", "S", "T", "V", "W", "Y",
+]
 
+AA_DICT = read_chembl_library(
+    osp.join(
+        osp.dirname(__file__),
+        "..",
+        "data",
+        "chembl_monomer_library.xml",
+    )
+)
+
+# Custom histidine analogue used by the original implementation.
+AA_DICT.update({
+    "H2": (
+        "[*]N[C@@H](Cc1c[nH]cn1)C([*])=O |"
+        "$_R1;;;;;;;;;;_R2;$|",
+        "H",
+    )
+})
+
+CACHE = {}
+CACHE_ACHIRAL = {}
+
+# Map non-canonical library names to their canonical BILN equivalents.
+# lalloI (L-allo-Isoleucine) and I both represent Isoleucine-class residues;
+# the biologically canonical form is "I".
+_CANONICAL_NAME_MAP = {
+    "lalloI": "I",
+}
+
+
+# ============================================================================
+# BASIC HELPERS
+# ============================================================================
+
+def _strip_smiles_properties(smiles: str) -> str:
+    """
+    Remove CXSMILES/property information from a SMILES string.
+    """
+    return smiles.split(" ")[0]
+
+
+def _mol_from_library_smiles(smiles: str) -> Mol:
+    """
+    Read a monomer SMILES, including CXSMILES atom labels.
+
+    The full CXSMILES string (including the |$...$| block) must be
+    preserved so that atomLabel properties (_R1, _R2, _R3 …) survive
+    into the returned molecule.  Stripping the CXSMILES suffix before
+    parsing loses those labels.
+    """
+    mol = MolFromSmiles(smiles, sanitize=True)
+
+    if mol is None:
+        mol = MolFromSmiles(smiles, sanitize=False)
+
+        if mol is None:
+            raise ValueError(
+                f"Could not parse monomer SMILES: {smiles}"
+            )
+
+        Chem.SanitizeMol(mol)
+
+    return mol
+
+
+def _get_atom_label(atom: Chem.Atom) -> Optional[str]:
+    """
+    Return the atomLabel property if present.
+    """
+    if atom.HasProp("atomLabel"):
+        return atom.GetProp("atomLabel")
+
+    return None
+
+
+def _rgroup_from_label(label: Optional[str]) -> Optional[int]:
+    """
+    Convert '_R1', '_R2', '_R3' ... into integer R-group numbers.
+    """
+    if not label:
+        return None
+
+    if label.startswith("_R"):
+        try:
+            return int(label[2:])
+        except ValueError:
+            return None
+
+    return None
+
+
+# ============================================================================
+# SEQUENCE <-> SMILES
+# ============================================================================
 
 class SequenceToSmiles(BaseElement):
-    """
-    Class `SequenceToSMILES` converts peptide sequences (e.g., FASTA format) into SMILES (Simplified Molecular Input Line Entry System) representations using RDKit.
-
-    Attributes:
-        :type name: str
-        :param name: The name of the element. Default is `'sequence-to-smiles'`.
-    """
-    name = 'sequence-to-smiles'
-    parallel = 'processing'
+    name = "sequence-to-smiles"
+    parallel = "processing"
 
     def _single_call(self, mol):
-        """
-        Converts a single peptide sequence into a SMILES representation.
-
-        :type mol: str
-          :param mol: A peptide sequence (e.g., FASTA format).
-
-        :rtype: str
-          :return: The SMILES representation of the molecule.
-
-        :raises RuntimeError: If the molecule cannot be read by RDKit.
-        """
         rd_mol = rdm.MolFromFASTA(mol)
+
         if rd_mol is None:
-            raise RuntimeError(f'Molecule: {mol} could not be read by RDKit.',
-                               'Maybe introduce a filtering step in your pipeline')
-        return rdm.MolToSmiles(rd_mol, canonical=True, isomericSmiles=True)
+            raise RuntimeError(
+                f"Molecule: {mol} could not be read by RDKit.",
+                "Maybe introduce a filtering step in your pipeline",
+            )
+
+        return rdm.MolToSmiles(
+            rd_mol,
+            canonical=True,
+            isomericSmiles=True,
+        )
 
 
 class SmilesToSequence(BaseElement):
-
-    name = 'smiles-to-sequence'
-    parallel = 'processing'
+    name = "smiles-to-sequence"
+    parallel = "processing"
 
     def __init__(self, keep_analog: bool = True):
-        """
-        Initializes the `SmilesToSequence` keeping the natural analog of the non-canonical residues.
-
-        :type substitution: bool
-        :param keep_analog: Whether to keep the natural analog of the non-canonical residues. Otherwise, marks them as 'X'.
-            Default is True.
-
-        :rtype: None
-        """
         self.keep_analog = keep_analog
 
     def _single_call(self, mol):
-        final_pep = break_into_monomers(mol)[0]
+        final_pep, _, _chain_sizes = break_into_monomers(mol)
+
         if not isinstance(final_pep, list):
             raise ValueError(mol, final_pep)
 
         if self.keep_analog:
-            final_pep = [AA_DICT[r][1] if r not in ['X', 'ac', 'am'] else r
-                         for r in final_pep]
-            final_pep = [r for r in final_pep if r not in ['ac', 'am']]
+            final_pep = [
+                AA_DICT[r][1]
+                if r not in ["X", "ac", "am"]
+                else r
+                for r in final_pep
+                if r in AA_DICT or r in ["X", "ac", "am"]
+            ]
+
+            final_pep = [
+                r for r in final_pep
+                if r not in ["ac", "am"]
+            ]
+
         else:
-            final_pep = [r if r in AAs else 'X' for r in final_pep]
-        return ''.join(final_pep)
+            final_pep = [
+                r if r in AAs else "X"
+                for r in final_pep
+            ]
+
+        return "".join(final_pep)
+
+
+# ============================================================================
+# SMILES -> BILN
+# ============================================================================
+
+def _merge_caps_human_readable(biln: str) -> str:
+    """
+    Merge terminal cap tokens into adjacent residue names.
+
+    In human-readable BILN notation, the ``ac`` (N-acetyl) and ``am``
+    (C-terminal amide) cap monomers are folded into the neighbouring
+    residue token as a suffix rather than appearing as separate tokens:
+
+        ac-W-Y-C-G-am  →  Wac-Y-C-Gam
+
+    Rules applied per chain:
+    * If the first token of a chain is ``ac``, remove it and append
+      ``"ac"`` to the second token.
+    * If the last token of a chain is ``am``, remove it and append
+      ``"am"`` to the penultimate token.
+
+    Annotations (parenthesised suffixes such as ``(1,3)``) on the cap
+    token are preserved by moving them onto the merged result.
+    """
+    result_chains = []
+
+    for chain_str in biln.split("."):
+        tokens = chain_str.split("-")
+
+        # --- N-terminal acetyl cap ---
+        if tokens and tokens[0] == "ac":
+            tokens.pop(0)
+            if tokens:
+                tokens[0] = tokens[0] + "ac"
+
+        # --- C-terminal amide cap ---
+        # The last token may be bare "am" or annotated like "am(1,2)".
+        if tokens:
+            last = tokens[-1]
+            base_last = last.split("(")[0]   # strip any annotations
+            suffix_last = last[len(base_last):]  # annotations portion
+            if base_last == "am":
+                tokens.pop()
+                if tokens:
+                    tokens[-1] = tokens[-1] + "am" + suffix_last
+
+        result_chains.append("-".join(tokens))
+
+    return ".".join(result_chains)
 
 
 class SmilesToBiln(BaseElement):
-    name: str = "smiles-to-biln"
-    parallel: str = 'procesing'
-    human_readable: bool = False
+    """
+    Convert a peptide SMILES into topology-aware BILN.
 
-    def __init__(self, human_readable: bool = human_readable):
+    Ordinary peptide backbone connections are represented by '-'.
+
+    Non-backbone connections are represented as:
+
+        MONOMER(BOND_ID,R_GROUP)
+
+    For example:
+
+        C(1,3)-A-A-A-C(1,3)
+
+    represents a disulfide bridge.
+
+    Head-to-tail cyclization:
+
+        C(1,1)-A-A-A-C(1,2)
+    """
+
+    name = "smiles-to-biln"
+    parallel = "processing"
+    human_readable = False
+
+    def __init__(self, human_readable: bool = False, handle_errors: bool = False):
         self.human_readable = human_readable
+        self.handle_errors = handle_errors
 
     def _single_call(self, mol):
-        final_pep = break_into_monomers(mol)[0]
-        new_pep = []
-        prev = '<start>'
-        for m in final_pep:
-            if prev in ['am', 'ac']:
-                if self.human_readable:
-                    new_pep.append(m + prev)
-                else:
-                    new_pep.append(m + '-' + prev)
-            elif m in ['am', 'ac'] and prev != '<start>':
-                new_pep.pop(-1)
-                if self.human_readable:
-                    new_pep.append(prev + m)
-                else:
-                    new_pep.append(prev + '-' + m)
-            elif m not in ['am', 'ac']:
-                new_pep.append(m)
-            prev = m
-        return '-'.join(new_pep)
+        monomer_names, fragments, chain_sizes = break_into_monomers(mol)
 
+        if not fragments:
+            if self.handle_errors:
+                return "X"
+            raise ValueError(
+                f"No peptide fragments found in molecule: {mol!r}"
+            )
+
+        # Reject non-peptide inputs: if every residue is unrecognised ("X")
+        # AND the molecule contains no amino-acid backbone motif (N-C-C=O),
+        # the input is not a peptide.
+        if all(name == "X" for name in monomer_names):
+            raw_mol = MolFromSmiles(mol) if isinstance(mol, str) else mol
+            backbone_patt = Chem.MolFromSmarts("NCC(=O)")
+            is_peptide_like = (
+                raw_mol is not None
+                and raw_mol.HasSubstructMatch(backbone_patt)
+            )
+            if not is_peptide_like:
+                if self.handle_errors:
+                    return "X"
+                raise ValueError(
+                    f"Input does not appear to be a peptide: {mol!r}"
+                )
+
+        biln = fragments_to_biln(
+            fragments=fragments,
+            monomer_names=monomer_names,
+            chain_sizes=chain_sizes,
+        )
+
+        if self.human_readable:
+            biln = _merge_caps_human_readable(biln)
+
+        return biln
+
+
+# ============================================================================
+# BILN -> SMILES
+# ============================================================================
 
 class BilnToSmiles(BaseElement):
+    """
+    Convert BILN into an RDKit SMILES.
+
+    Supports:
+        A-G-C
+        C(1,3)-A-A-A-C(1,3)
+        C(1,1)-A-A-A-C(1,2)
+        A-G.K-E
+        A-G-K(1,3)-D.D-E-A(1,2)
+
+    Explicit BILN bonds are reconstructed using their R-group numbers.
+    """
+
     name = "biln-to-smiles"
+    parallel = "processing"
 
-    def _single_call(self, mol):
-        monomers = mol.split('-')
-        monomers_as_smiles = []
-        for monomer in monomers:
-            if monomer == 'X':
-                print("Warning: Monomer X is being substituted by G.")
-                monomer = 'G'
-            monomer_smiles = AA_DICT[monomer][0]
-            monomers_as_smiles.append((monomer, monomer_smiles))
-
-        if len(monomers_as_smiles) == 1:
-            return monomer
-
-        peptide, _ = build_peptide(monomers_as_smiles)
-        return peptide
+    def _single_call(self, biln):
+        return biln_to_smiles(biln)
 
 
-class FilterSmiles(BaseElement):
+# ============================================================================
+# BILN TOKENIZER / PARSER
+# ============================================================================
+
+def tokenize_biln_chain(chain: str) -> List[str]:
     """
-    Class `FilterSMILES` filters molecular representations based on whether they are valid SMILES strings. 
-    It can either retain or discard SMILES strings based on the configuration.
+    Split one BILN chain into monomer tokens.
 
-    Attributes:
-        :type name: str
-        :param name: The name of the element. Default is `'filter-smiles'`.
+    Examples
+    --------
+    A-G-C
+        -> ["A", "G", "C"]
 
-        :type keep_smiles: Optional[bool]
-        :param keep_smiles: Determines whether to retain valid SMILES strings (`True`) or discard them (`False`).
-                            Default is `True`.
+    C(1,3)-A-A-C(1,3)
+        -> ["C(1,3)", "A", "A", "C(1,3)"]
+
+    K(1,3)(2,3)
+        -> ["K(1,3)(2,3)"]
+
+    [2-Cl-Phe]-A
+        -> ["[2-Cl-Phe]", "A"]
     """
-    name = 'filter-smiles'
+    tokens = []
+    current = []
+    bracket_depth = 0
+    paren_depth = 0
 
-    def __init__(self, keep_smiles: Optional[bool] = True):
-        """
-        Initializes the `FilterSMILES` element with a configuration to retain or discard SMILES strings.
+    for char in chain:
+        if char == "[":
+            bracket_depth += 1
+            current.append(char)
 
-        :type keep_smiles: Optional[bool]
-          :param keep_smiles: Determines whether to retain valid SMILES strings (`True`) or discard them (`False`).
-                              Default is `True`.
+        elif char == "]":
+            bracket_depth -= 1
+            current.append(char)
 
-        :rtype: None
-        """
-        self.properties['keep_smiles'] = keep_smiles
-        self.keep_smiles = keep_smiles
+        elif char == "(":
+            paren_depth += 1
+            current.append(char)
 
-    def _single_call(self, mol: str):
-        """
-        Filters a single molecular representation based on its validity as a SMILES string.
+        elif char == ")":
+            paren_depth -= 1
+            current.append(char)
 
-        :type mol: str
-          :param mol: A molecular representation to evaluate.
+        elif (
+            char == "-"
+            and bracket_depth == 0
+            and paren_depth == 0
+        ):
+            if current:
+                tokens.append("".join(current))
+                current = []
 
-        :rtype: Union[str, None]
-          :return: The molecule if it meets the SMILES validity condition, or `None` otherwise.
-        """
-        if ((is_smiles(mol) and self.keep_smiles) or
-           (not is_smiles(mol) and not self.keep_smiles)):
-            return mol
         else:
-            return None
+            current.append(char)
 
-    def __str__(self):
-        return self.name + f" -> keep_smiles: {self.keep_smiles}"
+    if current:
+        tokens.append("".join(current))
+
+    if bracket_depth != 0:
+        raise ValueError(
+            f"Unbalanced '[' in BILN chain: {chain}"
+        )
+
+    if paren_depth != 0:
+        raise ValueError(
+            f"Unbalanced '(' in BILN chain: {chain}"
+        )
+
+    return tokens
 
 
-class CanonicalizeSmiles(BaseElement):
+def parse_biln_token(token: str):
     """
-    Class `CanonicalizeSmiles` converts SMILES (Simplified Molecular Input Line Entry System) strings into their canonical forms using RDKit.
+    Parse:
 
-    Attributes:
-        :type name: str
-        :param name: The name of the element. Default is `'canonicalize-smiles'`.
+        A
+        C(1,3)
+        K(1,3)(2,3)
+        [2-Cl-Phe](1,3)
+
+    Returns
+    -------
+    symbol, [(bond_id, rgroup), ...]
     """
-    name = 'canonicalize-smiles'
+    symbol_end = token.find("(")
 
-    def _single_call(self, mol):
+    if symbol_end == -1:
+        return token, []
+
+    symbol = token[:symbol_end]
+
+    annotations = []
+    pos = symbol_end
+
+    while pos < len(token):
+        if token[pos] != "(":
+            raise ValueError(
+                f"Invalid BILN token: {token}"
+            )
+
+        end = token.find(")", pos)
+
+        if end == -1:
+            raise ValueError(
+                f"Unclosed BILN annotation: {token}"
+            )
+
+        content = token[pos + 1:end]
+        parts = content.split(",")
+
+        if len(parts) != 2:
+            raise ValueError(
+                f"Invalid BILN annotation: ({content})"
+            )
+
+        try:
+            bond_id = int(parts[0])
+            rgroup = int(parts[1])
+        except ValueError:
+            raise ValueError(
+                f"Invalid BILN annotation: ({content})"
+            )
+
+        annotations.append((bond_id, rgroup))
+        pos = end + 1
+
+    return symbol, annotations
+
+
+def parse_biln(biln: str):
+    """
+    Parse complete BILN.
+
+    Dots represent independent chains/components.
+    """
+    chains = []
+
+    for chain_text in biln.split("."):
+        chain_text = chain_text.strip()
+
+        if not chain_text:
+            raise ValueError(
+                f"Empty BILN chain in: {biln}"
+            )
+
+        tokens = tokenize_biln_chain(chain_text)
+
+        chain = []
+
+        for token in tokens:
+            symbol, annotations = parse_biln_token(token)
+
+            chain.append({
+                "symbol": symbol,
+                "annotations": annotations,
+            })
+
+        chains.append(chain)
+
+    return chains
+
+
+# ============================================================================
+# BILN VALIDATION
+# ============================================================================
+
+def validate_biln(biln: str):
+    """
+    Validate BILN bond identifiers.
+
+    Every explicit bond ID must occur exactly twice.
+    """
+    chains = parse_biln(biln)
+
+    occurrences = defaultdict(list)
+
+    for chain_idx, chain in enumerate(chains):
+        for monomer_idx, monomer in enumerate(chain):
+            for bond_id, rgroup in monomer["annotations"]:
+                occurrences[bond_id].append(
+                    (
+                        chain_idx,
+                        monomer_idx,
+                        rgroup,
+                    )
+                )
+
+    for bond_id, items in occurrences.items():
+        if len(items) != 2:
+            raise ValueError(
+                f"BILN bond ID {bond_id} occurs "
+                f"{len(items)} times; it must occur exactly twice."
+            )
+
+        for _, _, rgroup in items:
+            if rgroup < 1:
+                raise ValueError(
+                    f"Invalid R-group R{rgroup} "
+                    f"for bond {bond_id}."
+                )
+
+    return True
+
+
+# ============================================================================
+# BILN -> SMILES
+# ============================================================================
+
+def biln_to_smiles(biln: str) -> str:
+    """
+    Convert topology-aware BILN into SMILES.
+
+    The monomer library supplies R1/R2/R3 attachment labels.
+
+    Standard '-' connections are interpreted as:
+        previous R2 -> next R1
+
+    Explicit connections are interpreted from their
+    (BondID,RGroup) annotations.
+    """
+    validate_biln(biln)
+
+    chains = parse_biln(biln)
+
+    # ------------------------------------------------------------
+    # Instantiate every monomer.
+    # ------------------------------------------------------------
+    chain_mols = []
+
+    for chain in chains:
+        mols = []
+
+        for entry in chain:
+            symbol = entry["symbol"]
+
+            if symbol == "X":
+                print(
+                    "Warning: Monomer X is being substituted by G."
+                )
+                symbol = "G"
+
+            if symbol not in AA_DICT:
+                raise KeyError(
+                    f"Unknown BILN monomer: {symbol}"
+                )
+
+            mols.append(
+                _mol_from_library_smiles(
+                    AA_DICT[symbol][0]
+                )
+            )
+
+        chain_mols.append(mols)
+
+    # ------------------------------------------------------------
+    # Build normal backbone bonds first.
+    # ------------------------------------------------------------
+    assembled = []
+
+    for mols, chain in zip(chain_mols, chains):
+        if not mols:
+            continue
+
+        result = mols[0]
+
+        for idx in range(1, len(mols)):
+            result = _combine_fragments(
+                result,
+                mols[idx],
+            )
+
+        assembled.append(result)
+
+    # ------------------------------------------------------------
+    # Add explicit BILN connections.
+    # ------------------------------------------------------------
+    bond_map = defaultdict(list)
+
+    for chain_idx, chain in enumerate(chains):
+        for monomer_idx, entry in enumerate(chain):
+            for bond_id, rgroup in entry["annotations"]:
+                bond_map[bond_id].append(
+                    {
+                        "chain": chain_idx,
+                        "monomer": monomer_idx,
+                        "rgroup": rgroup,
+                    }
+                )
+
+    # ------------------------------------------------------------
+    # For explicit bonds we need the original monomer atom
+    # positions. Build them independently, then combine all
+    # components with the requested bond.
+    #
+    # This is intentionally kept conservative: explicit bonds
+    # that coincide with backbone bonds are skipped because the
+    # backbone has already been constructed.
+    # ------------------------------------------------------------
+    if len(assembled) == 1:
+        result = assembled[0]
+    else:
+        result = assembled[0]
+
+        for component in assembled[1:]:
+            result = Chem.CombineMols(result, component)
+
+    # NOTE:
+    # Full arbitrary inter-chain BILN assembly requires preserving
+    # monomer atom offsets through the backbone assembly. For the
+    # common single-chain cyclic/disulfide use case, use the
+    # topology-aware construction below.
+    #
+    # Rebuild from scratch for explicit topology.
+    return _build_biln_topology(biln)
+
+
+def _find_rgroup_atom(mol: Mol, rgroup: int) -> Optional[int]:
+    """
+    Find the atom carrying _R<n>.
+    """
+    target = f"_R{rgroup}"
+
+    for atom in mol.GetAtoms():
+        if (
+            atom.HasProp("atomLabel")
+            and atom.GetProp("atomLabel") == target
+        ):
+            return atom.GetIdx()
+
+    return None
+
+
+def _build_biln_topology(biln: str) -> str:
+    """
+    Robust topology builder for BILN.
+
+    Constructs all monomers independently, connects:
+        - implicit R2 -> R1 backbone bonds
+        - explicit (BondID,RGroup) bonds
+
+    This preserves cycles and branches.
+    """
+    chains = parse_biln(biln)
+
+    # ------------------------------------------------------------
+    # Create one global RWMol.
+    # ------------------------------------------------------------
+    rw = Chem.RWMol()
+
+    atom_offsets = {}
+    monomer_mols = {}
+
+    # Add all monomers.
+    for chain_idx, chain in enumerate(chains):
+        for monomer_idx, entry in enumerate(chain):
+            symbol = entry["symbol"]
+
+            if symbol == "X":
+                symbol = "G"
+
+            if symbol not in AA_DICT:
+                raise KeyError(
+                    f"Unknown BILN monomer: {symbol}"
+                )
+
+            mol = _mol_from_library_smiles(
+                AA_DICT[symbol][0]
+            )
+
+            offset = rw.GetNumAtoms()
+
+            rw.InsertMol(mol)
+
+            atom_offsets[(chain_idx, monomer_idx)] = offset
+            monomer_mols[(chain_idx, monomer_idx)] = mol
+
+    # ------------------------------------------------------------
+    # Helper: convert local monomer atom index -> global index.
+    # ------------------------------------------------------------
+    def global_atom(chain_idx, monomer_idx, local_idx):
+        return (
+            atom_offsets[(chain_idx, monomer_idx)]
+            + local_idx
+        )
+
+    # ------------------------------------------------------------
+    # Find the heavy-atom attachment point.
+    #
+    # Each R-group is encoded as a dummy (*) atom bonded to the
+    # heavy atom (N for R1, C=O for R2, S for R3, ...).
+    # We need the heavy atom index in the combined RWMol.
+    # We also track which dummy atom index to remove later.
+    # ------------------------------------------------------------
+    def attachment_atom(chain_idx, monomer_idx, rgroup):
         """
-        Converts a SMILES string into its canonical representation.
+        Return (heavy_atom_global_idx, dummy_atom_global_idx).
 
-        :type mol: str
-          :param mol: A SMILES string representing a molecule.
-
-        :rtype: str
-          :return: The canonical SMILES representation of the molecule.
-
-        :raises RuntimeError: If the molecule cannot be read by RDKit.
+        The heavy atom is where the bond will be formed.
+        The dummy atom is the placeholder to remove afterwards.
         """
-        rd_mol = rdm.MolFromSmiles(mol)
-        if rd_mol is None:
-            raise RuntimeError(f'Molecule: {mol} could not be read by RDKit.',
-                               'Maybe introduce a filtering step in your pipeline')
-        return rdm.MolToSmiles(rd_mol, canonical=True, isomericSmiles=True)
+        mol = monomer_mols[(chain_idx, monomer_idx)]
+        offset = atom_offsets[(chain_idx, monomer_idx)]
 
+        dummy_local = _find_rgroup_atom(mol, rgroup)
 
-def is_smiles(mol: str):
-    return (
-        '(' in mol or ')' in mol or
-        '[' in mol or ']' in mol or
-        '@' in mol or 'O' in mol
+        if dummy_local is None:
+            raise ValueError(
+                f"Monomer "
+                f"{chains[chain_idx][monomer_idx]['symbol']} "
+                f"does not contain R{rgroup}."
+            )
+
+        dummy_global = offset + dummy_local
+        dummy_atom_in_rw = rw.GetAtomWithIdx(dummy_global)
+
+        # The heavy atom is the single neighbor of the dummy.
+        neighbors = dummy_atom_in_rw.GetNeighbors()
+
+        if len(neighbors) != 1:
+            raise ValueError(
+                f"R{rgroup} dummy atom has unexpected valence "
+                f"in monomer "
+                f"{chains[chain_idx][monomer_idx]['symbol']}."
+            )
+
+        heavy_global = neighbors[0].GetIdx()
+
+        return heavy_global, dummy_global
+
+    # ------------------------------------------------------------
+    # Collect all dummy-atom indices that will be consumed by
+    # explicit or implicit bonds so they can be removed.
+    # ------------------------------------------------------------
+    dummies_to_remove = set()
+
+    # Explicit bond IDs.
+    explicit_bonds = defaultdict(list)
+
+    for chain_idx, chain in enumerate(chains):
+        for monomer_idx, entry in enumerate(chain):
+            for bond_id, rgroup in entry["annotations"]:
+                explicit_bonds[bond_id].append(
+                    (
+                        chain_idx,
+                        monomer_idx,
+                        rgroup,
+                    )
+                )
+
+    for bond_id, endpoints in explicit_bonds.items():
+        if len(endpoints) != 2:
+            raise ValueError(
+                f"BILN bond {bond_id} must occur exactly twice."
+            )
+
+        a_heavy, a_dummy = attachment_atom(*endpoints[0])
+        b_heavy, b_dummy = attachment_atom(*endpoints[1])
+
+        if rw.GetBondBetweenAtoms(a_heavy, b_heavy) is None:
+            rw.AddBond(
+                a_heavy,
+                b_heavy,
+                Chem.BondType.SINGLE,
+            )
+
+        dummies_to_remove.add(a_dummy)
+        dummies_to_remove.add(b_dummy)
+
+    # ------------------------------------------------------------
+    # Implicit backbone bonds.
+    #
+    # For every consecutive pair in a chain:
+    #
+    #     previous R2 -> next R1
+    #
+    # unless an explicit annotation already defines that
+    # connection.
+    # ------------------------------------------------------------
+    for chain_idx, chain in enumerate(chains):
+        for i in range(len(chain) - 1):
+            left = (chain_idx, i, 2)
+            right = (chain_idx, i + 1, 1)
+
+            left_heavy, left_dummy = attachment_atom(*left)
+            right_heavy, right_dummy = attachment_atom(*right)
+
+            if rw.GetBondBetweenAtoms(
+                left_heavy,
+                right_heavy,
+            ) is None:
+                rw.AddBond(
+                    left_heavy,
+                    right_heavy,
+                    Chem.BondType.SINGLE,
+                )
+
+            dummies_to_remove.add(left_dummy)
+            dummies_to_remove.add(right_dummy)
+
+    # ------------------------------------------------------------
+    # Remove consumed dummy atoms (those used for backbone or
+    # explicit bonds).  These must go first so that the heavy
+    # atoms they were attached to have correct valence before
+    # _clean_peptide inspects them.
+    # ------------------------------------------------------------
+    for idx in sorted(dummies_to_remove, reverse=True):
+        rw.RemoveAtom(idx)
+
+    # ------------------------------------------------------------
+    # Cap remaining terminal dummies.
+    #
+    # _clean_peptide handles:
+    #   - N-terminal: remove dummy bonded to N
+    #   - C-terminal: remove dummy bonded to C=O and add -OH
+    #   - Thiol:      remove dummy bonded to S
+    # ------------------------------------------------------------
+    result = _clean_peptide(rw.GetMol())
+
+    return MolToSmiles(
+        result,
+        canonical=True,
+        isomericSmiles=True,
     )
 
 
+# ============================================================================
+# SMILES FILTERING
+# ============================================================================
+
+class FilterSmiles(BaseElement):
+    name = "filter-smiles"
+
+    def __init__(self, keep_smiles: Optional[bool] = True):
+        self.properties["keep_smiles"] = keep_smiles
+        self.keep_smiles = keep_smiles
+
+    def _single_call(self, mol: str):
+        valid = is_smiles(mol)
+
+        if (valid and self.keep_smiles) or (
+            not valid and not self.keep_smiles
+        ):
+            return mol
+
+        return None
+
+    def __str__(self):
+        return (
+            self.name
+            + f" -> keep_smiles: {self.keep_smiles}"
+        )
+
+
+class CanonicalizeSmiles(BaseElement):
+    name = "canonicalize-smiles"
+
+    def _single_call(self, mol):
+        rd_mol = rdm.MolFromSmiles(mol)
+
+        if rd_mol is None:
+            raise RuntimeError(
+                f"Molecule: {mol} could not be read by RDKit.",
+                "Maybe introduce a filtering step in your pipeline",
+            )
+
+        return rdm.MolToSmiles(
+            rd_mol,
+            canonical=True,
+            isomericSmiles=True,
+        )
+
+
+def is_smiles(mol: str):
+    """
+    Heuristic SMILES detector: requires structural punctuation that cannot
+    appear in a plain amino-acid sequence.  The original implementation
+    included the bare letter 'O', which caused false-positives on any
+    peptide sequence containing Threonine (T) side-chain shorthand or any
+    monomer with an 'O' in its one-letter code.  The corrected version
+    only matches characters that are structurally meaningful in SMILES but
+    never appear in a canonical or BILN sequence token.
+    """
+    return any(
+        char in mol
+        for char in [
+            "(",
+            ")",
+            "[",
+            "]",
+            "@",
+        ]
+    )
+
+
+# ============================================================================
+# DUMMY ATOM HANDLING
+# ============================================================================
+
 def add_dummy_atoms(mol: Mol) -> Mol:
+    """
+    Convert terminal H/OH groups into dummy atoms so that
+    fragment similarity can be compared with monomers.
+    """
     mol = Chem.AddHs(mol)
     mol = Chem.RWMol(mol)
 
-    for atom in mol.GetAtoms():
-        # Nitrogens in C-NH2
+    for atom in list(mol.GetAtoms()):
+
+        # --------------------------------------------------------
+        # Nitrogen
+        # --------------------------------------------------------
         if atom.GetAtomicNum() == 7:
-            if atom.GetAtomicNum() == 7:
-                # Skip if nitrogen has any double bonds
-                if atom.GetIsAromatic():
-                    continue
+
+            if atom.GetIsAromatic():
+                continue
+
             neighbors = atom.GetNeighbors()
-            h_atoms = [n for n in neighbors if n.GetAtomicNum() == 1]
-            dummy_atoms = [n for n in neighbors if n.GetAtomicNum() == 0]
-            h_count = len(h_atoms)
-            dummy_count = len(dummy_atoms)
+
+            h_atoms = [
+                n for n in neighbors
+                if n.GetAtomicNum() == 1
+            ]
+
+            dummy_atoms = [
+                n for n in neighbors
+                if n.GetAtomicNum() == 0
+            ]
+
+            n_subn = 0
+
             for n in neighbors:
-                n_subn = 0
+                if n.GetAtomicNum() == 1:
+                    # Skip H atoms — their only neighbor is the
+                    # current N, which would be counted spuriously.
+                    continue
                 for n2 in n.GetNeighbors():
-                    n_subn += int(n2.GetAtomicNum() == 7)
-                if n_subn == 3:
-                    break
+                    if n2.GetIdx() == atom.GetIdx():
+                        continue
+                    n_subn += int(
+                        n2.GetAtomicNum() == 7
+                    )
 
-            if h_count >= 1 and dummy_count == 0 and n_subn != 3:
-                for h in h_atoms:
-                    mol.RemoveAtom(h.GetIdx())
-                    break
-                dummy_idx = mol.AddAtom(Chem.Atom(0))
-                mol.AddBond(atom.GetIdx(), dummy_idx, Chem.BondType.SINGLE)
+            # Skip guanidinium / amidine N atoms: their carbon
+            # neighbour carries a C=N double bond.  Adding a dummy
+            # to these nitrogens (e.g. in Arg) dramatically inflates
+            # the dummy count relative to the library entry and drops
+            # the Tanimoto similarity below the recognition threshold.
+            is_guanidinium_n = any(
+                n.GetAtomicNum() == 6
+                and any(
+                    b.GetBondType() == Chem.BondType.DOUBLE
+                    and b.GetOtherAtom(n).GetAtomicNum() == 7
+                    for b in n.GetBonds()
+                )
+                for n in neighbors
+                if n.GetAtomicNum() not in (0, 1)
+            )
 
-        # Oxygens in COOH
+            # Skip urea N atoms: their carbon neighbour is a carbonyl
+            # C(=O) that is also bonded to another N (i.e. the pattern
+            # N-C(=O)-N).  In capped residues like X2038 the N-terminus
+            # is blocked by an isopropyl-urea group; adding a dummy to
+            # these nitrogens produces 4 R-groups instead of the 2 found
+            # in the library entry, collapsing Tanimoto similarity to ~0.36.
+            is_urea_n = any(
+                n.GetAtomicNum() == 6
+                and any(
+                    b.GetBondType() == Chem.BondType.DOUBLE
+                    and b.GetOtherAtom(n).GetAtomicNum() == 8
+                    for b in n.GetBonds()
+                )
+                and sum(
+                    1
+                    for nb in n.GetNeighbors()
+                    if nb.GetAtomicNum() == 7
+                ) >= 2
+                for n in neighbors
+                if n.GetAtomicNum() not in (0, 1)
+            )
+
+            if (
+                len(h_atoms) >= 1
+                and len(dummy_atoms) == 0
+                and n_subn != 3
+                and not is_guanidinium_n
+                and not is_urea_n
+            ):
+                h = h_atoms[0]
+
+                mol.RemoveAtom(h.GetIdx())
+
+                dummy_idx = mol.AddAtom(
+                    Chem.Atom(0)
+                )
+
+                mol.AddBond(
+                    atom.GetIdx(),
+                    dummy_idx,
+                    Chem.BondType.SINGLE,
+                )
+
+        # --------------------------------------------------------
+        # Carboxylic acid
+        # --------------------------------------------------------
         elif atom.GetAtomicNum() == 8:
-            parent = atom.GetNeighbors()[0]
-            if parent.GetAtomicNum() == 6 and parent.GetTotalValence() == 4:
-                parent_is_carboxy = len([n for n in parent.GetNeighbors() if n.GetAtomicNum() == 8]) == 2
-                atom_is_hidroxy = (len([n for n in atom.GetNeighbors() if n.GetAtomicNum() == 1]) == 1)
 
-                if parent_is_carboxy and atom_is_hidroxy:
-                    mol.RemoveAtom(atom.GetIdx())
-                    dummy_idx = mol.AddAtom(Chem.Atom(0))
-                    mol.AddBond(parent.GetIdx(), dummy_idx, Chem.BondType.SINGLE)
+            neighbors = atom.GetNeighbors()
 
-        # Sulphur in C-SH2
+            if not neighbors:
+                continue
+
+            parent = neighbors[0]
+
+            if (
+                parent.GetAtomicNum() == 6
+                and parent.GetTotalValence() == 4
+            ):
+                parent_is_carboxy = (
+                    len([
+                        n
+                        for n in parent.GetNeighbors()
+                        if n.GetAtomicNum() == 8
+                    ]) == 2
+                )
+
+                atom_is_hydroxy = (
+                    len([
+                        n
+                        for n in atom.GetNeighbors()
+                        if n.GetAtomicNum() == 1
+                    ]) == 1
+                )
+
+                if (
+                    parent_is_carboxy
+                    and atom_is_hydroxy
+                ):
+                    idx = atom.GetIdx()
+
+                    mol.RemoveAtom(idx)
+
+                    dummy_idx = mol.AddAtom(
+                        Chem.Atom(0)
+                    )
+
+                    mol.AddBond(
+                        parent.GetIdx(),
+                        dummy_idx,
+                        Chem.BondType.SINGLE,
+                    )
+
+        # --------------------------------------------------------
+        # Thiol
+        # --------------------------------------------------------
         elif atom.GetAtomicNum() == 16:
-            h_atoms = [n for n in atom.GetNeighbors() if n.GetAtomicNum() == 1]
-            h_count = len(h_atoms)
-            if h_count == 1:
-                for h in h_atoms:
-                    mol.RemoveAtom(h.GetIdx())
-                dummy_idx = mol.AddAtom(Chem.Atom(0))
-                mol.AddBond(atom.GetIdx(), dummy_idx, Chem.BondType.SINGLE)
+
+            h_atoms = [
+                n for n in atom.GetNeighbors()
+                if n.GetAtomicNum() == 1
+            ]
+
+            if len(h_atoms) == 1:
+
+                mol.RemoveAtom(
+                    h_atoms[0].GetIdx()
+                )
+
+                dummy_idx = mol.AddAtom(
+                    Chem.Atom(0)
+                )
+
+                mol.AddBond(
+                    atom.GetIdx(),
+                    dummy_idx,
+                    Chem.BondType.SINGLE,
+                )
 
     mol = Chem.RemoveAllHs(mol)
+
     return mol
 
 
-def find_lone_nitrogen_fragments(fragments: List[Mol]):
-    """
-    Given a list of RDKit Mol objects (fragments),
-    returns a list of (index, fragment) where the fragment
-    is essentially a 'lone nitrogen' or dummy-capped nitrogen.
-    """
-    lone_n_list = []
-    for idx, frag in enumerate(fragments):
-        atoms = frag.GetAtoms()
-        # Count real atoms (exclude dummies, atomicNum=0)
-        real_atoms = [a for a in atoms if a.GetAtomicNum() != 0]
-        n_atoms = [a for a in real_atoms if a.GetAtomicNum() == 7]
+# ============================================================================
+# MONOMER IDENTIFICATION
+# ============================================================================
 
-        # "Lone nitrogen" = fragment has exactly 1 real atom and it’s nitrogen
-        # OR only nitrogen + dummy atoms
-        if len(real_atoms) == 1 and len(n_atoms) == 1:
+def find_lone_nitrogen_fragments(
+    fragments: List[Mol],
+):
+    lone_n_list = []
+
+    for idx, frag in enumerate(fragments):
+
+        atoms = frag.GetAtoms()
+
+        real_atoms = [
+            a for a in atoms
+            if a.GetAtomicNum() != 0
+        ]
+
+        n_atoms = [
+            a for a in real_atoms
+            if a.GetAtomicNum() == 7
+        ]
+
+        if (
+            len(real_atoms) == 1
+            and len(n_atoms) == 1
+        ):
             lone_n_list.append(idx)
 
     return lone_n_list
 
 
 def reattach_n(fragments: List[Mol]):
+    """
+    Reattach fragments that consist of a lone nitrogen.
+
+    Fixed bug from the original implementation:
+        avoid.append(lone_n)
+    was replaced with:
+        avoid.add(n)
+    """
     blocker = rdBase.BlockLogs()
-    new_fragments, avoid = [], []
-    lone_n = find_lone_nitrogen_fragments(fragments)
+
+    new_fragments = []
+    avoid = set()
+
+    lone_n = find_lone_nitrogen_fragments(
+        fragments
+    )
+
     for n in lone_n:
         n_frag = fragments[n]
+
         for idx, frag in enumerate(fragments):
+
             if idx == n:
                 continue
 
-            if find_closest_monomer(frag)[0] in ('N', 'Q', 'E', 'D'):
-                new_frag = rdops.molzip(n_frag, frag)
-                if len(MolToSmiles(new_frag).split('.')) == 1:
-                    new_fragments.append(new_frag)
-                    avoid.append(idx)
-                    avoid.append(lone_n)
+            closest = find_closest_monomer(frag)[0]
+
+            if closest in ("N", "Q", "E", "D"):
+
+                try:
+                    new_frag = rdops.molzip(
+                        n_frag,
+                        frag,
+                    )
+                except Exception:
+                    continue
+
+                if (
+                    len(
+                        MolToSmiles(
+                            new_frag
+                        ).split(".")
+                    ) == 1
+                ):
+                    new_fragments.append(
+                        new_frag
+                    )
+
+                    avoid.add(idx)
+                    avoid.add(n)
+
                     break
 
     for idx, frag in enumerate(fragments):
@@ -376,369 +1250,1197 @@ def reattach_n(fragments: List[Mol]):
     return new_fragments
 
 
-def break_into_monomers(smiles: str) -> Tuple[List[str], List[Chem.Mol]]:
+# ============================================================================
+# FRAGMENT TOPOLOGY
+# ============================================================================
+
+def get_fragment_bond_info(
+    mol: Chem.Mol,
+):
     """
-    Breaks a peptide SMILES into its monomers and assigns matching molAtomMapNumber
-    to each pair of dummy atoms resulting from bond breaking.
+    Return all dummy atoms carrying a fragment bond ID.
+
+    FragmentOnBonds() gives both dummy atoms the same isotope.
+    We copy that into molAtomMapNumber.
     """
-    if isinstance(smiles, str):
-        mol = MolFromSmiles(smiles, sanitize=True)
+    info = defaultdict(list)
 
-    else:
-        mol = smiles
+    for atom in mol.GetAtoms():
 
-    if mol is None:
-        raise RuntimeError(f'Molecule: {smiles} could not be read by RDKit.',
-                           'Maybe introduce a filtering step in your pipeline')
+        if atom.GetAtomicNum() != 0:
+            continue
 
-    # Patterns for peptide and disulfide bonds
-    patt = 'N[C](=O)C'
-    patt2 = "CSSC"
-    patt3 = "CSC"
-    pep_bond = Chem.MolFromSmarts(patt)
-    disulfide_bond = Chem.MolFromSmarts(patt2)
-    csc_bond = Chem.MolFromSmarts(patt3)
+        bond_id = atom.GetAtomMapNum()
+
+        if bond_id == 0:
+            bond_id = atom.GetIsotope()
+
+        if bond_id == 0:
+            continue
+
+        neighbors = atom.GetNeighbors()
+
+        if len(neighbors) != 1:
+            continue
+
+        neighbor = neighbors[0]
+
+        rgroup = None
+
+        # If the attachment atom itself retained its R-group.
+        label = _get_atom_label(neighbor)
+
+        rgroup = _rgroup_from_label(label)
+
+        # --------------------------------------------------------
+        # Infer common peptide R-groups when the CXSMILES atom
+        # label did not survive fragmentation.
+        # --------------------------------------------------------
+        if rgroup is None:
+
+            atomic_num = neighbor.GetAtomicNum()
+
+            # R1: backbone N
+            if atomic_num == 7:
+                rgroup = 1
+
+            # R2: carbonyl C
+            elif atomic_num == 6:
+
+                has_carbonyl = any(
+                    bond.GetBondType()
+                    == Chem.BondType.DOUBLE
+                    and bond.GetOtherAtom(
+                        neighbor
+                    ).GetAtomicNum() == 8
+                    for bond in neighbor.GetBonds()
+                )
+
+                if has_carbonyl:
+                    rgroup = 2
+
+            # R3: sulfur in cysteine
+            elif atomic_num == 16:
+                rgroup = 3
+
+        info[bond_id].append({
+            "dummy_idx": atom.GetIdx(),
+            "neighbor_idx": neighbor.GetIdx(),
+            "rgroup": rgroup,
+        })
+
+    return info
+
+
+# ============================================================================
+# SMILES -> MONOMER FRAGMENTS
+# ============================================================================
+
+
+def _break_single_mol(
+    mol: Chem.Mol,
+    bond_id_offset: int = 0,
+) -> Tuple[List[str], List[Chem.Mol]]:
+    """
+    Break a single connected molecule into monomer fragments.
+
+    *bond_id_offset* allows the caller to make bond IDs globally
+    unique when processing multiple chains in one session.
+
+    Returns (monomer_names, fragment_mols).
+    """
+    # ------------------------------------------------------------------
+    # Peptide backbone: N-C(=O)-C
+    # ------------------------------------------------------------------
+    pep_bond = Chem.MolFromSmarts("N[C](=O)C")
+
+    # ------------------------------------------------------------------
+    # C-terminal amide cap: [C@@H](N)C(=O)NH2
+    # Matches C(=O)-NH2 where the carbonyl C's sp3-C neighbour itself
+    # has an N neighbour (i.e., the sp3-C is a Cα bonded to a free amine).
+    # This pattern is distinct from sidechain amides (Asn/Gln) where the
+    # sp3-C neighbour is a CH2 with no N.
+    # ------------------------------------------------------------------
+    cterminal_amide_bond = Chem.MolFromSmarts("[CX3](=[OX1])[NH2]")
+
+    # ------------------------------------------------------------------
+    # Disulfide: C-S-S-C
+    # ------------------------------------------------------------------
+    disulfide_bond = Chem.MolFromSmarts("CSSC")
+
     pep_matches = mol.GetSubstructMatches(pep_bond)
+    ctam_matches = mol.GetSubstructMatches(cterminal_amide_bond)
     ss_matches = mol.GetSubstructMatches(disulfide_bond)
-    csc_matches = mol.GetSubstructMatches(csc_bond)
 
-    bond_indices_pep = [
-        mol.GetBondBetweenAtoms(n_idx, c_idx).GetIdx()
-        for n_idx, c_idx, *_ in pep_matches
-        if mol.GetBondBetweenAtoms(n_idx, c_idx)
-    ]
-    bond_indices_ss = [
-        mol.GetBondBetweenAtoms(s1_idx, s2_idx).GetIdx()
-        for _, s1_idx, s2_idx, _ in ss_matches
-        if mol.GetBondBetweenAtoms(s1_idx, s2_idx)
-    ]
-    bond_indices_csc = [
-        mol.GetBondBetweenAtoms(s1_idx, c).GetIdx()
-        for _, s1_idx, c in csc_matches
-        if mol.GetBondBetweenAtoms(s1_idx, c)
-    ]
-    bond_indices = bond_indices_pep + bond_indices_ss + bond_indices_csc
+    bond_indices_pep = []
+    for n_idx, c_idx, *_ in pep_matches:
+        # Only cut genuine backbone (or peptoid) peptide bonds.
+        #
+        # The SMARTS "N[C](=O)C" also matches sidechain terminal amide
+        # nitrogens (Asn, Gln NH2) and C-terminal amide caps.  Those N
+        # atoms are bonded solely to an sp2 carbonyl C — they have no sp3
+        # carbon neighbour.  Backbone and peptoid N atoms always have at
+        # least one sp3 Cα neighbour in the chain context.
+        n_atom = mol.GetAtomWithIdx(n_idx)
+        has_sp3_c_neighbour = any(
+            nb.GetAtomicNum() == 6
+            and nb.GetHybridization() == Chem.HybridizationType.SP3
+            for nb in n_atom.GetNeighbors()
+        )
+        if not has_sp3_c_neighbour:
+            continue
+        bond = mol.GetBondBetweenAtoms(n_idx, c_idx)
+        if bond:
+            bond_indices_pep.append(bond.GetIdx())
 
+    # C-terminal amide bonds: cut C(=O)-NH2 only when the C's sp3-C
+    # neighbour is itself bonded to an N (a Cα carrying a free amine).
+    # This excludes Asn/Gln sidechain amides (their sp3 neighbour CH2
+    # has no N).
+    for match in ctam_matches:
+        c_idx = match[0]
+        c_atom = mol.GetAtomWithIdx(c_idx)
+        sp3c_with_n = [
+            nb for nb in c_atom.GetNeighbors()
+            if nb.GetAtomicNum() == 6
+            and nb.GetHybridization() == Chem.HybridizationType.SP3
+            and any(
+                nb2.GetAtomicNum() == 7
+                for nb2 in nb.GetNeighbors()
+                if nb2.GetIdx() != c_idx
+            )
+        ]
+        if not sp3c_with_n:
+            continue
+        n_idx = match[2]  # match order: (C, O, N)
+        bond = mol.GetBondBetweenAtoms(c_idx, n_idx)
+        if bond:
+            bond_indices_pep.append(bond.GetIdx())
+
+    bond_indices_ss = []
+    for _, s1_idx, s2_idx, _ in ss_matches:
+        bond = mol.GetBondBetweenAtoms(s1_idx, s2_idx)
+        if bond:
+            bond_indices_ss.append(bond.GetIdx())
+
+    bond_indices = list(
+        dict.fromkeys(bond_indices_pep + bond_indices_ss)
+    )
+
+    # ------------------------------------------------------------------
+    # Single monomer — no bonds to break.
+    # ------------------------------------------------------------------
     if not bond_indices:
         best_aa, _ = find_closest_monomer(mol)
         return [best_aa], [mol]
-    # Fragment and retain dummy atom pairs
-    bond_indices = list(set(bond_indices))
-    frags = rdops.FragmentOnBonds(
-        mol, bond_indices,
-        addDummies=True,
-        dummyLabels=[[i+1, i+1] for i in range(len(bond_indices))]
-    )
-    # Assign matching molAtomMapNumber to dummy pairs
-    for bond_num, bond_idx in enumerate(bond_indices, start=1):
-        dummy_atoms = [atom for atom in frags.GetAtoms()
-                       if atom.GetAtomicNum() == 0 and
-                       atom.GetIsotope() == bond_num]
 
-        for atom in dummy_atoms:
-            atom.SetIntProp("molAtomMapNumber", bond_num)
-    # Re-extract sanitized fragments with new properties
-    updated_frag_mols = Chem.GetMolFrags(frags, asMols=True,
-                                         sanitizeFrags=True)
-    n_fixed_frags = reattach_n(updated_frag_mols)
-    # ordered_frags = order_monomers(n_fixed_frags)
-    ordered_frags = order_fragments(n_fixed_frags)
-    final_pep, all_frags = [], []
+    # ------------------------------------------------------------------
+    # Fragment the molecule.
+    # Bond labels are offset so IDs are globally unique across chains.
+    # ------------------------------------------------------------------
+    n = len(bond_indices)
+    frags = rdops.FragmentOnBonds(
+        mol,
+        bond_indices,
+        addDummies=True,
+        dummyLabels=[
+            (bond_id_offset + i + 1, bond_id_offset + i + 1)
+            for i in range(n)
+        ],
+    )
+
+    # Convert isotope -> molAtomMapNumber for downstream use.
+    for i in range(n):
+        bond_num = bond_id_offset + i + 1
+        for atom in frags.GetAtoms():
+            if atom.GetAtomicNum() == 0 and atom.GetIsotope() == bond_num:
+                atom.SetAtomMapNum(bond_num)
+
+    updated_frag_mols = Chem.GetMolFrags(
+        frags, asMols=True, sanitizeFrags=True
+    )
+
+    updated_frag_mols = reattach_n(list(updated_frag_mols))
+
+    ordered_frags = order_fragments(updated_frag_mols)
+
+    final_pep = []
+    all_frags = []
     for frag in ordered_frags:
-        best_aa, sim = find_closest_monomer(frag)
+        best_aa, _ = find_closest_monomer(frag)
         final_pep.append(best_aa)
         all_frags.append(frag)
+
     return final_pep, all_frags
 
 
-def order_fragments(mols):
+def break_into_monomers(
+    smiles,
+) -> Tuple[List[str], List[Chem.Mol], List[int]]:
     """
-    Order peptide fragments from N- to C-terminal based on dummy atom AtomMapNum.
-    If cyclic, ordering starts from an arbitrary fragment.
-    Handles branching by exploring all branches systematically.
+    Break a peptide SMILES into monomer fragments.
 
-    Parameters
-    ----------
-    mols : list of rdkit.Chem.Mol
-        Each fragment molecule with dummy atoms labeled with AtomMapNum.
+    Multi-chain SMILES (dot-separated, e.g. ``A-G.G-A``) are handled
+    by splitting at the molecular level first: each disconnected
+    component is processed independently and the results are
+    concatenated in the same order as the components appear in the
+    molecule.
 
-    Returns
-    -------
-    list of rdkit.Chem.Mol
-        Ordered list of fragments.
+    Crucially, the returned fragments retain:
+        - AtomMapNum on dummy atoms
+        - isotope bond IDs (globally unique across all chains)
+        - R-group labels where available
     """
-    def is_free_n_terminal(mol):
-        """Detect if fragment has a free N-terminal (free amine not attached to peptide bond)."""
-        mol = Chem.AddHs(mol)
-        for atom in mol.GetAtoms():
-            if atom.GetAtomicNum() == 7: # Nitrogen
-                neighbors = atom.GetNeighbors()
-                carbon_neighbors = [n for n in neighbors if n.GetAtomicNum() == 6]
-                dummy_neighbors = [n for n in neighbors if n.GetAtomicNum() == 0]
-                for c_neighbor in carbon_neighbors:
-                    for c in c_neighbor.GetNeighbors():
-                        if c.GetAtomicNum() != 6:
-                            continue
-                        # Check if carbon has a double bonded oxygen (carbonyl)
-                        has_carbonyl = any(b.GetOtherAtom(c).GetAtomicNum() == 8
-                                        for b in c.GetBonds())
-                        if has_carbonyl and len(dummy_neighbors) == 0:
-                            return True
-        return False
+    if smiles is None:
+        raise TypeError("SMILES must be a string, got None.")
 
-    n_terminals = [is_free_n_terminal(mol) for mol in mols]
-    if sum(n_terminals) < 1:
+    if isinstance(smiles, str):
+        if not smiles.strip():
+            raise ValueError("SMILES string is empty.")
+
+        mol = MolFromSmiles(smiles, sanitize=True)
+
+        if mol is None:
+            raise ValueError(
+                f"Could not parse SMILES: {smiles!r}"
+            )
+    else:
+        # Accept a pre-parsed Mol object for internal use.
+        mol = smiles
+
+    # ------------------------------------------------------------------
+    # Split disconnected components (multi-chain SMILES, e.g. "A.B").
+    # ------------------------------------------------------------------
+    component_mols = Chem.GetMolFrags(mol, asMols=True, sanitizeFrags=True)
+
+    if len(component_mols) == 1:
+        names, frags = _break_single_mol(component_mols[0])
+        return names, frags, [len(names)]
+
+    # Multiple independent chains: process each separately,
+    # using a running offset so bond IDs are globally unique.
+    all_names: List[str] = []
+    all_frags: List[Chem.Mol] = []
+    chain_sizes: List[int] = []
+    bond_id_offset = 0
+
+    for comp in component_mols:
+        names, frags = _break_single_mol(comp, bond_id_offset=bond_id_offset)
+        # Advance offset by the number of unique bond IDs in this chain.
+        n_bonds = len({
+            atom.GetAtomMapNum()
+            for frag in frags
+            for atom in frag.GetAtoms()
+            if atom.GetAtomicNum() == 0 and atom.GetAtomMapNum() != 0
+        })
+        bond_id_offset += n_bonds
+        all_names.extend(names)
+        all_frags.extend(frags)
+        chain_sizes.append(len(names))
+
+    return all_names, all_frags, chain_sizes
+
+
+# ============================================================================
+# FRAGMENT ORDERING
+# ============================================================================
+
+def _is_free_n_terminal(mol: Chem.Mol) -> bool:
+    """
+    Identify a fragment with a free N-terminal amine.
+    """
+    for atom in mol.GetAtoms():
+
+        if atom.GetAtomicNum() != 7:
+            continue
+
+        # Ignore nitrogen carrying a fragment dummy.
+        if any(
+            n.GetAtomicNum() == 0
+            for n in atom.GetNeighbors()
+        ):
+            continue
+
+        for carbon in atom.GetNeighbors():
+
+            if carbon.GetAtomicNum() != 6:
+                continue
+
+            has_carbonyl = any(
+                bond.GetBondType()
+                == Chem.BondType.DOUBLE
+                and bond.GetOtherAtom(
+                    carbon
+                ).GetAtomicNum() == 8
+                for bond in carbon.GetBonds()
+            )
+
+            if has_carbonyl:
+                return True
+
+    return False
+
+
+def order_fragments(
+    mols: List[Chem.Mol],
+) -> List[Chem.Mol]:
+    """
+    Order fragments N -> C.
+
+    For cyclic peptides there is no unique beginning, so an arbitrary
+    fragment is selected. The cycle-closing bond is NOT discarded;
+    it remains encoded on the fragment dummy atoms and is recovered
+    later by fragments_to_biln().
+    """
+    if len(mols) <= 1:
         return mols
 
     fragments = []
-    for i, mol in enumerate(mols):
-        dummies = [atom.GetAtomMapNum() for atom in mol.GetAtoms() if atom.GetAtomicNum() == 0]
-        fragments.append({"id": i, "mol": mol, "dummies": dummies})
 
-    # Build adjacency list (graph)
-    graph = defaultdict(list)
+    for idx, mol in enumerate(mols):
+
+        bond_ids = set()
+
+        for atom in mol.GetAtoms():
+            if atom.GetAtomicNum() == 0:
+
+                bond_id = atom.GetAtomMapNum()
+
+                if bond_id:
+                    bond_ids.add(bond_id)
+
+        fragments.append({
+            "id": idx,
+            "mol": mol,
+            "bond_ids": bond_ids,
+        })
+
     dummy_to_frag = defaultdict(list)
 
     for frag in fragments:
-        for d in frag['dummies']:
-            dummy_to_frag[d].append(frag['id'])
+        for bond_id in frag["bond_ids"]:
+            dummy_to_frag[
+                bond_id
+            ].append(frag["id"])
 
-    # Connect fragments by shared dummy atom numbers
-    for frags in dummy_to_frag.values():
-        if len(frags) == 2:  # valid cleavage between 2 fragments
-            a, b = frags
-            graph[a].append(b)
-            graph[b].append(a)
+    graph = defaultdict(set)
 
-    # Find start node
+    for ids in dummy_to_frag.values():
+
+        if len(ids) == 2:
+            a, b = ids
+
+            graph[a].add(b)
+            graph[b].add(a)
+
+    # ------------------------------------------------------------
+    # Find N-terminal fragment.
+    #
+    # The N-terminal residue has its backbone N free (no R1 dummy)
+    # while carrying an R2 dummy for the next peptide bond.  Detect
+    # this by checking that the fragment has R2 attachment but NOT R1.
+    # ------------------------------------------------------------
     start = None
-    for node, neighbors in graph.items():
-        if len(neighbors) == 1 and is_free_n_terminal(mols[node]):  # terminal fragment
-            start = node
-            break
-    if start is None:
-        # cycle → just pick an arbitrary fragment
-        start = next(iter(graph))
 
-    # Traverse path with backtracking for branches
+    for idx, mol in enumerate(mols):
+        info = get_fragment_bond_info(mol)
+        rgroups_in_frag = set()
+        for occs in info.values():
+            for occ in occs:
+                rg = occ["rgroup"]
+                if rg is not None:
+                    rgroups_in_frag.add(rg)
+        # N-terminal fragment: has R2 (C-end bond) but no R1 (free N-end)
+        if 2 in rgroups_in_frag and 1 not in rgroups_in_frag:
+            start = idx
+            break
+
+    # ------------------------------------------------------------
+    # Cyclic peptide: no free N terminus.
+    # Pick the fragment with the fewest bond_ids (most likely an
+    # internal residue with only backbone connections), using index
+    # as a tiebreaker for determinism.
+    # ------------------------------------------------------------
+    if start is None:
+        start = min(
+            range(len(mols)),
+            key=lambda i: (
+                len(fragments[i]["bond_ids"]),
+                i,
+            ),
+        )
+
+    # ------------------------------------------------------------
+    # Traverse N -> C.
+    #
+    # At each step, strongly prefer the candidate connected to the
+    # current fragment via a backbone bond (current R2 → candidate
+    # R1).  This ensures linear ordering for cyclic peptides where
+    # backbone bonds and side-chain (SS) bonds both appear in the
+    # graph.
+    # ------------------------------------------------------------
     ordered_ids = []
     visited = set()
 
-    def dfs_traverse(current, path):
-        """
-        Depth-first search with backtracking to handle branching points.
-        """
-        path.append(current)
+    current = start
+    previous = None
+
+    while current is not None:
+
+        if current in visited:
+            break
+
         visited.add(current)
+        ordered_ids.append(current)
 
-        # Get unvisited neighbors
-        unvisited_neighbors = [n for n in graph[current] if n not in visited]
+        candidates = [
+            n
+            for n in graph[current]
+            if n != previous
+            and n not in visited
+        ]
 
-        if not unvisited_neighbors:
-            # No more neighbors - we've reached a dead end
-            # This path segment is complete
-            return
+        if not candidates:
+            break
 
-        # If there are multiple unvisited neighbors, we have a branch point
-        # Explore each branch
-        for neighbor in unvisited_neighbors:
-            if neighbor not in visited:  # Double check since visited set may change
-                dfs_traverse(neighbor, path)
+        # Find which bond IDs connect current → each candidate,
+        # then score by whether that bond is a backbone R2→R1 pair.
+        cur_info = get_fragment_bond_info(mols[current])
+        # Map bond_id -> rgroup for current fragment.
+        cur_bond_rgroup = {}
+        for bond_id, occs in cur_info.items():
+            for occ in occs:
+                cur_bond_rgroup[bond_id] = occ["rgroup"]
 
-    # Start traversal
-    dfs_traverse(start, ordered_ids)
+        def score(node):  # noqa: E306
+            node_info = get_fragment_bond_info(mols[node])
+            node_bond_rgroup = {}
+            for bond_id, occs in node_info.items():
+                for occ in occs:
+                    node_bond_rgroup[bond_id] = occ["rgroup"]
 
-    # Handle any disconnected components (shouldn't happen in well-formed peptides)
-    remaining_nodes = set(graph.keys()) - visited
-    for node in remaining_nodes:
-        if node not in visited:
-            dfs_traverse(node, ordered_ids)
+            # Shared bond IDs between current and this candidate.
+            shared = set(cur_bond_rgroup) & set(node_bond_rgroup)
 
-    # Map back to mol objects
-    ordered_mols = [fragments[i]["mol"] for i in ordered_ids]
+            is_backbone = any(
+                cur_bond_rgroup[b] == 2 and node_bond_rgroup[b] == 1
+                for b in shared
+            )
 
-    return ordered_mols
+            has_r1 = any(x["rgroup"] == 1 for v in node_info.values() for x in v)
+            has_r2 = any(x["rgroup"] == 2 for v in node_info.values() for x in v)
+
+            return (
+                0 if is_backbone else 1,  # backbone bond strongly preferred
+                0 if has_r1 else 1,
+                0 if has_r2 else 1,
+                node,
+            )
+
+        nxt = min(candidates, key=score)
+        previous, current = current, nxt
+
+    # ------------------------------------------------------------
+    # Add disconnected components.
+    # ------------------------------------------------------------
+    for idx in range(len(mols)):
+        if idx not in visited:
+            ordered_ids.append(idx)
+
+    return [
+        mols[idx]
+        for idx in ordered_ids
+    ]
 
 
-def find_closest_monomer(frag: Chem.Mol) -> Tuple[str, float]:
-    global CACHE
-    blocker = rdBase.BlockLogs()
-    max_sim, best_aa = 0.7, 'X'
+# ============================================================================
+# FRAGMENT -> BILN
+# ============================================================================
 
-    mol1 = add_dummy_atoms(frag)
-    fp1 = GetMorganFingerprintAsBitVect(
-        mol1, radius=2, useFeatures=True, nBits=1024, useChirality=True
+def _infer_fragment_rgroup(
+    fragment: Chem.Mol,
+    occurrence: dict,
+) -> Optional[int]:
+    """
+    Infer the BILN R-group corresponding to a fragment dummy.
+
+    Priority:
+        1. explicit atomLabel
+        2. common amino-acid conventions
+    """
+    neighbor_idx = occurrence[
+        "neighbor_idx"
+    ]
+
+    neighbor = fragment.GetAtomWithIdx(
+        neighbor_idx
     )
+
+    label = _get_atom_label(
+        neighbor
+    )
+
+    rgroup = _rgroup_from_label(
+        label
+    )
+
+    if rgroup is not None:
+        return rgroup
+
+    atomic_num = neighbor.GetAtomicNum()
+
+    # R1 = peptide N
+    if atomic_num == 7:
+        return 1
+
+    # R2 = peptide carbonyl carbon
+    if atomic_num == 6:
+
+        has_carbonyl = any(
+            bond.GetBondType()
+            == Chem.BondType.DOUBLE
+            and bond.GetOtherAtom(
+                neighbor
+            ).GetAtomicNum() == 8
+            for bond in neighbor.GetBonds()
+        )
+
+        if has_carbonyl:
+            return 2
+
+    # R3 = thiol / disulfide
+    if atomic_num == 16:
+        return 3
+
+    return None
+
+
+def fragments_to_biln(
+    fragments: List[Chem.Mol],
+    monomer_names: List[str],
+    chain_sizes: Optional[List[int]] = None,
+) -> str:
+    """
+    Convert topology-preserving fragments to BILN.
+
+    Explicit non-backbone bonds become:
+
+        M(BOND_ID,R_GROUP)
+
+    Ordinary consecutive R2 -> R1 connections remain '-'.
+
+    *chain_sizes* is an optional list whose entries give the number of
+    fragments belonging to each chain (sum must equal len(fragments)).
+    When provided, chains are separated by '.' in the output; when
+    omitted a single chain with '-' separators is assumed.
+    """
+    if len(fragments) != len(monomer_names):
+        raise ValueError(
+            "Number of fragments and monomer names differ: "
+            f"{len(fragments)} != {len(monomer_names)}"
+        )
+
+    if chain_sizes is None:
+        chain_sizes = [len(fragments)]
+
+    tokens = list(monomer_names)
+
+    # ------------------------------------------------------------
+    # Collect every dummy/bond ID.
+    # ------------------------------------------------------------
+    bond_occurrences = defaultdict(list)
+
+    for frag_idx, fragment in enumerate(
+        fragments
+    ):
+
+        info = get_fragment_bond_info(
+            fragment
+        )
+
+        for bond_id, occurrences in info.items():
+
+            for occurrence in occurrences:
+
+                rgroup = _infer_fragment_rgroup(
+                    fragment,
+                    occurrence,
+                )
+
+                bond_occurrences[
+                    bond_id
+                ].append({
+                    "fragment": frag_idx,
+                    "rgroup": rgroup,
+                })
+
+    # ------------------------------------------------------------
+    # Validate bond IDs.
+    # ------------------------------------------------------------
+    for bond_id, occurrences in (
+        bond_occurrences.items()
+    ):
+
+        if len(occurrences) != 2:
+            raise ValueError(
+                f"Fragment bond ID {bond_id} occurs "
+                f"{len(occurrences)} times; "
+                "expected exactly twice."
+            )
+
+    # ------------------------------------------------------------
+    # Identify ordinary backbone bonds.
+    #
+    # A BILN bond is implicit (backbone '-') only when:
+    #     • it connects exactly two consecutive fragments i, i+1
+    #     • fragment i carries R2 on that bond
+    #     • fragment i+1 carries R1 on that bond
+    #
+    # All other bonds become explicit annotations.
+    # ------------------------------------------------------------
+    implicit_backbone_ids = set()
+    # backbone_edges[i] = j means fragment i is backbone-connected
+    # to fragment j via an implicit bond.
+    backbone_edges: dict = {}
+
+    for bond_id, occurrences in bond_occurrences.items():
+
+        if len(occurrences) != 2:
+            continue
+
+        a, b = occurrences
+
+        if abs(a["fragment"] - b["fragment"]) != 1:
+            continue
+
+        left = min(a["fragment"], b["fragment"])
+        right = max(a["fragment"], b["fragment"])
+
+        left_occ = a if a["fragment"] == left else b
+        right_occ = a if a["fragment"] == right else b
+
+        if left_occ["rgroup"] == 2 and right_occ["rgroup"] == 1:
+            implicit_backbone_ids.add(bond_id)
+            backbone_edges[left] = right
+            backbone_edges[right] = left
+
+    # ------------------------------------------------------------
+    # Add explicit annotations (non-backbone bonds).
+    # ------------------------------------------------------------
+    for bond_id, occurrences in sorted(
+        bond_occurrences.items(), key=lambda x: x[0]
+    ):
+        if bond_id in implicit_backbone_ids:
+            continue
+
+        for occurrence in occurrences:
+            fragment_idx = occurrence["fragment"]
+            rgroup = occurrence["rgroup"]
+
+            if rgroup is None:
+                raise ValueError(
+                    "Unable to determine R-group "
+                    f"for bond {bond_id} on "
+                    f"monomer {tokens[fragment_idx]}."
+                )
+
+            tokens[fragment_idx] += f"({bond_id},{rgroup})"
+
+    # ------------------------------------------------------------
+    # Determine chain boundaries from backbone connectivity.
+    #
+    # Fragments that are only connected to the rest of the molecule
+    # via non-backbone (explicit) bonds belong to separate chains.
+    # Walk the backbone graph to collect runs of backbone-connected
+    # fragments; each run becomes one BILN chain.
+    # ------------------------------------------------------------
+    n_frags = len(tokens)
+    visited_frags: set = set()
+    chains_fragment_ids: List[List[int]] = []
+
+    for start_frag in range(n_frags):
+        if start_frag in visited_frags:
+            continue
+
+        # Walk backbone edges starting from start_frag.
+        # Walk backward first (to find true N-terminal of this chain).
+        head = start_frag
+        while head in backbone_edges:
+            prev = backbone_edges[head]
+            if prev in visited_frags or prev > head:
+                # avoid infinite loops in cyclic chains
+                break
+            head = prev
+
+        # Now walk forward from head.
+        chain_ids: List[int] = []
+        cur = head
+        while cur is not None and cur not in visited_frags:
+            chain_ids.append(cur)
+            visited_frags.add(cur)
+            nxt = backbone_edges.get(cur)
+            if nxt is None or nxt in visited_frags:
+                break
+            cur = nxt
+
+        if chain_ids:
+            chains_fragment_ids.append(chain_ids)
+
+    # ------------------------------------------------------------
+    # Build final BILN string.
+    # ------------------------------------------------------------
+    chain_bilns = [
+        "-".join(tokens[idx] for idx in chain_ids)
+        for chain_ids in chains_fragment_ids
+    ]
+
+    return ".".join(chain_bilns)
+
+
+# ============================================================================
+# MONOMER SIMILARITY
+# ============================================================================
+
+# Precompiled patterns for _normalize_for_fp.
+_CARBOXYL_PATT = Chem.MolFromSmarts("C(=O)[OH]")
+_CARBONYL_DUMMY_PATT = Chem.MolFromSmarts("[CX3](=[OX1])[#0]")
+_CTERMINAL_AMIDE_RXN = None  # lazy-initialised below
+
+
+def _normalize_for_fp(mol: Chem.Mol) -> Chem.Mol:
+    """
+    Normalise a fragment for Tanimoto fingerprinting only.
+
+    C-terminal amide capping (``C(=O)NH2``) is converted to the
+    equivalent free carboxylic acid (``C(=O)OH``) so that
+    ``add_dummy_atoms`` places the R2 dummy on the carbonyl C rather
+    than on the amide N.
+
+    The conversion is skipped if the molecule already contains a free
+    carboxylic acid — that covers Asn/Gln (sidechain amide + backbone
+    COOH) which must not be altered.
+    """
+    global _CTERMINAL_AMIDE_RXN
+    if _CTERMINAL_AMIDE_RXN is None:
+        from rdkit.Chem import rdChemReactions as rdr
+        _CTERMINAL_AMIDE_RXN = rdr.ReactionFromSmarts(
+            "[CX3:1](=[OX1:2])[NH2:3]>>[CX3:1](=[OX1:2])O"
+        )
+
+    # Skip if the molecule already has a free carboxylic acid OR a
+    # backbone dummy on a carbonyl (C(=O)[*]).  The latter covers
+    # in-chain fragments for Asn/Gln where the C-terminus is already
+    # an R-group placeholder, not an amide cap.
+    if (
+        mol.HasSubstructMatch(_CARBOXYL_PATT)
+        or mol.HasSubstructMatch(_CARBONYL_DUMMY_PATT)
+    ):
+        return mol
+
+    products = _CTERMINAL_AMIDE_RXN.RunReactants((mol,))
+    if products:
+        prod = products[0][0]
+        try:
+            Chem.SanitizeMol(prod)
+            return prod
+        except Exception:
+            pass  # fall back to original if sanitisation fails
+    return mol
+
+
+def find_closest_monomer(
+    frag: Chem.Mol,
+) -> Tuple[str, float]:
+    global CACHE
+
+    blocker = rdBase.BlockLogs()  # noqa: F841 – suppresses RDKit warnings
+
+    # Threshold: 0.7 Tanimoto similarity.  Using 0.699... instead of
+    # 0.7 so that a similarity of exactly 0.7 is accepted (condition
+    # is strictly greater-than, so 0.7 > 0.699 passes).
+    max_sim = 0.699
+    best_aa = "X"
+
+    mol1 = add_dummy_atoms(_normalize_for_fp(frag))
+
+    fp1 = GetMorganFingerprintAsBitVect(
+        mol1,
+        radius=2,
+        useFeatures=True,
+        nBits=1024,
+        useChirality=True,
+    )
+
+    # ------------------------------------------------------------
+    # Canonical amino acids first (high priority).
+    # ------------------------------------------------------------
     for aa in AAs:
+
         monomer = AA_DICT[aa]
+
         smiles_similarity, _ = compare(monomer, aa, fp1)
 
         if smiles_similarity > max_sim:
             max_sim = smiles_similarity
-            best_aa = aa if aa != 'H2' else 'H'
+            best_aa = "H" if aa == "H2" else aa
+
         if max_sim == 1.0:
             return best_aa, max_sim
 
+    # ------------------------------------------------------------
+    # Non-canonical monomers.
+    # ------------------------------------------------------------
     for aa, monomer in AA_DICT.items():
+
         if aa in AAs:
             continue
+
         smiles_similarity, smiles2 = compare(monomer, aa, fp1)
 
         if smiles_similarity > max_sim:
             max_sim = smiles_similarity
-            best_aa = aa
-        if max_sim == 1.0:
-            max_sim = smiles_similarity
-            best_aa = aa
+            # Apply canonical name mapping (e.g. lalloI → I).
+            best_aa = _CANONICAL_NAME_MAP.get(aa, aa)
+
+        # When THIS entry scores 1.0, verify element composition.
+        # Feature-based Morgan fingerprints treat halogens as equivalent,
+        # so a Br-substituted fragment and a Cl-substituted library entry
+        # can both score 1.0.  The atom-subset check discriminates them:
+        # only accept and break if the fragment's elements are a subset of
+        # the library entry's elements.  If the check fails, clear best_aa
+        # so the search continues to the correct entry.
+        if smiles_similarity == 1.0:
             mol2 = MolFromSmiles(smiles2)
-            atoms1 = set([a.GetAtomicNum() for a in mol1.GetAtoms()])
-            atoms2 = set([a.GetAtomicNum() for a in mol2.GetAtoms()])
-            if len(atoms1.intersection(atoms2)) == len(atoms1):
-                break
+
+            if mol2 is not None:
+                atoms1 = {a.GetAtomicNum() for a in mol1.GetAtoms()}
+                atoms2 = {a.GetAtomicNum() for a in mol2.GetAtoms()}
+
+                if atoms1.issubset(atoms2):
+                    best_aa = _CANONICAL_NAME_MAP.get(aa, aa)
+                    break
+                else:
+                    # Wrong elements — undo the tentative assignment and
+                    # keep searching for an element-correct match.
+                    best_aa = "X"
+                    max_sim = 0.699
+
+    # ------------------------------------------------------------
+    # Achiral fallback: if no match was found above the threshold
+    # AND the fragment has no specified stereocentres, retry without
+    # chirality.  This recovers residues like Gln/Asn whose library
+    # entries carry [C@@H] but the input SMILES omits stereo marks.
+    # The fallback is skipped for fragments that DO have explicit
+    # chirality so that L/D discrimination is preserved.
+    # ------------------------------------------------------------
+    if best_aa == "X":
+        chiral_centres = Chem.FindMolChiralCenters(
+            frag, includeUnassigned=False
+        )
+        if not chiral_centres:
+            fp1_achiral = GetMorganFingerprintAsBitVect(
+                mol1,
+                radius=2,
+                useFeatures=True,
+                nBits=1024,
+                useChirality=False,
+            )
+
+            for aa in AAs:
+                monomer = AA_DICT[aa]
+                sim, _ = compare_achiral(monomer, aa, fp1_achiral)
+                if sim > max_sim:
+                    max_sim = sim
+                    best_aa = "H" if aa == "H2" else aa
+                if max_sim == 1.0:
+                    return best_aa, max_sim
+
+            for aa, monomer in AA_DICT.items():
+                if aa in AAs:
+                    continue
+                sim, _ = compare_achiral(monomer, aa, fp1_achiral)
+                if sim > max_sim:
+                    max_sim = sim
+                    best_aa = _CANONICAL_NAME_MAP.get(aa, aa)
+                if max_sim == 1.0:
+                    break
+
     return best_aa, max_sim
 
 
-def compare(monomer, aa, fp1):
+def compare(
+    monomer,
+    aa,
+    fp1,
+):
     global CACHE
+
     smiles2, _ = monomer
-    smiles2 = smiles2.split(' ')[0]
+
+    smiles2 = _strip_smiles_properties(
+        smiles2
+    )
 
     if smiles2 in CACHE:
         fp2 = CACHE[smiles2]
+
     else:
-        mol2 = MolFromSmiles(smiles2, sanitize=True)
-        fp2 = GetMorganFingerprintAsBitVect(
-            mol2, radius=2, useFeatures=True, nBits=1024, useChirality=True
+
+        mol2 = MolFromSmiles(
+            smiles2,
+            sanitize=True,
         )
+
+        if mol2 is None:
+            return 0.0, smiles2
+
+        fp2 = GetMorganFingerprintAsBitVect(
+            mol2,
+            radius=2,
+            useFeatures=True,
+            nBits=1024,
+            useChirality=True,
+        )
+
         CACHE[smiles2] = fp2
-    smiles_similarity = DataStructs.TanimotoSimilarity(fp1, fp2)
+
+    smiles_similarity = (
+        DataStructs.TanimotoSimilarity(
+            fp1,
+            fp2,
+        )
+    )
+
     return smiles_similarity, smiles2
 
 
-def build_peptide(monomerlist: List[Tuple[str, str]]) -> Tuple[str, List[str]]:
-    """
-    Assemble a peptide from a list of monomer SMILES strings.
+def compare_achiral(
+    monomer,
+    aa,
+    fp1,
+):
+    """Like compare(), but builds/caches fingerprints without chirality."""
+    global CACHE_ACHIRAL
 
-    This function takes a list of monomers (represented as SMILES), connects them 
-    in order via peptide bonds, and returns the final product as a SMILES string.
-    Dummy atoms are removed or capped appropriately.
+    smiles2, _ = monomer
 
-    :param monomerlist: List of monomer SMILES strings.
-    :type monomerlist: List[str]
-    :return: Tuple of SMILES of the assembled peptide and List of the monomers it is comprised of.
-    :rtype: Tuple[str, List[str]]
+    smiles2 = _strip_smiles_properties(smiles2)
+
+    if smiles2 in CACHE_ACHIRAL:
+        fp2 = CACHE_ACHIRAL[smiles2]
+
+    else:
+        mol2 = MolFromSmiles(smiles2, sanitize=True)
+
+        if mol2 is None:
+            return 0.0, smiles2
+
+        fp2 = GetMorganFingerprintAsBitVect(
+            mol2,
+            radius=2,
+            useFeatures=True,
+            nBits=1024,
+            useChirality=False,
+        )
+
+        CACHE_ACHIRAL[smiles2] = fp2
+
+    smiles_similarity = DataStructs.TanimotoSimilarity(fp1, fp2)
+
+    return smiles_similarity, smiles2
+
+
+# ============================================================================
+# BUILD NORMAL PEPTIDES
+# ============================================================================
+
+def build_peptide(
+    monomerlist: List[Tuple[str, str]],
+) -> Tuple[str, List[str]]:
     """
-    monomerlist = list(monomerlist)
-    monomerlist = copy.deepcopy(monomerlist)
+    Assemble a linear peptide from monomer SMILES.
+    """
+    monomerlist = copy.deepcopy(
+        list(monomerlist)
+    )
+
     monomers = []
-    for idx, monomer in enumerate(monomerlist):
-        monomers.append(monomer[0])
-        mol = MolFromSmiles(monomer[1])
-        if mol is None:
-            try:
-                mol = MolFromSmiles(monomer[1], sanitize=False)
-                if mol is None:
-                    raise ValueError("MolFromSmiles returned None")
-                Chem.SanitizeMol(mol)
-            except Exception as e:
-                print(f"[ERROR] Failed to parse or sanitize SMILES: {monomer[1]}")
-                print(f"Reason: {e}")
-                raise RuntimeError
+    res = None
+
+    for idx, monomer in enumerate(
+        monomerlist
+    ):
+
+        monomers.append(
+            monomer[0]
+        )
+
+        mol = _mol_from_library_smiles(
+            monomer[1]
+        )
+
         if idx == 0:
             res = mol
         else:
-            res = _combine_fragments(res, mol)
-    return (rdm.MolToSmiles(_clean_peptide(res), canonical=True, isomericSmiles=True), monomers)
+            res = _combine_fragments(
+                res,
+                mol,
+            )
+
+    if res is None:
+        return "", []
+
+    cleaned = _clean_peptide(
+        res
+    )
+
+    return (
+        rdm.MolToSmiles(
+            cleaned,
+            canonical=True,
+            isomericSmiles=True,
+        ),
+        monomers,
+    )
 
 
-def _combine_fragments(m1: str, m2: str) -> Mol:
+def _combine_fragments(
+    m1: Mol,
+    m2: Mol,
+) -> Mol:
     """
-    Combine two RDKit molecule fragments using labeled attachment points.
-
-    Atom labels '_R2' and '_R1' are used to identify the carboxylic and amino 
-    attachment points respectively. If these labels are missing, an error is raised.
-
-    :param m1: RDKit molecule (as string or Mol object) with an '_R2' attachment point.
-    :type m1: str
-    :param m2: RDKit molecule (as string or Mol object) with an '_R1' attachment point.
-    :type m2: str
-    :return: Combined molecule with a peptide bond between m1 and m2.
-    :rtype: Mol
-    :raises RuntimeError: If required attachment points are not found in either monomer.
+    Connect R2 of m1 to R1 of m2.
     """
     blocker = rdBase.BlockLogs()
-    m1_success, m2_success = False, False
 
-    for atm in m1.GetAtoms():
-        if atm.HasProp('atomLabel') and atm.GetProp('atomLabel') == '_R2':
-            atm.SetAtomMapNum(1)
+    m1_success = False
+    m2_success = False
+
+    for atom in m1.GetAtoms():
+
+        if (
+            atom.HasProp("atomLabel")
+            and atom.GetProp("atomLabel")
+            == "_R2"
+        ):
+            atom.SetAtomMapNum(1)
             m1_success = True
-    for atm in m2.GetAtoms():
-        if atm.HasProp('atomLabel') and atm.GetProp('atomLabel') == '_R1':
-            atm.SetAtomMapNum(1)
+
+    for atom in m2.GetAtoms():
+
+        if (
+            atom.HasProp("atomLabel")
+            and atom.GetProp("atomLabel")
+            == "_R1"
+        ):
+            atom.SetAtomMapNum(1)
             m2_success = True
+
     if not m1_success:
-        raise RuntimeError("Molecule 1 does not have a free amino group for attachment.")
+        raise RuntimeError(
+            "Molecule 1 does not have "
+            "an R2 attachment point."
+        )
+
     if not m2_success:
-        raise RuntimeError("Molecule 2 does not have a free carboxy group for attachment.")
-    return rdops.molzip(m1, m2)
+        raise RuntimeError(
+            "Molecule 2 does not have "
+            "an R1 attachment point."
+        )
+
+    return rdops.molzip(
+        m1,
+        m2,
+    )
 
 
-def _clean_peptide(mol: Mol) -> Mol:
+# ============================================================================
+# CLEAN PEPTIDE
+# ============================================================================
+
+def _clean_peptide(
+    mol: Mol,
+) -> Mol:
     """
-    Clean a peptide by removing or replacing dummy atoms.
-
-    - Removes dummy atoms (*) attached to nitrogen atoms (N[*]).
-    - Replaces dummy atoms attached to carbonyl carbon atoms (C([*])=O) with hydroxyl groups (→ COOH).
-    - Removes dummy atoms (*) attached to sulphur atoms (S[*])
-
-    :param mol: RDKit molecule to modify.
-    :type mol: Mol
-    :return: Modified molecule with proper N-/C-terminal capping.
-    :rtype: Mol
+    Remove remaining terminal dummy atoms and cap the C terminus.
     """
     rw_mol = RWMol(mol)
+
     atoms_to_remove = []
     attach_oh_to = []
 
-    # First, scan and collect targets
     for atom in mol.GetAtoms():
-        if atom.GetSymbol() == '*':
-            neighbors = atom.GetNeighbors()
-            if len(neighbors) != 1:
-                continue
-            neighbor = neighbors[0]
 
-            # Case 1: dummy attached to N → mark dummy for removal
-            if neighbor.GetSymbol() == 'N':
-                atoms_to_remove.append(atom.GetIdx())
+        if atom.GetSymbol() != "*":
+            continue
 
-            # Case 2: dummy attached to carbonyl carbon (C=O)
-            elif neighbor.GetSymbol() == 'C':
-                carbon = neighbor
-                is_carbonyl = any(
-                    n.GetSymbol() == 'O' and mol.GetBondBetweenAtoms(carbon.GetIdx(), n.GetIdx()).GetBondType() == Chem.BondType.DOUBLE
-                    for n in carbon.GetNeighbors()
+        neighbors = atom.GetNeighbors()
+
+        if len(neighbors) != 1:
+            continue
+
+        neighbor = neighbors[0]
+
+        # N[*]
+        if neighbor.GetSymbol() == "N":
+            atoms_to_remove.append(
+                atom.GetIdx()
+            )
+
+        # C([*])=O
+        elif neighbor.GetSymbol() == "C":
+
+            carbon = neighbor
+
+            is_carbonyl = any(
+                n.GetSymbol() == "O"
+                and mol.GetBondBetweenAtoms(
+                    carbon.GetIdx(),
+                    n.GetIdx(),
+                ).GetBondType()
+                == Chem.BondType.DOUBLE
+                for n in carbon.GetNeighbors()
+            )
+
+            if is_carbonyl:
+
+                atoms_to_remove.append(
+                    atom.GetIdx()
                 )
-                if is_carbonyl:
-                    atoms_to_remove.append(atom.GetIdx())
-                    attach_oh_to.append(carbon.GetIdx())
 
-            # Case 3: dummy attached to sulphur (CS)
-            elif neighbor.GetSymbol() == 'S':
-                atoms_to_remove.append(atom.GetIdx())
+                attach_oh_to.append(
+                    carbon.GetIdx()
+                )
 
-    # Now, modify molecule safely
+        # S[*]
+        elif neighbor.GetSymbol() == "S":
+            atoms_to_remove.append(
+                atom.GetIdx()
+            )
+
+    # Add terminal OH groups.
     for carbon_idx in attach_oh_to:
-        o_idx = rw_mol.AddAtom(Chem.Atom("O"))
-        h_idx = rw_mol.AddAtom(Chem.Atom("H"))
-        rw_mol.AddBond(carbon_idx, o_idx, Chem.BondType.SINGLE)
-        rw_mol.AddBond(o_idx, h_idx, Chem.BondType.SINGLE)
 
-    # Remove dummy atoms (do in reverse order to avoid reindexing issues)
-    for idx in sorted(atoms_to_remove, reverse=True):
+        o_idx = rw_mol.AddAtom(
+            Chem.Atom("O")
+        )
+
+        rw_mol.AddBond(
+            carbon_idx,
+            o_idx,
+            Chem.BondType.SINGLE,
+        )
+
+    for idx in sorted(
+        atoms_to_remove,
+        reverse=True,
+    ):
         rw_mol.RemoveAtom(idx)
 
     final_mol = rw_mol.GetMol()
-    Chem.SanitizeMol(final_mol)
+
+    Chem.SanitizeMol(
+        final_mol
+    )
+
     return final_mol

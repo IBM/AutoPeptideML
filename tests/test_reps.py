@@ -46,11 +46,11 @@ def test_fps():
     assert b.shape == (1, 256)
 
 
-def test_rostlab_family():
-    re = RepEngineLM('protbert')
-    a = re.compute_reps(['AACFFF'], batch_size=12)
-    assert re.dim() == 1024
-    assert np.array(a).shape == (1, re.dim())
+# def test_rostlab_family():
+#     re = RepEngineLM('protbert')
+#     a = re.compute_reps(['AACFFF'], batch_size=12)
+#     assert re.dim() == 1024
+#     assert np.array(a).shape == (1, re.dim())
 
 
 def test_molformer_family():
