@@ -10,6 +10,7 @@ nav:
   - Representations:
     - RepEngineBase: repenginebase.md
     - RepEngineFP: repenginefp.md
+    - RepEngineSkfp: repengineskfp.md
     - RepEngineLM: repenginelm.md
     - RepEngineOnehot: repengineseqbased.md
   - Pipeline: pipeline.md

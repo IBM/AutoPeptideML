@@ -141,6 +141,7 @@ Apply any necessary preprocessing to a batch before representation computation (
 | Class | Module | Description |
 |---|---|---|
 | [`RepEngineFP`](repenginefp.md) | `autopeptideml.reps.fps` | Molecular fingerprints via RDKit (ECFP, FCFP, PepFuNN). |
+| [`RepEngineSkfp`](repengineskfp.md) | `autopeptideml.reps.fps` | 28 fingerprint families via scikit-fingerprints (MACCS, AtomPair, Avalon, PubChem, Mordred, …). |
 | [`RepEngineLM`](repenginelm.md) | `autopeptideml.reps.lms` | Pre-trained language model embeddings (ESM2, ProtT5, MoLFormer, …). |
 | [`RepEngineOnehot`](repengineseqbased.md) | `autopeptideml.reps.seq_based` | Fixed-length one-hot encoding for canonical amino acid sequences. |
 
