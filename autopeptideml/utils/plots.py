@@ -196,9 +196,8 @@ def plot_model_vs_rep(history: pd.DataFrame, ax: plt.Axes = None,
                       figsize: Tuple[int, int] = (5, 5)):
 
     if ax is None:
-        fig = start_figure(
-            figsize[0]*len(history.run.unique())//20, figsize[1]
-        )
+        width = max(figsize[0], figsize[0]*len(history.run.unique())//20)
+        fig = start_figure(width, figsize[1])
         ax = fig.subplots(1, 1)
 
     history['Representation'] = history['representation']
