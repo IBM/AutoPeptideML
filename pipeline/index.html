@@ -1,0 +1,2023 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Computational Pipeline for the Automatised Development of Peptide Bioactivity Prediction Models">
+      
+      
+      
+      
+        <link rel="prev" href="../repengineseqbased/">
+      
+      
+        <link rel="next" href="../negative_sampling/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Pipeline - AutoPeptideML</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="purple">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#pipeline-preprocessing-modules" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="AutoPeptideML" class="md-header__button md-logo" aria-label="AutoPeptideML" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            AutoPeptideML
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Pipeline
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="purple"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/IBM/AutoPeptideML" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    IBM/AutoPeptideML
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href=".." class="md-tabs__link">
+          
+  
+  
+  Home
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../autopeptideml/" class="md-tabs__link">
+          
+  
+  
+  Code Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="AutoPeptideML" class="md-nav__button md-logo" aria-label="AutoPeptideML" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    AutoPeptideML
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/IBM/AutoPeptideML" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    IBM/AutoPeptideML
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Home
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Code Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../autopeptideml/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AutoPeptideML
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Representations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Representations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../repenginebase/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RepEngineBase
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../repenginefp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RepEngineFP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../repengineskfp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RepEngineSkfp
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../repenginelm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RepEngineLM
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../repengineseqbased/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RepEngineOnehot
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#baseelement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BaseElement
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="BaseElement">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#attributes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Attributes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#__call__" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        __call__
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abstract-_single_call" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract: _single_call
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pipeline
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#constructor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Constructor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#__call___1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        __call__
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#save" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        save
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#load-classmethod" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        load (classmethod)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#built-in-processing-elements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Built-in Processing Elements
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Built-in Processing Elements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sequence-elements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sequence Elements
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sequence Elements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#canonicalcleaner" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CanonicalCleaner
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#canonicalfilter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CanonicalFilter
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#smiles-elements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SMILES Elements
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SMILES Elements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sequencetosmiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SequenceToSmiles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#filtersmiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FilterSmiles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#canonicalizesmiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CanonicalizeSmiles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#smilestosequence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SmilesToSequence
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#smilestobiln" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SmilesToBiln
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bilntosmiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BilnToSmiles
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#get_pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_pipeline
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#built-in-pipelines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Built-in Pipelines
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Built-in Pipelines">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#to-smiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        'to-smiles'
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#to-smiles-fast" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        'to-smiles-fast'
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#to-sequences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        'to-sequences'
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../negative_sampling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Negative Sampling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architectures/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model Architectures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../metrics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#baseelement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BaseElement
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="BaseElement">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#attributes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Attributes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#__call__" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        __call__
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abstract-_single_call" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract: _single_call
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pipeline
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#constructor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Constructor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#__call___1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        __call__
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#save" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        save
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#load-classmethod" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        load (classmethod)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#built-in-processing-elements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Built-in Processing Elements
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Built-in Processing Elements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sequence-elements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sequence Elements
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sequence Elements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#canonicalcleaner" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CanonicalCleaner
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#canonicalfilter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CanonicalFilter
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#smiles-elements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SMILES Elements
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SMILES Elements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sequencetosmiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SequenceToSmiles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#filtersmiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FilterSmiles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#canonicalizesmiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CanonicalizeSmiles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#smilestosequence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SmilesToSequence
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#smilestobiln" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SmilesToBiln
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bilntosmiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BilnToSmiles
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#get_pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_pipeline
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#built-in-pipelines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Built-in Pipelines
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Built-in Pipelines">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#to-smiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        'to-smiles'
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#to-smiles-fast" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        'to-smiles-fast'
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#to-sequences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        'to-sequences'
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="pipeline-preprocessing-modules">Pipeline — Preprocessing Modules<a class="headerlink" href="#pipeline-preprocessing-modules" title="Permanent link">&para;</a></h1>
+<p><strong>Module:</strong> <code>autopeptideml.pipeline</code></p>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>The pipeline module provides composable preprocessing elements for converting between peptide sequence formats (amino-acid sequences, SMILES, BILN). It is built around two core abstractions:</p>
+<ul>
+<li><a href="#baseelement"><code>BaseElement</code></a> — a single processing step that can be applied to one molecule or parallelised over a list.</li>
+<li><a href="#pipeline"><code>Pipeline</code></a> — an ordered sequence of <code>BaseElement</code> (or nested <code>Pipeline</code>) instances.</li>
+</ul>
+<p>Three ready-to-use pipelines are available via <a href="#get_pipeline"><code>get_pipeline</code></a>.</p>
+<hr />
+<h2 id="baseelement"><code>BaseElement</code><a class="headerlink" href="#baseelement" title="Permanent link">&para;</a></h2>
+<p><strong>Module:</strong> <code>autopeptideml.pipeline.pipeline</code></p>
+<p>Abstract base class for a single molecular processing step. Subclasses implement <code>_single_call</code> and are invoked as callables.</p>
+<h3 id="attributes">Attributes<a class="headerlink" href="#attributes" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td><code>str</code></td>
+<td>—</td>
+<td>Human-readable identifier for this element.</td>
+</tr>
+<tr>
+<td><code>properties</code></td>
+<td><code>dict</code></td>
+<td><code>{}</code></td>
+<td>Serialisable configuration dictionary.</td>
+</tr>
+<tr>
+<td><code>parallel</code></td>
+<td><code>str</code></td>
+<td><code>'threading'</code></td>
+<td>Parallelism backend: <code>'threading'</code> (default) or <code>'processing'</code>.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="__call__"><code>__call__</code><a class="headerlink" href="#__call__" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="n">element</span><span class="p">(</span>
+    <span class="n">mol</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
+    <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">cpu_count</span><span class="p">(),</span>
+    <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span>
+</code></pre></div>
+<p>Dispatches to <code>_single_call</code> for a single string, or <code>_parallel_call</code> for a list.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mol</code></td>
+<td><code>str</code> or <code>List[str]</code></td>
+<td>—</td>
+<td>Molecule(s) to process.</td>
+</tr>
+<tr>
+<td><code>n_jobs</code></td>
+<td><code>int</code></td>
+<td>all CPUs</td>
+<td>Parallel workers. <code>1</code> forces sequential execution.</td>
+</tr>
+<tr>
+<td><code>verbose</code></td>
+<td><code>bool</code></td>
+<td><code>False</code></td>
+<td>Show a <code>tqdm</code> progress bar.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="abstract-_single_call">Abstract: <code>_single_call</code><a class="headerlink" href="#abstract-_single_call" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="n">_single_call</span><span class="p">(</span><span class="n">mol</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+</code></pre></div>
+<p>Process a single molecule string. Return <code>None</code> to discard the molecule (filtered out by <code>_clean</code>).</p>
+<p><strong>Raises:</strong> <code>NotImplementedError</code></p>
+<hr />
+<h2 id="pipeline"><code>Pipeline</code><a class="headerlink" href="#pipeline" title="Permanent link">&para;</a></h2>
+<p><strong>Module:</strong> <code>autopeptideml.pipeline.pipeline</code></p>
+<p>An ordered sequence of processing steps. Each step receives the output of the previous one (or the original input, if <code>aggregate=True</code>).</p>
+<h3 id="constructor">Constructor<a class="headerlink" href="#constructor" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="n">Pipeline</span><span class="p">(</span>
+    <span class="n">elements</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">BaseElement</span><span class="p">,</span> <span class="n">Pipeline</span><span class="p">]],</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'pipeline'</span><span class="p">,</span>
+    <span class="n">aggregate</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="p">)</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>elements</code></td>
+<td><code>List</code></td>
+<td>—</td>
+<td>Ordered list of <code>BaseElement</code> or nested <code>Pipeline</code> instances.</td>
+</tr>
+<tr>
+<td><code>name</code></td>
+<td><code>str</code></td>
+<td><code>'pipeline'</code></td>
+<td>Identifier for this pipeline.</td>
+</tr>
+<tr>
+<td><code>aggregate</code></td>
+<td><code>bool</code></td>
+<td><code>False</code></td>
+<td>If <code>True</code>, apply all elements independently on the original input and return their combined outputs. Used for forked processing (e.g. separate streams for SMILES and sequences that are then merged).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="__call___1"><code>__call__</code><a class="headerlink" href="#__call___1" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="n">pipeline</span><span class="p">(</span>
+    <span class="n">mols</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">cpu_count</span><span class="p">(),</span>
+    <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span>
+</code></pre></div>
+<h3 id="save"><code>save</code><a class="headerlink" href="#save" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="n">save</span><span class="p">(</span><span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span>
+</code></pre></div>
+<p>Serialises pipeline properties to a YAML file.</p>
+<h3 id="load-classmethod"><code>load</code> <em>(classmethod)</em><a class="headerlink" href="#load-classmethod" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="n">Pipeline</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">element_registry</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Pipeline</span>
+</code></pre></div>
+<p>Reconstructs a <code>Pipeline</code> from a saved YAML file using an element registry mapping names to constructors.</p>
+<hr />
+<h2 id="built-in-processing-elements">Built-in Processing Elements<a class="headerlink" href="#built-in-processing-elements" title="Permanent link">&para;</a></h2>
+<h3 id="sequence-elements">Sequence Elements<a class="headerlink" href="#sequence-elements" title="Permanent link">&para;</a></h3>
+<p><strong>Module:</strong> <code>autopeptideml.pipeline.sequence</code></p>
+<h4 id="canonicalcleaner"><code>CanonicalCleaner</code><a class="headerlink" href="#canonicalcleaner" title="Permanent link">&para;</a></h4>
+<p>Replaces non-canonical residues in a sequence with a substitution character.</p>
+<div class="highlight"><pre><span></span><code><span class="n">CanonicalCleaner</span><span class="p">(</span><span class="n">substitution</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'X'</span><span class="p">)</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>substitution</code></td>
+<td><code>'X'</code></td>
+<td>Character to use for non-canonical residues.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example:</strong>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">autopeptideml.pipeline.sequence</span><span class="w"> </span><span class="kn">import</span> <span class="n">CanonicalCleaner</span>
+<span class="n">cleaner</span> <span class="o">=</span> <span class="n">CanonicalCleaner</span><span class="p">(</span><span class="n">substitution</span><span class="o">=</span><span class="s1">'G'</span><span class="p">)</span>
+<span class="n">cleaner</span><span class="p">(</span><span class="s1">'ACDB3L'</span><span class="p">)</span>  <span class="c1"># → 'ACDGGL'  (non-canonical '3' → 'G')</span>
+</code></pre></div></p>
+<h4 id="canonicalfilter"><code>CanonicalFilter</code><a class="headerlink" href="#canonicalfilter" title="Permanent link">&para;</a></h4>
+<p>Keeps or discards sequences based on whether they consist entirely of the 20 canonical amino acids.</p>
+<div class="highlight"><pre><span></span><code><span class="n">CanonicalFilter</span><span class="p">(</span><span class="n">keep_canonical</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>keep_canonical</code></td>
+<td><code>True</code></td>
+<td><code>True</code> → keep canonical sequences; <code>False</code> → keep non-canonical.</td>
+</tr>
+</tbody>
+</table>
+<p>Non-matching sequences are returned as <code>None</code> and removed from the output list.</p>
+<hr />
+<h3 id="smiles-elements">SMILES Elements<a class="headerlink" href="#smiles-elements" title="Permanent link">&para;</a></h3>
+<p><strong>Module:</strong> <code>autopeptideml.pipeline.smiles</code></p>
+<h4 id="sequencetosmiles"><code>SequenceToSmiles</code><a class="headerlink" href="#sequencetosmiles" title="Permanent link">&para;</a></h4>
+<p>Converts a canonical amino-acid sequence to a SMILES string using the ChEMBL monomer library.</p>
+<div class="highlight"><pre><span></span><code><span class="n">SequenceToSmiles</span><span class="p">()</span>
+</code></pre></div>
+<p>Uses multiprocessing (<code>parallel = 'processing'</code>). Non-canonical residues are omitted; returns <code>None</code> for empty results.</p>
+<h4 id="filtersmiles"><code>FilterSmiles</code><a class="headerlink" href="#filtersmiles" title="Permanent link">&para;</a></h4>
+<p>Passes through only molecules that are (or are not) valid SMILES strings.</p>
+<div class="highlight"><pre><span></span><code><span class="n">FilterSmiles</span><span class="p">(</span><span class="n">keep_smiles</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>keep_smiles</code></td>
+<td><code>True</code></td>
+<td><code>True</code> → keep valid SMILES; <code>False</code> → keep non-SMILES (sequences).</td>
+</tr>
+</tbody>
+</table>
+<h4 id="canonicalizesmiles"><code>CanonicalizeSmiles</code><a class="headerlink" href="#canonicalizesmiles" title="Permanent link">&para;</a></h4>
+<p>Converts a SMILES string to RDKit canonical form. Returns <code>None</code> for invalid SMILES.</p>
+<div class="highlight"><pre><span></span><code><span class="n">CanonicalizeSmiles</span><span class="p">()</span>
+</code></pre></div>
+<h4 id="smilestosequence"><code>SmilesToSequence</code><a class="headerlink" href="#smilestosequence" title="Permanent link">&para;</a></h4>
+<p>Converts a SMILES string back to a canonical amino-acid sequence by decomposing it into monomers and matching them against the ChEMBL library.</p>
+<div class="highlight"><pre><span></span><code><span class="n">SmilesToSequence</span><span class="p">(</span><span class="n">keep_analog</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>keep_analog</code></td>
+<td><code>True</code></td>
+<td>If <code>True</code>, non-canonical monomers are substituted by their closest canonical analogue; if <code>False</code>, they are replaced with <code>'X'</code>.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="smilestobiln"><code>SmilesToBiln</code><a class="headerlink" href="#smilestobiln" title="Permanent link">&para;</a></h4>
+<p>Converts a SMILES string to BILN (Biopolymer Identifier Language for Non-standard peptides) notation.</p>
+<div class="highlight"><pre><span></span><code><span class="n">SmilesToBiln</span><span class="p">(</span><span class="n">human_readable</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">handle_errors</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>human_readable</code></td>
+<td><code>False</code></td>
+<td>If <code>True</code>, outputs a more descriptive BILN with full monomer names.</td>
+</tr>
+<tr>
+<td><code>handle_errors</code></td>
+<td><code>False</code></td>
+<td>If <code>True</code>, returns <code>None</code> on parse errors rather than raising.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="bilntosmiles"><code>BilnToSmiles</code><a class="headerlink" href="#bilntosmiles" title="Permanent link">&para;</a></h4>
+<p>Converts a BILN string back to SMILES.</p>
+<div class="highlight"><pre><span></span><code><span class="n">BilnToSmiles</span><span class="p">()</span>
+</code></pre></div>
+<hr />
+<h2 id="get_pipeline"><code>get_pipeline</code><a class="headerlink" href="#get_pipeline" title="Permanent link">&para;</a></h2>
+<p><strong>Module:</strong> <code>autopeptideml.pipeline.default_pipelines</code></p>
+<div class="highlight"><pre><span></span><code><span class="n">get_pipeline</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Pipeline</span>
+</code></pre></div>
+<p>Retrieve a pre-built pipeline by name.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td><code>str</code></td>
+<td>Pipeline identifier.</td>
+</tr>
+<tr>
+<td><code>**kwargs</code></td>
+<td><code>Any</code></td>
+<td>Arguments forwarded to the pipeline constructor.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Raises:</strong> <code>ValueError</code> if <code>name</code> is not a recognised pipeline.</p>
+<hr />
+<h2 id="built-in-pipelines">Built-in Pipelines<a class="headerlink" href="#built-in-pipelines" title="Permanent link">&para;</a></h2>
+<h3 id="to-smiles"><code>'to-smiles'</code><a class="headerlink" href="#to-smiles" title="Permanent link">&para;</a></h3>
+<p>Converts sequences <strong>and</strong> existing SMILES to canonical SMILES.</p>
+<p><strong>Flow:</strong></p>
+<div class="highlight"><pre><span></span><code>input
+ ├── [non-SMILES path] FilterSmiles(keep_smiles=False) → CanonicalCleaner → SequenceToSmiles
+ └── [SMILES path]     FilterSmiles(keep_smiles=True)
+ └── aggregate both streams → CanonicalizeSmiles
+</code></pre></div>
+<p><strong>Kwargs:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Kwarg</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>substitution</code></td>
+<td><code>str</code></td>
+<td><code>'G'</code></td>
+<td>Substitution for non-canonical residues before SMILES conversion.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="to-smiles-fast"><code>'to-smiles-fast'</code><a class="headerlink" href="#to-smiles-fast" title="Permanent link">&para;</a></h3>
+<p>Same as <code>'to-smiles'</code> but skips the final <code>CanonicalizeSmiles</code> step for speed.</p>
+<hr />
+<h3 id="to-sequences"><code>'to-sequences'</code><a class="headerlink" href="#to-sequences" title="Permanent link">&para;</a></h3>
+<p>Converts sequences and SMILES to canonical amino-acid sequences.</p>
+<p><strong>Flow:</strong></p>
+<div class="highlight"><pre><span></span><code>input
+ ├── [non-SMILES path] FilterSmiles(keep_smiles=False)
+ └── [SMILES path]     FilterSmiles(keep_smiles=True) → SmilesToSequence
+ └── aggregate both streams → CanonicalCleaner(substitution)
+</code></pre></div>
+<p><strong>Kwargs:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Kwarg</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>substitution</code></td>
+<td><code>str</code></td>
+<td><code>'X'</code></td>
+<td>Substitution for residues not in the canonical alphabet.</td>
+</tr>
+<tr>
+<td><code>keep_analog</code></td>
+<td><code>bool</code></td>
+<td><code>True</code></td>
+<td>Preserve closest analogue for non-canonical monomers during SMILES → sequence.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="example">Example<a class="headerlink" href="#example" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">autopeptideml.pipeline</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_pipeline</span>
+
+<span class="c1"># Convert a mix of sequences and SMILES to canonical SMILES</span>
+<span class="n">pipe</span> <span class="o">=</span> <span class="n">get_pipeline</span><span class="p">(</span><span class="s1">'to-smiles'</span><span class="p">)</span>
+<span class="n">inputs</span> <span class="o">=</span> <span class="p">[</span><span class="s1">'ACDEFGHIKL'</span><span class="p">,</span> <span class="s1">'CC(=O)NC(CCC(N)=O)C(=O)O'</span><span class="p">]</span>
+<span class="n">smiles</span> <span class="o">=</span> <span class="n">pipe</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">n_jobs</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">smiles</span><span class="p">)</span>
+
+<span class="c1"># Convert to sequences</span>
+<span class="n">pipe2</span> <span class="o">=</span> <span class="n">get_pipeline</span><span class="p">(</span><span class="s1">'to-sequences'</span><span class="p">)</span>
+<span class="n">seqs</span> <span class="o">=</span> <span class="n">pipe2</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">n_jobs</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">seqs</span><span class="p">)</span>
+</code></pre></div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/IBM/AutoPeptideML" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M202.1 328.7c0 20.9-10.9 55.1-36.7 55.1s-36.7-34.2-36.7-55.1 10.9-55.1 36.7-55.1 36.7 34.2 36.7 55.1M496 278.2c0 31.9-3.2 65.7-17.5 95-37.9 76.6-142.1 74.8-216.7 74.8-75.8 0-186.2 2.7-225.6-74.8-14.6-29-20.2-63.1-20.2-95 0-41.9 13.9-81.5 41.5-113.6-5.2-15.8-7.7-32.4-7.7-48.8 0-21.5 4.9-32.3 14.6-51.8 45.3 0 74.3 9 108.8 36 29-6.9 58.8-10 88.7-10 27 0 54.2 2.9 80.4 9.2 34-26.7 63-35.2 107.8-35.2 9.8 19.5 14.6 30.3 14.6 51.8 0 16.4-2.6 32.7-7.7 48.2 27.5 32.4 39 72.3 39 114.2m-64.3 50.5c0-43.9-26.7-82.6-73.5-82.6-18.9 0-37 3.4-56 6-14.9 2.3-29.8 3.2-45.1 3.2-15.2 0-30.1-.9-45.1-3.2-18.7-2.6-37-6-56-6-46.8 0-73.5 38.7-73.5 82.6 0 87.8 80.4 101.3 150.4 101.3h48.2c70.3 0 150.6-13.4 150.6-101.3m-82.6-55.1c-25.8 0-36.7 34.2-36.7 55.1s10.9 55.1 36.7 55.1 36.7-34.2 36.7-55.1-10.9-55.1-36.7-55.1"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.code.annotate", "navigation.tabs", "navigation.top"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

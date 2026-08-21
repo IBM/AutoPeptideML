@@ -1,0 +1,1740 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Computational Pipeline for the Automatised Development of Peptide Bioactivity Prediction Models">
+      
+      
+      
+      
+        <link rel="prev" href="..">
+      
+      
+        <link rel="next" href="../repenginebase/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>AutoPeptideML - AutoPeptideML</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="purple">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#autopeptideml-main-pipeline-class" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="AutoPeptideML" class="md-header__button md-logo" aria-label="AutoPeptideML" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            AutoPeptideML
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              AutoPeptideML
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="purple"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/IBM/AutoPeptideML" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    IBM/AutoPeptideML
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href=".." class="md-tabs__link">
+          
+  
+  
+  Home
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
+          
+  
+  
+  Code Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="AutoPeptideML" class="md-nav__button md-logo" aria-label="AutoPeptideML" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    AutoPeptideML
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/IBM/AutoPeptideML" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    IBM/AutoPeptideML
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Home
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Code Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AutoPeptideML
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AutoPeptideML
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#constructor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Constructor
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#class-attributes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Class Attributes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#public-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Public Methods
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Public Methods">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sample_negatives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sample_negatives
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build_models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        build_models
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#represent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        represent
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#create_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        create_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example Usage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#representation-shortcuts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Representation Shortcuts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#split-strategies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Split Strategies
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dependencies
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Representations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Representations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../repenginebase/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RepEngineBase
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../repenginefp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RepEngineFP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../repengineskfp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RepEngineSkfp
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../repenginelm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RepEngineLM
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../repengineseqbased/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RepEngineOnehot
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../negative_sampling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Negative Sampling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architectures/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model Architectures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../metrics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#constructor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Constructor
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#class-attributes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Class Attributes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#public-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Public Methods
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Public Methods">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sample_negatives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sample_negatives
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build_models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        build_models
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#represent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        represent
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#create_report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        create_report
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example Usage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#representation-shortcuts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Representation Shortcuts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#split-strategies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Split Strategies
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dependencies
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="autopeptideml-main-pipeline-class"><code>AutoPeptideML</code> — Main Pipeline Class<a class="headerlink" href="#autopeptideml-main-pipeline-class" title="Permanent link">&para;</a></h1>
+<p><strong>Module:</strong> <code>autopeptideml.apml</code><br />
+<strong>Version:</strong> 2.1.0</p>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p><code>AutoPeptideML</code> is the top-level class that orchestrates the complete peptide bioactivity ML workflow:
+data ingestion, sequence preprocessing, negative sampling, dataset partitioning, feature representation, hyperparameter optimisation (HPO), evaluation, and reporting.</p>
+<hr />
+<h2 id="constructor">Constructor<a class="headerlink" href="#constructor" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="n">AutoPeptideML</span><span class="p">(</span>
+    <span class="n">data</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
+    <span class="n">outputdir</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">sequence_field</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">label_field</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">remove_duplicates</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>Creates a timestamped subdirectory under <code>outputdir</code> and writes an initial <code>metadata/metadata.yml</code> file.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>data</code></td>
+<td><code>pd.DataFrame</code> or <code>List[str]</code></td>
+<td>—</td>
+<td>Input data. Pass a DataFrame with sequence and label columns, or a plain list of sequences (all assumed positive).</td>
+</tr>
+<tr>
+<td><code>outputdir</code></td>
+<td><code>str</code></td>
+<td>—</td>
+<td>Base output directory. A timestamped sub-folder is created automatically.</td>
+</tr>
+<tr>
+<td><code>sequence_field</code></td>
+<td><code>str</code></td>
+<td><code>None</code></td>
+<td>Column name containing peptide sequences or SMILES strings. Required when <code>data</code> is a DataFrame.</td>
+</tr>
+<tr>
+<td><code>label_field</code></td>
+<td><code>str</code></td>
+<td><code>None</code></td>
+<td>Column name containing binary (<code>0</code>/<code>1</code>) or continuous labels. Required when <code>data</code> is a DataFrame.</td>
+</tr>
+<tr>
+<td><code>remove_duplicates</code></td>
+<td><code>bool</code></td>
+<td><code>True</code></td>
+<td>Drop rows with duplicate sequences before any processing.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Output directory layout (created on init):</strong></p>
+<div class="highlight"><pre><span></span><code>&lt;outputdir&gt;/&lt;timestamp&gt;/
+    metadata/
+        metadata.yml       # run metadata and status
+        start-data.tsv     # copy of the raw input data
+</code></pre></div>
+<hr />
+<h2 id="class-attributes">Class Attributes<a class="headerlink" href="#class-attributes" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>df</code></td>
+<td><code>pd.DataFrame</code></td>
+<td>Active working dataset. Extended with <code>apml-smiles</code> and <code>apml-seqs</code> columns during preprocessing.</td>
+</tr>
+<tr>
+<td><code>metadata</code></td>
+<td><code>dict</code></td>
+<td>Run metadata written to YAML after every step.</td>
+</tr>
+<tr>
+<td><code>parts</code></td>
+<td><code>dict</code></td>
+<td>Train / test partition index arrays (keys: <code>'train'</code>, <code>'test'</code>). Populated by <code>build_models</code>.</td>
+</tr>
+<tr>
+<td><code>x</code></td>
+<td><code>dict[str, np.ndarray]</code></td>
+<td>Representation arrays, keyed by representation name.</td>
+</tr>
+<tr>
+<td><code>ensemble</code></td>
+<td><code>VotingEnsemble</code></td>
+<td>Best trained ensemble model. Available after <code>build_models</code>.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="public-methods">Public Methods<a class="headerlink" href="#public-methods" title="Permanent link">&para;</a></h2>
+<h3 id="sample_negatives"><code>sample_negatives</code><a class="headerlink" href="#sample_negatives" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="n">sample_negatives</span><span class="p">(</span>
+    <span class="n">target_db</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">],</span>
+    <span class="n">activities_to_exclude</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[],</span>
+    <span class="n">desired_ratio</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">sample_by</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'mw'</span><span class="p">,</span>
+    <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">cpu_count</span><span class="p">(),</span>
+    <span class="n">random_state</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>Augments the dataset with negative samples drawn from a peptide database to reach the requested negative/positive ratio. Internally delegates to <a href="../negative_sampling/#add_negatives_from_db"><code>add_negatives_from_db</code></a>.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>target_db</code></td>
+<td><code>str</code> or <code>pd.DataFrame</code></td>
+<td>—</td>
+<td>Built-in database name (<code>'canonical'</code>, <code>'non-canonical'</code>, <code>'both'</code>) or a custom DataFrame.</td>
+</tr>
+<tr>
+<td><code>activities_to_exclude</code></td>
+<td><code>List[str]</code></td>
+<td><code>[]</code></td>
+<td>Column names flagging known active entries that must not appear as negatives.</td>
+</tr>
+<tr>
+<td><code>desired_ratio</code></td>
+<td><code>float</code></td>
+<td><code>1.0</code></td>
+<td>Target negatives-to-positives ratio.</td>
+</tr>
+<tr>
+<td><code>verbose</code></td>
+<td><code>bool</code></td>
+<td><code>True</code></td>
+<td>Print progress information.</td>
+</tr>
+<tr>
+<td><code>sample_by</code></td>
+<td><code>str</code></td>
+<td><code>'mw'</code></td>
+<td>Matching strategy. <code>'mw'</code> bins by molecular weight (requires RDKit); <code>'length'</code> bins by sequence length.</td>
+</tr>
+<tr>
+<td><code>n_jobs</code></td>
+<td><code>int</code></td>
+<td>all CPUs</td>
+<td>Number of parallel workers for feature computation.</td>
+</tr>
+<tr>
+<td><code>random_state</code></td>
+<td><code>int</code></td>
+<td><code>1</code></td>
+<td>Random seed for reproducibility.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="build_models"><code>build_models</code><a class="headerlink" href="#build_models" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="n">build_models</span><span class="p">(</span>
+    <span class="n">task</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'class'</span><span class="p">,</span>
+    <span class="n">ensemble</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">reps</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">RepEngineBase</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[</span><span class="s1">'ecfp-16'</span><span class="p">],</span>
+    <span class="n">models</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="n">ALL_MODELS</span><span class="p">,</span>
+    <span class="n">split_strategy</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'min'</span><span class="p">,</span>
+    <span class="n">hestia_generator</span><span class="p">:</span> <span class="n">HestiaGenerator</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">model_configs</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">{},</span>
+    <span class="n">partitions</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">folds</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">n_folds_cv</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">n_trials</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span>
+    <span class="n">sim_args</span><span class="p">:</span> <span class="n">SimArguments</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">device</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'cpu'</span><span class="p">,</span>
+    <span class="n">random_state</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="n">extra_x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">cpu_count</span><span class="p">()</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>The main training entry-point. Internally calls <code>_preprocessing_data</code>, <code>_partitioning</code>, <code>_representing</code>, <code>_hpo</code>, and <code>_evaluating</code> in sequence.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>task</code></td>
+<td><code>str</code></td>
+<td><code>'class'</code></td>
+<td>Task type. <code>'class'</code> for binary classification, <code>'reg'</code> for regression.</td>
+</tr>
+<tr>
+<td><code>ensemble</code></td>
+<td><code>bool</code></td>
+<td><code>False</code></td>
+<td>Build an ensemble over multiple representations.</td>
+</tr>
+<tr>
+<td><code>reps</code></td>
+<td><code>str</code>, <code>List[str]</code>, or <code>Dict[str, RepEngineBase]</code></td>
+<td><code>['ecfp-16']</code></td>
+<td>Representation(s) to compute. Shortcuts: <code>'ecfp'</code>, <code>'esm2-8m'</code>, <code>'one-hot'</code>, etc. Pass a dict to provide pre-built engine objects. See <a href="../repenginebase/">Representations</a> for all options.</td>
+</tr>
+<tr>
+<td><code>models</code></td>
+<td><code>str</code> or <code>List[str]</code></td>
+<td>all models</td>
+<td>Model families to include in HPO. Supported: <code>'knn'</code>, <code>'svm'</code>, <code>'rf'</code>, <code>'gradboost'</code>, <code>'lightgbm'</code>, <code>'xgboost'</code>.</td>
+</tr>
+<tr>
+<td><code>split_strategy</code></td>
+<td><code>str</code></td>
+<td><code>'min'</code></td>
+<td>Data split strategy. <code>'random'</code> uses 80/20 random split; <code>'min'</code> uses Hestia similarity-based partitioning to minimise leakage.</td>
+</tr>
+<tr>
+<td><code>hestia_generator</code></td>
+<td><code>HestiaGenerator</code></td>
+<td><code>None</code></td>
+<td>Pre-computed Hestia generator to reuse existing partitions.</td>
+</tr>
+<tr>
+<td><code>model_configs</code></td>
+<td><code>Dict[str, dict]</code></td>
+<td><code>{}</code></td>
+<td>Custom hyperparameter search space overrides per model.</td>
+</tr>
+<tr>
+<td><code>partitions</code></td>
+<td><code>Dict[str, np.ndarray]</code></td>
+<td><code>None</code></td>
+<td>Pre-defined index arrays (<code>{'train': ..., 'test': ...}</code>). Skips Hestia partitioning.</td>
+</tr>
+<tr>
+<td><code>folds</code></td>
+<td><code>List[Tuple[np.ndarray, np.ndarray]]</code></td>
+<td><code>None</code></td>
+<td>Custom cross-validation folds as <code>(train_idx, val_idx)</code> pairs.</td>
+</tr>
+<tr>
+<td><code>n_folds_cv</code></td>
+<td><code>int</code></td>
+<td><code>5</code></td>
+<td>Number of cross-validation folds (used when <code>folds</code> is None).</td>
+</tr>
+<tr>
+<td><code>verbose</code></td>
+<td><code>bool</code></td>
+<td><code>True</code></td>
+<td>Print progress at each stage.</td>
+</tr>
+<tr>
+<td><code>n_trials</code></td>
+<td><code>int</code></td>
+<td><code>100</code></td>
+<td>Number of Optuna HPO trials.</td>
+</tr>
+<tr>
+<td><code>sim_args</code></td>
+<td><code>SimArguments</code></td>
+<td><code>None</code></td>
+<td>Custom Hestia similarity arguments.</td>
+</tr>
+<tr>
+<td><code>device</code></td>
+<td><code>str</code></td>
+<td><code>'cpu'</code></td>
+<td>Compute device for language model representations: <code>'cpu'</code>, <code>'cuda'</code>, or <code>'mps'</code>.</td>
+</tr>
+<tr>
+<td><code>random_state</code></td>
+<td><code>int</code></td>
+<td><code>1</code></td>
+<td>Global random seed.</td>
+</tr>
+<tr>
+<td><code>extra_x</code></td>
+<td><code>np.ndarray</code></td>
+<td><code>None</code></td>
+<td>Additional feature columns concatenated to every representation array.</td>
+</tr>
+<tr>
+<td><code>n_jobs</code></td>
+<td><code>int</code></td>
+<td>all CPUs</td>
+<td>Parallelism for preprocessing and partitioning.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="represent"><code>represent</code><a class="headerlink" href="#represent" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="n">represent</span><span class="p">(</span>
+    <span class="n">mols</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="n">rep</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">cpu_count</span><span class="p">(),</span>
+    <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span>
+</code></pre></div>
+<p>Compute a single representation for an arbitrary list of sequences or SMILES strings using an already-initialised engine stored in <code>self.repengines</code>. Returns a dictionary <code>{rep: array}</code>.</p>
+<hr />
+<h3 id="create_report"><code>create_report</code><a class="headerlink" href="#create_report" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="n">create_report</span><span class="p">()</span>
+</code></pre></div>
+<p>Renders a Quarto (<code>.qmd</code>) HTML report summarising evaluation metrics and results. Requires <a href="https://quarto.org">Quarto</a> to be installed.</p>
+<hr />
+<h2 id="example-usage">Example Usage<a class="headerlink" href="#example-usage" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">autopeptideml</span><span class="w"> </span><span class="kn">import</span> <span class="n">AutoPeptideML</span>
+
+<span class="c1"># --- Build a classification model ---</span>
+<span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s1">'peptides.csv'</span><span class="p">)</span>
+
+<span class="n">apml</span> <span class="o">=</span> <span class="n">AutoPeptideML</span><span class="p">(</span>
+    <span class="n">data</span><span class="o">=</span><span class="n">df</span><span class="p">,</span>
+    <span class="n">outputdir</span><span class="o">=</span><span class="s1">'results'</span><span class="p">,</span>
+    <span class="n">sequence_field</span><span class="o">=</span><span class="s1">'sequence'</span><span class="p">,</span>
+    <span class="n">label_field</span><span class="o">=</span><span class="s1">'label'</span>
+<span class="p">)</span>
+
+<span class="c1"># Optional: add negative samples from the built-in canonical peptide DB</span>
+<span class="n">apml</span><span class="o">.</span><span class="n">sample_negatives</span><span class="p">(</span>
+    <span class="n">target_db</span><span class="o">=</span><span class="s1">'canonical'</span><span class="p">,</span>
+    <span class="n">activities_to_exclude</span><span class="o">=</span><span class="p">[</span><span class="s1">'antimicrobial'</span><span class="p">],</span>
+    <span class="n">desired_ratio</span><span class="o">=</span><span class="mf">1.0</span>
+<span class="p">)</span>
+
+<span class="c1"># Train models using ECFP fingerprints and ESM2-8M embeddings</span>
+<span class="n">apml</span><span class="o">.</span><span class="n">build_models</span><span class="p">(</span>
+    <span class="n">task</span><span class="o">=</span><span class="s1">'class'</span><span class="p">,</span>
+    <span class="n">reps</span><span class="o">=</span><span class="p">[</span><span class="s1">'ecfp'</span><span class="p">,</span> <span class="s1">'esm2-8m'</span><span class="p">],</span>
+    <span class="n">models</span><span class="o">=</span><span class="p">[</span><span class="s1">'rf'</span><span class="p">,</span> <span class="s1">'lightgbm'</span><span class="p">],</span>
+    <span class="n">split_strategy</span><span class="o">=</span><span class="s1">'min'</span><span class="p">,</span>
+    <span class="n">n_trials</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+    <span class="n">device</span><span class="o">=</span><span class="s1">'cpu'</span>
+<span class="p">)</span>
+
+<span class="c1"># Generate a Quarto PDF report</span>
+<span class="n">apml</span><span class="o">.</span><span class="n">create_report</span><span class="p">()</span>
+</code></pre></div>
+<p>After training, the output directory contains:</p>
+<div class="highlight"><pre><span></span><code>&lt;outputdir&gt;/&lt;timestamp&gt;/
+    data.tsv                  # pre-processed dataset with apml-smiles, apml-seqs columns
+    ensemble/                 # ONNX models (one per rep × best-model)
+    metadata/
+        metadata.yml          # full run metadata
+        hpo_history.tsv       # per-trial HPO scores
+        cv-folds.pckl         # cross-validation fold indices
+        reps.pckl             # cached representation arrays
+        parts.pckl            # train/test partition indices
+        preds.npy             # test-set predictions
+</code></pre></div>
+<hr />
+<h2 id="representation-shortcuts">Representation Shortcuts<a class="headerlink" href="#representation-shortcuts" title="Permanent link">&para;</a></h2>
+<p>The <code>reps</code> argument of <code>build_models</code> accepts the following short identifiers:</p>
+<table>
+<thead>
+<tr>
+<th>Shortcut</th>
+<th>Engine</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>'ecfp'</code></td>
+<td><code>RepEngineFP</code></td>
+<td>Defaults to radius 8, 1024 bits. Format: <code>ecfp-&lt;radius&gt;-&lt;nbits&gt;</code></td>
+</tr>
+<tr>
+<td><code>'fcfp'</code></td>
+<td><code>RepEngineFP</code></td>
+<td>Feature-class Morgan. Format: <code>fcfp-&lt;radius&gt;-&lt;nbits&gt;</code></td>
+</tr>
+<tr>
+<td><code>'pepfunn'</code></td>
+<td><code>RepEngineFP</code></td>
+<td>Requires <code>pepfunn</code> package.</td>
+</tr>
+<tr>
+<td><code>'one-hot'</code></td>
+<td><code>RepEngineOnehot</code></td>
+<td>One-hot encoding of canonical sequences (max length 50).</td>
+</tr>
+<tr>
+<td><code>'esm2-8m'</code></td>
+<td><code>RepEngineLM</code></td>
+<td>ESM-2 8M parameter model.</td>
+</tr>
+<tr>
+<td><code>'esm2-35m'</code></td>
+<td><code>RepEngineLM</code></td>
+<td>ESM-2 35M parameter model.</td>
+</tr>
+<tr>
+<td><code>'esm2-150m'</code></td>
+<td><code>RepEngineLM</code></td>
+<td>ESM-2 150M parameter model.</td>
+</tr>
+<tr>
+<td><code>'esm2-650m'</code></td>
+<td><code>RepEngineLM</code></td>
+<td>ESM-2 650M parameter model.</td>
+</tr>
+<tr>
+<td><code>'esm2-3b'</code></td>
+<td><code>RepEngineLM</code></td>
+<td>ESM-2 3B parameter model.</td>
+</tr>
+<tr>
+<td><code>'esm2-15b'</code></td>
+<td><code>RepEngineLM</code></td>
+<td>ESM-2 15B parameter model.</td>
+</tr>
+<tr>
+<td><code>'prot-t5-xl'</code></td>
+<td><code>RepEngineLM</code></td>
+<td>ProtT5-XL encoder.</td>
+</tr>
+<tr>
+<td><code>'ankh-base'</code></td>
+<td><code>RepEngineLM</code></td>
+<td>ANKH base model.</td>
+</tr>
+<tr>
+<td><code>'molformer-xl'</code></td>
+<td><code>RepEngineLM</code></td>
+<td>IBM MoLFormer-XL (SMILES-based).</td>
+</tr>
+<tr>
+<td><code>'chemberta-2'</code></td>
+<td><code>RepEngineLM</code></td>
+<td>ChemBERTa 77M (SMILES-based).</td>
+</tr>
+<tr>
+<td><code>'peptideclm'</code></td>
+<td><code>RepEngineLM</code></td>
+<td>PeptideCLM 23M (SMILES-based). Requires <code>smilesPE</code>.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="split-strategies">Split Strategies<a class="headerlink" href="#split-strategies" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Strategy</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>'random'</code></td>
+<td>80/20 random split (no similarity awareness).</td>
+</tr>
+<tr>
+<td><code>'min'</code></td>
+<td>Uses <a href="https://github.com/IBM/Hestia-OOD">Hestia</a> to compute similarity-based partitions and selects the least-leaky split. Recommended for trustworthy evaluation.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="dependencies">Dependencies<a class="headerlink" href="#dependencies" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>pandas</code>, <code>numpy</code></li>
+<li><code>pyyaml</code>, <code>tqdm</code></li>
+<li><code>hestia</code> (for similarity-based partitioning)</li>
+<li><code>rdkit</code> (for SMILES handling and molecular weight, when using fingerprints or negative sampling)</li>
+<li><code>torch</code>, <code>transformers</code> (for language model representations)</li>
+<li><code>optuna</code> (for HPO)</li>
+<li><code>onnxmltools</code>, <code>onnxruntime</code>, <code>skl2onnx</code> (for model export and inference)</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/IBM/AutoPeptideML" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M202.1 328.7c0 20.9-10.9 55.1-36.7 55.1s-36.7-34.2-36.7-55.1 10.9-55.1 36.7-55.1 36.7 34.2 36.7 55.1M496 278.2c0 31.9-3.2 65.7-17.5 95-37.9 76.6-142.1 74.8-216.7 74.8-75.8 0-186.2 2.7-225.6-74.8-14.6-29-20.2-63.1-20.2-95 0-41.9 13.9-81.5 41.5-113.6-5.2-15.8-7.7-32.4-7.7-48.8 0-21.5 4.9-32.3 14.6-51.8 45.3 0 74.3 9 108.8 36 29-6.9 58.8-10 88.7-10 27 0 54.2 2.9 80.4 9.2 34-26.7 63-35.2 107.8-35.2 9.8 19.5 14.6 30.3 14.6 51.8 0 16.4-2.6 32.7-7.7 48.2 27.5 32.4 39 72.3 39 114.2m-64.3 50.5c0-43.9-26.7-82.6-73.5-82.6-18.9 0-37 3.4-56 6-14.9 2.3-29.8 3.2-45.1 3.2-15.2 0-30.1-.9-45.1-3.2-18.7-2.6-37-6-56-6-46.8 0-73.5 38.7-73.5 82.6 0 87.8 80.4 101.3 150.4 101.3h48.2c70.3 0 150.6-13.4 150.6-101.3m-82.6-55.1c-25.8 0-36.7 34.2-36.7 55.1s10.9 55.1 36.7 55.1 36.7-34.2 36.7-55.1-10.9-55.1-36.7-55.1"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.code.annotate", "navigation.tabs", "navigation.top"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
