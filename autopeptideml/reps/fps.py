@@ -10,6 +10,55 @@ except ImportError:
     raise ImportError("You need to install rdkit to use this method.",
                       " Try: `pip install rdkit`")
 
+# Mapping from lowercase string keys to skfp fingerprint classes.
+# Populated lazily on first use so that importing this module does not require
+# scikit-fingerprints to be installed.
+_SKFP_CLASS_MAP: Optional[Dict[str, Any]] = None
+
+
+def _get_skfp_class_map() -> Dict[str, Any]:
+    global _SKFP_CLASS_MAP
+    if _SKFP_CLASS_MAP is not None:
+        return _SKFP_CLASS_MAP
+    try:
+        import skfp.fingerprints as _sfp
+    except ImportError:
+        raise ImportError(
+            "You need to install scikit-fingerprints to use skfp-backed fingerprints. "
+            "Try: `pip install scikit-fingerprints`"
+        )
+    _SKFP_CLASS_MAP = {
+        'atompair':                  _sfp.AtomPairFingerprint,
+        'autocorr':                  _sfp.AutocorrFingerprint,
+        'avalon':                    _sfp.AvalonFingerprint,
+        'bcut2d':                    _sfp.BCUT2DFingerprint,
+        'ecfp':                      _sfp.ECFPFingerprint,
+        'erg':                       _sfp.ERGFingerprint,
+        'estate':                    _sfp.EStateFingerprint,
+        'functionalgroups':          _sfp.FunctionalGroupsFingerprint,
+        'ghosecrippen':              _sfp.GhoseCrippenFingerprint,
+        'klekotaroth':               _sfp.KlekotaRothFingerprint,
+        'laggner':                   _sfp.LaggnerFingerprint,
+        'layered':                   _sfp.LayeredFingerprint,
+        'lingo':                     _sfp.LingoFingerprint,
+        'maccs':                     _sfp.MACCSFingerprint,
+        'map':                       _sfp.MAPFingerprint,
+        'mhfp':                      _sfp.MHFPFingerprint,
+        'mordred':                   _sfp.MordredFingerprint,
+        'mqns':                      _sfp.MQNsFingerprint,
+        'pattern':                   _sfp.PatternFingerprint,
+        'pharmacophore':             _sfp.PharmacophoreFingerprint,
+        'pubchem':                   _sfp.PubChemFingerprint,
+        'rdkit':                     _sfp.RDKitFingerprint,
+        'rdkit2d':                   _sfp.RDKit2DDescriptorsFingerprint,
+        'secfp':                     _sfp.SECFPFingerprint,
+        'topologicaltorsion':        _sfp.TopologicalTorsionFingerprint,
+        'usr':                       _sfp.USRFingerprint,
+        'usrcat':                    _sfp.USRCATFingerprint,
+        'vsa':                       _sfp.VSAFingerprint,
+    }
+    return _SKFP_CLASS_MAP
+
 
 class PepFunn_Generator:
     radius: int = 2
@@ -168,3 +217,55 @@ class RepEngineFP(RepEngineBase):
           :return: The number of bits in the fingerprint (i.e., `nbits`).
         """
         return self.nbits
+
+
+class RepEngineSkfp(RepEngineBase):
+    """
+    Wraps any `scikit-fingerprints` (skfp) fingerprint class as a
+    `RepEngineBase`-compatible engine.
+
+    Attributes:
+        :type engine: str
+        :param engine: Fixed to ``'skfp'``.
+
+        :type name: str
+        :param name: ``'skfp-<rep>'``, e.g. ``'skfp-maccs'``.
+
+        :type generator: BaseFingerprintTransformer
+        :param generator: The underlying skfp transformer instance.
+    """
+    engine = 'skfp'
+
+    def __init__(self, rep: str, **kwargs):
+        """
+        :type rep: str
+          :param rep: Lowercase fingerprint key, e.g. ``'maccs'``, ``'ecfp'``,
+              ``'atompair'``. See :func:`_get_skfp_class_map` for all valid keys.
+
+        :type **kwargs: dict
+          :param **kwargs: Forwarded verbatim to the skfp fingerprint constructor
+              (e.g. ``fp_size``, ``radius``, ``count``).
+        """
+        super().__init__(rep, **kwargs)
+        self.generator = self._load_generator(rep, **kwargs)
+        self.name = f'{self.engine}-{rep}'
+
+    def _load_generator(self, rep: str, **kwargs):
+        class_map = _get_skfp_class_map()
+        key = rep.lower()
+        if key not in class_map:
+            raise NotImplementedError(
+                f"skfp fingerprint '{rep}' is not supported. "
+                f"Valid keys: {sorted(class_map)}"
+            )
+        return class_map[key](**kwargs)
+
+    def _preprocess_batch(self, batch: List[str]) -> List[str]:
+        # skfp accepts SMILES strings directly; no preprocessing needed.
+        return list(batch)
+
+    def _rep_batch(self, batch: List[str]) -> np.ndarray:
+        return self.generator.transform(batch)
+
+    def dim(self) -> int:
+        return int(self.generator.n_features_out)
