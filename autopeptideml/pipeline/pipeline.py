@@ -245,7 +245,7 @@ class Pipeline:
         yaml.safe_dump(self.properties, open(filename, 'w'))
 
     @classmethod
-    def load(self, filename: str, element_registry: dict):
+    def load(cls, filename: str, element_registry: dict) -> "Pipeline":
         """
         Loads a pipeline from a YAML file and reconstructs its elements using a registry.
 
@@ -258,8 +258,11 @@ class Pipeline:
         :rtype: Pipeline
           :return: A reconstructed `Pipeline` instance based on the saved properties.
         """
-        self.properties = json.load(open(filename))
+        with open(filename) as f:
+            properties = yaml.safe_load(f)
         elements = []
-        for e, e_prop in self.config.items():
-            elements.append(element_registry[e](**e_prop))
-        return Pipeline(elements)
+        for e_dict in properties.get('elements', []):
+            for e_name, e_prop in e_dict.items():
+                elements.append(element_registry[e_name](**(e_prop or {})))
+        return Pipeline(elements, name=properties.get('name', 'pipeline'),
+                        aggregate=properties.get('aggregate', False))
