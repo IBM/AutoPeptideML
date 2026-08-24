@@ -136,7 +136,7 @@ class VotingEnsemble:
                 t_pred = model.predict(x[rep])
                 out.append(t_pred)
         else:
-            self.dims = {rep: x.shape[1]}
+            self.dims = {r: x.shape[1] for r in self.reps}
 
             for model in self.models:
                 t_pred = model.predict(x)

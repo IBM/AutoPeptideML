@@ -36,7 +36,7 @@ def define_dataset(dataset: str, task: str, neg: bool = False):
         if neg:
             columns_to_exclude = Prompt().checkbox(
                 "What columns describe a bioactivity you would like to exclude from the negative class?",
-                options=columns(),
+                options=columns,
                 min_selections=0
             )
             return feat_field, columns_to_exclude

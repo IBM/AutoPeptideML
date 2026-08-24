@@ -35,7 +35,7 @@ class EarlyStoppingCallback(object):
             self._operator = operator.gt
             self._score = -np.inf
         else:
-            ValueError(f"invalid direction: {direction}")
+            raise ValueError(f"invalid direction: {direction}")
 
     def __call__(self, study, trial) -> None:
         """Do early stopping."""

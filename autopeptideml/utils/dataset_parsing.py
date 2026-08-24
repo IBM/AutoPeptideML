@@ -22,7 +22,7 @@ def read_data(path: str) -> pd.DataFrame:
     if osp.isdir(path):
         for filepath in listdir(path):
             filepath = osp.join(path, filepath)
-            df = pd.concat([df, read_data(path)])
+            df = pd.concat([df, read_data(filepath)])
     else:
         df = pd.concat([df, read_file(path)])
     return df
@@ -35,15 +35,17 @@ def _read_smi(path: str) -> pd.DataFrame:
 
 def _read_fasta(path: str) -> pd.DataFrame:
     out = []
+    entry = None
     text = [r.strip() for r in open(path).readlines()]
-    for idx, line in enumerate(text):
+    for line in text:
         if line.startswith(">"):
-            if idx > 0:
+            if entry is not None:
                 out.append(entry)
-
             entry = {"header": line, "sequence": ""}
-        else:
+        elif entry is not None:
             entry["sequence"] += line
+    if entry is not None:
+        out.append(entry)
     return pd.DataFrame(out)
 
 
