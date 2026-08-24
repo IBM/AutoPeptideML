@@ -142,7 +142,9 @@ class TestPreprocessing:
                              sequence_field="sequence",
                              label_field="label")
         apml._preprocessing_data(n_jobs=1, verbose=False)
-        assert apml.df["apml-smiles"].dtype == object
+        # Accept both object and pandas StringDtype — both represent string columns.
+        import pandas.api.types as pat
+        assert pat.is_string_dtype(apml.df["apml-smiles"])
 
 
 # ---------------------------------------------------------------------------
@@ -172,10 +174,12 @@ class TestBuildModels:
 
     def test_regression_ecfp(self, output_root):
         rng = np.random.default_rng(0)
-        # Use 30 unique sequences so the random 80/20 split leaves enough train samples
+        # Use 40 unique sequences. Use 'rf' (Random Forest) rather than 'svm'
+        # because SVR can produce zero-support-vector models on small datasets
+        # which skl2onnx cannot serialise.
         aa = "ACDEFGHIKLMNPQRSTVWY"
-        seqs = [aa[i % 20] * 5 + aa[(i + 1) % 20] * 3 for i in range(30)]
-        values = rng.standard_normal(30).tolist()
+        seqs = [aa[i % 20] * 5 + aa[(i + 1) % 20] * 3 for i in range(40)]
+        values = rng.standard_normal(40).tolist()
         df = pd.DataFrame({"sequence": seqs, "value": values})
         apml = AutoPeptideML(df, output_root,
                              sequence_field="sequence",
@@ -183,7 +187,7 @@ class TestBuildModels:
         apml.build_models(
             task="reg",
             reps=["ecfp-4-512"],
-            models=["svm"],
+            models=["rf"],
             split_strategy="random",
             n_trials=4,
             n_folds_cv=2,
