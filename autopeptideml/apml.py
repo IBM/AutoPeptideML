@@ -43,10 +43,7 @@ class AutoPeptideML:
     :rtype: AutoPeptideML
     """
     df: pd.DataFrame
-    metadata: dict = {}
     parts = None
-    x: dict = {}
-    execution: dict = {}
     hpo_run: int = 1
 
     def __init__(
@@ -81,6 +78,12 @@ class AutoPeptideML:
                        sep='\t')
         if remove_duplicates:
             self.df.drop_duplicates(subset=self.sequence_field, inplace=True)
+        self.metadata = {}
+        self.x = {}
+        self.execution = {}
+        self.repengines = {}
+        self.p_it = 1
+        self.preprocessed = False
         self.metadata['start-time'] = self._get_current_timestamp()
         self.metadata['outputdir'] = self.outputdir
         self.metadata['autopeptideml-version'] = __version__
@@ -90,8 +93,6 @@ class AutoPeptideML:
         self.metadata['removed-entries'] = len(data) - len(self.df)
         self.metadata['original-size'] = len(data)
         self.metadata['status'] = 'started'
-        self.p_it = 1
-        self.preprocessed = False
         self._save_metadata()
 
     def _get_current_timestamp(self) -> str:
@@ -417,7 +418,6 @@ class AutoPeptideML:
         if all_available:
             return
         reps = [r for r in reps if r not in self.x]
-        self.repengines = {}
 
         self.metadata['status'] = 'representing'
         self._save_metadata()
