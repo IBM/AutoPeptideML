@@ -55,7 +55,7 @@ class AutoPeptideML:
         remove_duplicates: bool = True
     ):
         outputdir = osp.join(outputdir, self._get_current_timestamp())
-        self.outputdir = outputdir.replace(' ', '_')
+
         self.meta_dir = osp.join(self.outputdir, 'metadata')
         os.makedirs(self.outputdir, exist_ok=False)
         os.makedirs(self.meta_dir, exist_ok=True)
@@ -96,7 +96,7 @@ class AutoPeptideML:
         self._save_metadata()
 
     def _get_current_timestamp(self) -> str:
-        return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        return datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
 
     def _save_metadata(self):
         self.metadata['last-update'] = self._get_current_timestamp()
