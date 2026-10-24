@@ -54,7 +54,7 @@ class AutoPeptideML:
         label_field: str = None,
         remove_duplicates: bool = True
     ):
-        outputdir = osp.join(outputdir, self._get_current_timestamp())
+        self.outputdir = osp.join(outputdir, self._get_current_timestamp())
 
         self.meta_dir = osp.join(self.outputdir, 'metadata')
         os.makedirs(self.outputdir, exist_ok=False)
